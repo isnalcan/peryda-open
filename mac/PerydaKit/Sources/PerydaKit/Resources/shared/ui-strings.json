@@ -311,6 +311,12 @@
     "de": "Öffnen",
     "es": "Abrir"
   },
+  "explainTerms": {
+    "tr": "Terimleri parantez içinde açıkla",
+    "en": "Explain terms in brackets",
+    "de": "Begriffe in Klammern erklären",
+    "es": "Explicar los términos entre paréntesis"
+  },
   "exportData": {
     "tr": "Dışa aktar",
     "en": "Export",

@@ -140,6 +140,10 @@ public struct Prompts: Decodable, Sendable {
     public let pageTranslateSystem: Localized
     public let pageTranslate: Localized
     public let pageTranslateScanned: Localized
+    /// The same three without the rule that explains hard terms in brackets.
+    public let pageTranslateSystemNoTerms: Localized
+    public let pageTranslateNoTerms: Localized
+    public let pageTranslateScannedNoTerms: Localized
     public let contextTemplate: Localized
     public let areaSelection: Localized
 }

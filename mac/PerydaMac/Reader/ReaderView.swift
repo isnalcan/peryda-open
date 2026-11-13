@@ -36,6 +36,7 @@ struct ReaderView: View {
         .onDisappear { reader?.close() }
         .onChange(of: app.settings) { _, s in reader?.cards.settings = s }
         .onChange(of: app.lang) { _, l in reader?.cards.lang = l }
+        .onChange(of: app.explainTerms) { _, on in reader?.cards.explainTerms = on }
     }
 }
 
@@ -152,6 +153,8 @@ struct ReaderSurface: View {
                             }
                         }
                     }
+                    Divider()
+                    Toggle(t["explainTerms"], isOn: Binding(get: { app.explainTerms }, set: { app.explainTerms = $0 }))
                     Divider()
                     Button(t["translateRange"]) { reader.askingRange = true }
                     Button(t["extractText"]) { reader.extractingPage = .init(page: reader.currentPage) }
@@ -329,6 +332,7 @@ struct ReaderCommands: Commands {
                 .disabled(reader?.document == nil)
             Button(t["translateRange"]) { reader?.askingRange = true }
                 .disabled(reader?.document == nil)
+            Toggle(t["explainTerms"], isOn: Binding(get: { model.explainTerms }, set: { model.explainTerms = $0 }))
             Button(t["extractText"]) { if let reader { reader.extractingPage = .init(page: reader.currentPage) } }
             Button(t["stopTranslating"]) { reader?.stopTranslating(lang: model.lang) }
                 .keyboardShortcut(".", modifiers: [.command])

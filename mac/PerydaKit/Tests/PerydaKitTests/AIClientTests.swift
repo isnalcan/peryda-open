@@ -277,6 +277,28 @@ struct ComposeTests {
         #expect(Compose.pageTranslationSystem(target: .tr).hasPrefix("Sen okuma ve çalışma atölyesinin baş çevirmeni ve akademik editörüsün."))
     }
 
+    /// Hard terms are explained in brackets unless the reader turns it off; then the same rules go
+    /// without that one, in every language.
+    @Test func pageTranslationsExplainTermsOnlyWhenAsked() {
+        let brackets: [Lang: String] = [.tr: "parantez", .en: "bracket", .de: "klammer", .es: "paréntesis"]
+        func words(_ target: Lang, _ explain: Bool, image: String? = nil) -> String {
+            let turns = Compose.pageTranslationTurns(target: target, file: "Freud", page: 4, pages: 20, text: "Page text.", imageDataURL: image, explainTerms: explain)
+            guard case .text(let t) = turns[0].parts.last else { return "" }
+            return (Compose.pageTranslationSystem(target: target, explainTerms: explain) + "\n" + t).lowercased()
+        }
+        let scan = "data:image/jpeg;base64,/9j/"
+        for l in Lang.allCases {
+            let word = brackets[l]!
+            #expect(words(l, true).contains(word), "\(l)")
+            #expect(words(l, true, image: scan).contains(word), "\(l)")
+            #expect(!words(l, false).contains(word), "\(l)")
+            #expect(!words(l, false, image: scan).contains(word), "\(l)")
+            #expect(words(l, false).hasSuffix("page text."), "\(l)")
+        }
+        // The default is on.
+        #expect(Compose.pageTranslationSystem(target: .tr) == Compose.pageTranslationSystem(target: .tr, explainTerms: true))
+    }
+
     @Test func settingsSavedBeforeFourProvidersStillLoadAndResolve() throws {
         let old = #"{"activeProvider":"openai","geminiApiKey":"AIzaSyExampleKey1234","geminiModel":"","openaiApiKey":"","openaiModel":""}"#
         let s = try JSONDecoder().decode(ByokSettings.self, from: Data(old.utf8))

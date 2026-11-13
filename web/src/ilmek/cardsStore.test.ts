@@ -115,6 +115,21 @@ describe('page translation', () => {
     expect(s.translatePages([page(4)], 'tr')).toEqual([])
   })
 
+  it('leaves out the bracket explanations of terms when the reader turned them off', async () => {
+    const { requests, streamer } = recorder()
+    const s = store(keyed, streamer, new FakeBatcher())
+    s.explainTerms = false
+    s.translatePages([page(4)], 'tr')
+    await s.waitForIdle()
+    expect(requests).toHaveLength(1)
+    for (const req of requests) {
+      expect(req.system.startsWith('Sen okuma ve çalışma atölyesinin baş çevirmeni')).toBe(true)
+      expect(req.system).not.toMatch(/parantez/i)
+      const prompt = req.turns[0]!.parts[0]!
+      expect(prompt.type === 'text' && !/parantez/i.test(prompt.text)).toBe(true)
+    }
+  })
+
   it('more than two pages with Gemini go as one batch job, which keeps waiting across a reload', async () => {
     const { requests, streamer } = recorder()
     const batcher = new FakeBatcher()

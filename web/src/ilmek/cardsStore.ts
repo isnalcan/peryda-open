@@ -106,6 +106,8 @@ export class CardsStore {
   settings: ByokSettings
   /** The book's page count, for the "page n of m" line sent with a page. */
   pageCount = 0
+  /** Page translations explain hard terms in brackets (the reader's choice; pages already translated keep theirs). */
+  explainTerms = true
   readonly bookId: string
 
   private readonly streamer: Streamer
@@ -359,8 +361,8 @@ export class CardsStore {
       provider,
       apiKey: keyFor(this.settings, provider),
       model,
-      system: pageTranslationSystem(target),
-      turns: pageTranslationTurns(target, this.bookTitle, card.translatedPage ?? anchor?.pageNumber ?? 1, this.pageCount, anchor?.selectedText ?? '', anchor?.croppedImage),
+      system: pageTranslationSystem(target, this.explainTerms),
+      turns: pageTranslationTurns(target, this.bookTitle, card.translatedPage ?? anchor?.pageNumber ?? 1, this.pageCount, anchor?.selectedText ?? '', anchor?.croppedImage, this.explainTerms),
       maxOutputTokens: ModelAdvice.maxOutputTokens(provider, 'translation'),
       temperature: ModelAdvice.temperature('translation'),
       candidates: provider === 'gemini' ? ModelAdvice.geminiChain(model) : undefined,

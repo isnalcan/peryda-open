@@ -34,6 +34,10 @@ final class AppModel {
     var lang: Lang {
         didSet { UserDefaults.standard.set(lang.rawValue, forKey: "lang") }
     }
+    /// Page translations explain hard terms in brackets; on unless the reader turns it off (all books).
+    var explainTerms = UserDefaults.standard.object(forKey: "explainTerms") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(explainTerms, forKey: "explainTerms") }
+    }
     var theme: ThemePreference {
         didSet {
             UserDefaults.standard.set(theme.rawValue, forKey: "theme")

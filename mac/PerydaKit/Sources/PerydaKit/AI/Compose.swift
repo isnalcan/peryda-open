@@ -78,17 +78,23 @@ public enum Compose {
     }
 
     /// Whole-page translation into `target`: the editor's rules, then the page (its text, or its
-    /// picture with an OCR-and-translate instruction when it has no text layer).
-    public static func pageTranslationSystem(target: Lang) -> String {
-        SharedContract.prompts.pageTranslateSystem.text(target)
+    /// picture with an OCR-and-translate instruction when it has no text layer). With `explainTerms`
+    /// (the reader's choice, on by default) hard terms get a short explanation in brackets; without it
+    /// the same rules leave that out.
+    public static func pageTranslationSystem(target: Lang, explainTerms: Bool = true) -> String {
+        let p = SharedContract.prompts
+        return (explainTerms ? p.pageTranslateSystem : p.pageTranslateSystemNoTerms).text(target)
     }
 
-    public static func pageTranslationTurns(target: Lang, file: String, page: Int, pages: Int, text: String, imageDataURL: String?) -> [AITurn] {
+    public static func pageTranslationTurns(target: Lang, file: String, page: Int, pages: Int, text: String, imageDataURL: String?, explainTerms: Bool = true) -> [AITurn] {
+        let p = SharedContract.prompts
         let values = ["file": promptTitle(file), "page": String(page), "pages": String(max(pages, page))]
         if let image = imageDataURL, let part = imagePart(image) {
-            return [AITurn(role: .user, parts: [part, .text(fill(SharedContract.prompts.pageTranslateScanned.text(target), values))])]
+            let scanned = explainTerms ? p.pageTranslateScanned : p.pageTranslateScannedNoTerms
+            return [AITurn(role: .user, parts: [part, .text(fill(scanned.text(target), values))])]
         }
-        return [AITurn(role: .user, parts: [.text(fill(SharedContract.prompts.pageTranslate.text(target), values.merging(["text": text]) { a, _ in a }))])]
+        let instruction = explainTerms ? p.pageTranslate : p.pageTranslateNoTerms
+        return [AITurn(role: .user, parts: [.text(fill(instruction.text(target), values.merging(["text": text]) { a, _ in a }))])]
     }
 
     /// A `data:` URL as an image part.

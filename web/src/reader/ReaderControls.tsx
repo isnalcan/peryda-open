@@ -124,13 +124,16 @@ export function PageNav(props: {
   )
 }
 
-/** "Translate this page" with a menu: the language, a range of pages, the page's text. */
+/** "Translate this page" with a menu: the language, explaining terms or not, a range of pages, the page's text. */
 export function TranslateMenu(props: {
   target: Lang
   /** Pages still on their way (being prepared, waiting, streaming or in a batch job). */
   pending: number
   onStop: () => void
   onTranslate: (target?: Lang) => void
+  /** Hard terms explained in brackets in new translations. */
+  explainTerms: boolean
+  onExplainTerms: (on: boolean) => void
   onRange: () => void
   onExtract: () => void
 }) {
@@ -187,6 +190,11 @@ export function TranslateMenu(props: {
               {LANGUAGE_NAMES[l].replace(/^./, (c) => c.toLocaleUpperCase(l))}
             </button>
           ))}
+          <hr />
+          <button type="button" role="menuitemcheckbox" aria-checked={props.explainTerms} onClick={pick(() => props.onExplainTerms(!props.explainTerms))}>
+            <span className="menu-check">{props.explainTerms && <CheckIcon size={14} />}</span>
+            {t.explainTerms}
+          </button>
           <hr />
           <button type="button" role="menuitem" onClick={pick(props.onRange)}>
             <span className="menu-check" />

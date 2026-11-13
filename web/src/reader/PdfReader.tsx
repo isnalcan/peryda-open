@@ -55,6 +55,8 @@ interface Opened {
   page: number
   paged: boolean
   target: Lang
+  /** Translations explain hard terms in brackets (a reader preference, on unless turned off). */
+  explainTerms: boolean
 }
 
 export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: Props) {
@@ -71,10 +73,11 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
         if (!file) throw new Error('missing file')
         doc = await openPdf(await file.blob.arrayBuffer())
         const sizes = await pageSizes(doc)
-        const [saved, paged, target] = await Promise.all([
+        const [saved, paged, target, explainTerms] = await Promise.all([
           db.positions.get(book.id),
           getPref<boolean>('pagedReading', false),
           getPref<Lang | null>(`translateLang:${book.id}`, null),
+          getPref<boolean>('explainTerms', true),
         ])
         if (cancelled) return
         setOpened({
@@ -84,6 +87,7 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
           page: Math.min(Math.max(1, saved?.page ?? 1), doc.numPages),
           paged,
           target: target ?? lang,
+          explainTerms,
         })
         void db.books.update(book.id, { openedAt: Date.now() })
       } catch {
@@ -227,6 +231,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const [pagedPage, setPagedPage] = useState(opened.page)
   const [shortQuotes, setShortQuotes] = useState<ReadonlySet<string>>(() => new Set())
   const [translationTarget, setTranslationTarget] = useState<Lang>(opened.target)
+  const [explainTerms, setExplainTerms] = useState(opened.explainTerms)
   const [askingRange, setAskingRange] = useState(false)
   const [extractingPage, setExtractingPage] = useState<number | null>(null)
   const [pageMenu, setPageMenu] = useState<{ x: number; y: number; page: number } | null>(null)
@@ -236,6 +241,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const pageTexts = useMemo(() => new PageTextCache(doc), [doc])
   const { store, cards, create, ask, retry, stop, remove, update, resize } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
   store.pageCount = pages.length
+  store.explainTerms = explainTerms
   const actions = useThreadActions({ bookId: book.id, cards, t })
 
   // ---- Where the reader is ----
@@ -975,6 +981,11 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
           pending={pendingTranslations}
           onStop={stopTranslating}
           onTranslate={(target) => startTranslating(currentPage, target ?? translationTarget)}
+          explainTerms={explainTerms}
+          onExplainTerms={(on) => {
+            setExplainTerms(on)
+            void setPref('explainTerms', on)
+          }}
           onRange={() => setAskingRange(true)}
           onExtract={() => setExtractingPage(currentPage)}
         />

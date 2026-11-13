@@ -170,6 +170,8 @@ public final class CardsModel {
 
     /// The book's page count, for the "page n of m" line sent with a page.
     public var pageCount = 0
+    /// Page translations explain hard terms in brackets (the reader's choice; pages already translated keep theirs).
+    public var explainTerms = true
 
     /// A page to translate: its text layer, or (for a scanned page) its picture.
     public struct PageSource: Sendable {
@@ -324,8 +326,8 @@ public final class CardsModel {
             provider: provider,
             apiKey: settings.key(for: provider),
             model: model,
-            system: Compose.pageTranslationSystem(target: target),
-            turns: Compose.pageTranslationTurns(target: target, file: bookTitle, page: card.translatedPage ?? anchor?.pageNumber ?? 1, pages: pageCount, text: anchor?.selectedText ?? "", imageDataURL: anchor?.croppedImage),
+            system: Compose.pageTranslationSystem(target: target, explainTerms: explainTerms),
+            turns: Compose.pageTranslationTurns(target: target, file: bookTitle, page: card.translatedPage ?? anchor?.pageNumber ?? 1, pages: pageCount, text: anchor?.selectedText ?? "", imageDataURL: anchor?.croppedImage, explainTerms: explainTerms),
             maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .translation),
             temperature: ModelAdvice.temperature(.translation),
             candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil

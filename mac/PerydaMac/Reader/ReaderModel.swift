@@ -124,6 +124,7 @@ final class ReaderModel {
 
     convenience init?(book: BookRecord, app: AppModel) {
         self.init(book: book, store: app.store, lang: app.lang, settings: app.settings, streamer: app.streamer, batcher: app.batcher)
+        cards.explainTerms = app.explainTerms
     }
 
     init?(book: BookRecord, store: LibraryStore, lang: Lang, settings: ByokSettings, streamer: AnswerStreaming, batcher: PageBatching = GeminiBatch()) {

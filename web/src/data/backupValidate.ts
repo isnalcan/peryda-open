@@ -171,6 +171,7 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     case 'theme':
       return oneOf(value, THEMES) ? { key, value } : null
     case 'pagedReading':
+    case 'explainTerms':
       return typeof value === 'boolean' ? { key, value } : null
     case 'epubFontScale':
       return typeof value === 'number' && value >= 70 && value <= 180 ? { key, value } : null

@@ -153,17 +153,24 @@ export function composeTurns(lang: Lang, card: YarnCard): AiTurn[] {
   return turns
 }
 
-/** Whole-page translation into `target`: the editor's rules. */
-export function pageTranslationSystem(target: Lang): string {
-  return prompts.pageTranslateSystem[target]
+/**
+ * Whole-page translation into `target`: the editor's rules. With `explainTerms` (the reader's choice,
+ * on by default) hard terms get a short explanation in brackets; without it the same rules leave that out.
+ */
+export function pageTranslationSystem(target: Lang, explainTerms = true): string {
+  return (explainTerms ? prompts.pageTranslateSystem : prompts.pageTranslateSystemNoTerms)[target]
 }
 
 /** The page: its text, or its picture with an OCR-and-translate instruction when it has no text layer. */
-export function pageTranslationTurns(target: Lang, file: string, page: number, pages: number, text: string, imageDataUrl?: string): AiTurn[] {
+export function pageTranslationTurns(target: Lang, file: string, page: number, pages: number, text: string, imageDataUrl?: string, explainTerms = true): AiTurn[] {
   const values = { file: promptTitle(file), page, pages: Math.max(pages, page) }
   const image = imageDataUrl ? imagePart(imageDataUrl) : null
-  if (image) return [{ role: 'user', parts: [image, { type: 'text', text: fill(prompts.pageTranslateScanned[target], values) }] }]
-  return [{ role: 'user', parts: [{ type: 'text', text: fill(prompts.pageTranslate[target], { ...values, text }) }] }]
+  if (image) {
+    const scanned = explainTerms ? prompts.pageTranslateScanned : prompts.pageTranslateScannedNoTerms
+    return [{ role: 'user', parts: [image, { type: 'text', text: fill(scanned[target], values) }] }]
+  }
+  const instruction = explainTerms ? prompts.pageTranslate : prompts.pageTranslateNoTerms
+  return [{ role: 'user', parts: [{ type: 'text', text: fill(instruction[target], { ...values, text }) }] }]
 }
 
 /** Reading a scanned page's text from its picture ("extract page text" without a text layer). */

@@ -46,6 +46,7 @@ async function hostileBackup(): Promise<Blob> {
       { key: 'welcomed', value: true },
       { key: 'epubFontScale', value: 9000 },
       { key: 'pagedReading', value: true },
+      { key: 'explainTerms', value: false },
       { key: 'translateLang:b1', value: 'de' },
       { key: 'translateLang:someone-else', value: 'de' },
       { key: 'journalSummary:b1', value: { text: 42 } },
@@ -96,7 +97,7 @@ describe('a hostile backup', () => {
     expect((await db.journal.toArray()).map((j) => j.id)).toEqual(['j1'])
     expect(await db.positions.get('b1')).toMatchObject({ panX: 0, scale: 1, page: 1, cfi: 'epubcfi(/6/2)' })
     const prefs = Object.fromEntries((await db.prefs.toArray()).map((p) => [p.key, p.value]))
-    expect(prefs).toEqual({ welcomed: true, pagedReading: true, 'translateLang:b1': 'de' })
+    expect(prefs).toEqual({ welcomed: true, pagedReading: true, explainTerms: false, 'translateLang:b1': 'de' })
 
     // Even with bad values already stored (an older version, a broken profile), the app starts.
     await db.prefs.bulkPut([{ key: 'lang', value: 'zz' }, { key: 'theme', value: { x: 1 } }, { key: 'openBookId', value: { id: 'b1' } }])
