@@ -581,6 +581,24 @@
     "de": "Vorherige Seite",
     "es": "Página anterior"
   },
+  "privacy": {
+    "tr": "Gizlilik",
+    "en": "Privacy",
+    "de": "Datenschutz",
+    "es": "Privacidad"
+  },
+  "privacyIntro": {
+    "tr": "Peryda'nın hesabı, sunucusu, ölçümü ya da reklamı yok. Kitapların ve notların bu cihazda kalır; Pery'ye sorduğunda istek doğrudan seçtiğin sağlayıcıya gider.",
+    "en": "Peryda has no account, no server, no analytics and no ads. Your books and notes stay on this device; when you ask Pery, the request goes straight to the provider you chose.",
+    "de": "Peryda hat kein Konto, keinen Server, keine Analyse und keine Werbung. Deine Bücher und Notizen bleiben auf diesem Gerät; wenn du Pery fragst, geht die Anfrage direkt an den Anbieter, den du gewählt hast.",
+    "es": "Peryda no tiene cuenta, ni servidor, ni analítica, ni anuncios. Tus libros y notas se quedan en este dispositivo; cuando preguntas a Pery, la petición va directamente al proveedor que elegiste."
+  },
+  "privacyRead": {
+    "tr": "Gizlilik metninin tamamı",
+    "en": "The full privacy text",
+    "de": "Der vollständige Datenschutztext",
+    "es": "El texto de privacidad completo"
+  },
   "provider_claude": {
     "tr": "Claude",
     "en": "Claude",

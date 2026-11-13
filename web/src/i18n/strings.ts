@@ -153,6 +153,10 @@ const tr = {
   welcomeLater: 'Şimdilik değil',
   backup: 'Yedek',
   backupIntro: 'Kitapların, ilmeklerin ve günlüğün bu cihazda saklanır. Başka bir yere taşımak ya da korumak için tek bir dosyaya aktar. Anahtarlar yedeğe girmez. Yedek dosyası şifresizdir; güvendiğin bir yerde sakla.',
+  privacy: 'Gizlilik',
+  privacyIntro:
+    'Peryda\'nın hesabı, sunucusu, ölçümü ya da reklamı yok. Kitapların ve notların bu cihazda kalır; Pery\'ye sorduğunda istek doğrudan seçtiğin sağlayıcıya gider.',
+  privacyRead: 'Gizlilik metninin tamamı',
   exportData: 'Dışa aktar',
   importData: 'Yedekten yükle',
   exported: 'Yedek dosyası hazırlandı',
@@ -326,6 +330,10 @@ const en: Strings = {
   welcomeLater: 'Not now',
   backup: 'Backup',
   backupIntro: 'Your books, threads and journal are stored on this device. Export them to one file to move or keep them safe. Keys are never included. The backup file is not encrypted; keep it somewhere you trust.',
+  privacy: 'Privacy',
+  privacyIntro:
+    'Peryda has no account, no server, no analytics and no ads. Your books and notes stay on this device; when you ask Pery, the request goes straight to the provider you chose.',
+  privacyRead: 'The full privacy text',
   exportData: 'Export',
   importData: 'Restore from backup',
   exported: 'Backup file ready',
@@ -494,6 +502,10 @@ const de: Strings = {
   welcomeLater: 'Nicht jetzt',
   backup: 'Sicherung',
   backupIntro: 'Deine Bücher, Fäden und dein Journal werden auf diesem Gerät gespeichert. Exportiere sie in eine Datei, um sie umzuziehen oder zu sichern. Schlüssel sind nie enthalten. Die Sicherungsdatei ist nicht verschlüsselt; bewahre sie an einem vertrauenswürdigen Ort auf.',
+  privacy: 'Datenschutz',
+  privacyIntro:
+    'Peryda hat kein Konto, keinen Server, keine Analyse und keine Werbung. Deine Bücher und Notizen bleiben auf diesem Gerät; wenn du Pery fragst, geht die Anfrage direkt an den Anbieter, den du gewählt hast.',
+  privacyRead: 'Der vollständige Datenschutztext',
   exportData: 'Exportieren',
   importData: 'Aus Sicherung wiederherstellen',
   exported: 'Sicherungsdatei bereit',
@@ -661,6 +673,10 @@ const es: Strings = {
   welcomeLater: 'Ahora no',
   backup: 'Copia de seguridad',
   backupIntro: 'Tus libros, hilos y diario se guardan en este dispositivo. Expórtalos a un archivo para moverlos o protegerlos. Las claves nunca se incluyen. El archivo de copia no está cifrado; guárdalo en un lugar de confianza.',
+  privacy: 'Privacidad',
+  privacyIntro:
+    'Peryda no tiene cuenta, ni servidor, ni analítica, ni anuncios. Tus libros y notas se quedan en este dispositivo; cuando preguntas a Pery, la petición va directamente al proveedor que elegiste.',
+  privacyRead: 'El texto de privacidad completo',
   exportData: 'Exportar',
   importData: 'Restaurar desde una copia',
   exported: 'Archivo de copia listo',

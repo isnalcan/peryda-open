@@ -6,6 +6,8 @@ simplifies, and where you keep your own notes.
 
 The apps use **your own AI key** (Google Gemini, OpenAI, DeepSeek or Anthropic Claude). Requests go straight from your device to the
 provider you choose. There is no Peryda server in between and nothing to buy.
+What stays on your device and what goes to your provider is set out in [PRIVACY.md](PRIVACY.md)
+(also in [Türkçe](docs/privacy/tr.md), [Deutsch](docs/privacy/de.md) and [Español](docs/privacy/es.md)).
 
 - `shared/` design tokens, İlmek kinds and prompts in four languages, shared test vectors
 - `web/` the reading engine for the browser and the Windows app (React, TypeScript, pdf.js)

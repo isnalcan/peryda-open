@@ -191,3 +191,25 @@ extension LibraryAndJournalTests {
         }
     }
 }
+
+extension LibraryAndJournalTests {
+    /// The Privacy tab: the shared text in the reader's language, for a look.
+    func testPrivacySnapshot() async throws {
+        let store = try LibraryStore(root: FileManager.default.temporaryDirectory.appendingPathComponent("peryda-privacy-\(UUID().uuidString)"))
+        let app = AppModel(store: store, settings: ByokSettings(), lang: .tr)
+        XCTAssertEqual(PrivacyText.of(.tr).title, "Gizlilik")
+        for lang in Lang.allCases { XCTAssertEqual(PrivacyText.of(lang).sections.count, PrivacyText.of(.en).sections.count, "\(lang)") }
+        let window = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 600, height: 680), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = NSHostingView(rootView: PrivacySettings().environment(app).frame(width: 600, height: 680))
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil) }
+        window.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(500))
+        window.displayIfNeeded()
+        let content = try XCTUnwrap(window.contentView)
+        let rep = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+        content.cacheDisplay(in: content.bounds, to: rep)
+        let out = URL(fileURLWithPath: ProcessInfo.processInfo.environment["PERYDA_SNAPSHOT_DIR"] ?? NSTemporaryDirectory())
+        try rep.representation(using: .png, properties: [:])!.write(to: out.appendingPathComponent("peryda-mac-privacy.png"))
+    }
+}

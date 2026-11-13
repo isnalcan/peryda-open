@@ -65,6 +65,9 @@ struct SettingsView: View {
 
             BackupSettings()
                 .tabItem { Label(t["backup"], systemImage: "archivebox") }
+
+            PrivacySettings()
+                .tabItem { Label(t["privacy"], systemImage: "hand.raised") }
         }
         .frame(width: 600, height: 680)
         .onAppear {
@@ -208,5 +211,48 @@ struct BackupSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// What stays on this Mac and what goes to the reader's provider: the shared privacy text, in full.
+struct PrivacySettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let text = PrivacyText.of(model.lang)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(model.t["privacyIntro"])
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Text(text.updated)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                ForEach(Array(text.sections.enumerated()), id: \.offset) { _, section in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(section.heading).font(.headline)
+                        ForEach(Array(section.blocks.enumerated()), id: \.offset) { _, block in
+                            if let p = block.p {
+                                Text(p)
+                            } else if let items = block.ul {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                            Text("•").foregroundStyle(.secondary)
+                                            Text(item)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .font(.callout)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+        }
     }
 }

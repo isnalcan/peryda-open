@@ -19,6 +19,7 @@ import {
 } from '../ai/provider'
 import { maskKey } from '../data/keyVault'
 import { CloseIcon, KeyIcon } from '../ui/icons'
+import { privacyFor } from './privacy'
 
 export type ThemePref = 'system' | 'light' | 'dark'
 
@@ -217,6 +218,8 @@ export function SettingsDialog(props: Props) {
           </select>
         </label>
       </section>
+
+      <PrivacySection lang={props.lang} />
     </dialog>
   )
 }
@@ -278,6 +281,38 @@ function BackupSection() {
         />
       </div>
       {message && <p className="backup-message" role="status">{message}</p>}
+    </section>
+  )
+}
+
+/** What stays on this device and what goes to the reader's provider: a summary, and the full text. */
+function PrivacySection({ lang }: { lang: Lang }) {
+  const { t } = useI18n()
+  const text = privacyFor(lang)
+  return (
+    <section className="dialog-privacy">
+      <h3>{t.privacy}</h3>
+      <p className="dialog-intro">{t.privacyIntro}</p>
+      <details className="privacy-text">
+        <summary>{t.privacyRead}</summary>
+        <p className="privacy-updated">{text.updated}</p>
+        {text.sections.map((section) => (
+          <div key={section.heading}>
+            <h4>{section.heading}</h4>
+            {section.blocks.map((block, i) =>
+              block.p !== undefined ? (
+                <p key={i}>{block.p}</p>
+              ) : (
+                <ul key={i}>
+                  {block.ul.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              ),
+            )}
+          </div>
+        ))}
+      </details>
     </section>
   )
 }

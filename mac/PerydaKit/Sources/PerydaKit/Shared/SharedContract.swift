@@ -14,6 +14,30 @@ public enum SharedContract {
     public static let kinds: YarnKinds = load("yarn-kinds", as: YarnKinds.self)
     public static let prompts: Prompts = load("prompts", as: Prompts.self)
     public static let ui: [String: Localized] = load("ui-strings", as: [String: Localized].self)
+    public static let privacy: [String: PrivacyText] = load("privacy", as: [String: PrivacyText].self)
+}
+
+/// The privacy text for Mac, Windows and the web (shared/privacy.json): the same words as the web
+/// settings and the repository's PRIVACY.md files.
+public struct PrivacyText: Decodable, Sendable {
+    public struct Block: Decodable, Sendable {
+        /// A paragraph, or (when nil) a list.
+        public let p: String?
+        public let ul: [String]?
+    }
+
+    public struct Section: Decodable, Sendable {
+        public let heading: String
+        public let blocks: [Block]
+    }
+
+    public let title: String
+    public let updated: String
+    public let sections: [Section]
+
+    public static func of(_ lang: Lang) -> PrivacyText {
+        SharedContract.privacy[lang.rawValue] ?? SharedContract.privacy["en"]!
+    }
 }
 
 /// Interface text shared with the web engine (shared/ui-strings.json).
