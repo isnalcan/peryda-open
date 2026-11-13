@@ -21,6 +21,10 @@ enum PageText {
         return read.count > own.count ? Result(text: read, recognized: true) : Result(text: own, recognized: false)
     }
 
+    /// Hyphens a word may be broken at the end of a line with: "-", "‐" (U+2010, which PDFKit reports
+    /// for many fonts) and the soft hyphen (U+00AD).
+    static let lineEndHyphens: Set<Unicode.Scalar> = ["-", "\u{2010}", "\u{AD}"]
+
     /// Soft-wrapped PDF lines joined into paragraphs; hyphenated line ends rejoined.
     static func clean(_ raw: String) -> String {
         let lines = raw.replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
@@ -33,8 +37,8 @@ enum PageText {
             }
             if current.isEmpty {
                 current = line
-            } else if current.hasSuffix("-"), let first = line.first, first.isLowercase {
-                current.removeLast()
+            } else if let last = current.unicodeScalars.last, lineEndHyphens.contains(last), let first = line.first, first.isLowercase {
+                current.unicodeScalars.removeLast()
                 current += line
             } else {
                 current += " " + line

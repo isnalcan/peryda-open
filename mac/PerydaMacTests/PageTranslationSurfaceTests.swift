@@ -271,6 +271,15 @@ final class PageTranslationSurfaceTests: XCTestCase {
         XCTAssertTrue(read.text.contains("limited resource"), read.text)
     }
 
+    func testCleanPageTextRejoinsWordsBrokenWithAnyUsualHyphen() {
+        // PDFKit reports the line-end hyphen of many fonts as "‐" (U+2010), not "-".
+        for hyphen in ["-", "\u{2010}", "\u{AD}"] {
+            XCTAssertEqual(PageText.clean("aus seiner selbstver\(hyphen)\nschuldeten Unmündigkeit"), "aus seiner selbstverschuldeten Unmündigkeit", hyphen)
+        }
+        XCTAssertEqual(PageText.clean("Ost-\nWest"), "Ost- West")
+        XCTAssertEqual(PageText.clean("first line\nsecond line\n\nnext paragraph"), "first line second line\n\nnext paragraph")
+    }
+
     func snapshot(_ name: String) async throws {
         world.scrollView.magnification = 0.5
         world.scrollView.contentView.scroll(to: CGPoint(x: -60, y: 0))

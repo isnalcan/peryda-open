@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { joinTextItems, type TextRun } from './pageText'
+import { cleanPageText, joinTextItems, type TextRun } from './pageText'
 
 /** A horizontal pdf.js text run at (x, y), `size` points high, `width` points wide. */
 function run(str: string, x: number, width: number, opts: { y?: number; size?: number; eol?: boolean } = {}): TextRun {
@@ -83,5 +83,18 @@ describe('page text from pdf.js runs', () => {
   it('leaves no space at the very end', () => {
     expect(joinTextItems([run('last', 72, 20)])).toBe('last')
     expect(joinTextItems([])).toBe('')
+  })
+})
+
+describe('cleaned page text', () => {
+  it('rejoins words broken at a line end with any of the usual hyphens', () => {
+    expect(cleanPageText('aus seiner selbstver-\nschuldeten Unmündigkeit')).toBe('aus seiner selbstverschuldeten Unmündigkeit')
+    expect(cleanPageText('aus seiner selbstver‐\nschuldeten Unmündigkeit')).toBe('aus seiner selbstverschuldeten Unmündigkeit')
+    expect(cleanPageText('aus seiner selbstver­\nschuldeten Unmündigkeit')).toBe('aus seiner selbstverschuldeten Unmündigkeit')
+  })
+
+  it('keeps the hyphen before a capital, and joins plain lines with a space', () => {
+    expect(cleanPageText('Ost-\nWest')).toBe('Ost- West')
+    expect(cleanPageText('first line\nsecond line\n\nnext paragraph')).toBe('first line second line\n\nnext paragraph')
   })
 })

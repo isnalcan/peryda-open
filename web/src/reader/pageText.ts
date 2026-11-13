@@ -91,6 +91,9 @@ export function hasTextLayer(raw: string): boolean {
   return raw.replace(/\s/g, '').length >= 25
 }
 
+/** A line ending in "-", "‐" (U+2010) or a soft hyphen (U+00AD), where a word may be broken. */
+const LINE_END_HYPHEN = /[-‐­]$/
+
 /** Soft-wrapped PDF lines joined into paragraphs; hyphenated line ends rejoined. */
 export function cleanPageText(raw: string): string {
   const lines = raw.replace(/\r/g, '\n').split('\n').map((l) => l.replace(/\s+/g, ' ').trim())
@@ -103,7 +106,7 @@ export function cleanPageText(raw: string): string {
       continue
     }
     if (!current) current = line
-    else if (current.endsWith('-') && /^\p{Ll}/u.test(line)) current = current.slice(0, -1) + line
+    else if (LINE_END_HYPHEN.test(current) && /^\p{Ll}/u.test(line)) current = current.slice(0, -1) + line
     else current += ` ${line}`
   }
   if (current) paragraphs.push(current)
