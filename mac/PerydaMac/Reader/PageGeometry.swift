@@ -73,9 +73,12 @@ struct PageGeometry {
         return "data:image/png;base64," + png.base64EncodedString()
     }
 
-    /// Text found inside a normalized region (may be empty for scanned pages).
+    /// Text found inside a normalized region (may be empty for scanned pages), a line break between
+    /// lines. (The region selection's own string runs the end of one line into the start of the next.)
     func text(in n: NormalizedRect) -> String {
-        (page.selection(for: pageRect(fromNormalized: n))?.string ?? "")
+        guard let selection = page.selection(for: pageRect(fromNormalized: n)) else { return "" }
+        let pieces = selection.selectionsByLine().map { SelectionText.Piece(text: $0.string ?? "", bounds: $0.bounds(for: page)) }
+        return SelectionText.join(pieces, inLine: .spaceAtGaps, lineBreak: "\n")
             .replacingOccurrences(of: "[ \\t]+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }

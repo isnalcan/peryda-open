@@ -538,7 +538,8 @@ final class WorldView: NSView {
             guard index >= 0, let view = pageViews[index + 1] else { continue }
             let pageLines = lines.filter { $0.pages.contains(page) }
             let rects = pageLines.map { view.geometry.normalized(fromPage: $0.bounds(for: page).insetBy(dx: -1, dy: -1)) }.filter { $0.width > 0 && $0.height > 0 && $0.height < 0.25 }
-            let text = pageLines.compactMap(\.string).joined(separator: " ").replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+            let pieces = pageLines.map { SelectionText.Piece(text: $0.string ?? "", bounds: $0.bounds(for: page)) }
+            let text = SelectionText.join(pieces, inLine: .space, lineBreak: " ").replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !rects.isEmpty, !text.isEmpty else { continue }
             out.append(YarnAnchor(sourceType: .pdfText, bookId: model.book.id, pageNumber: index + 1, selectedText: text, lineRects: rects, boundingRect: Geometry.union(rects), context: model.pageContext(index + 1)))
         }

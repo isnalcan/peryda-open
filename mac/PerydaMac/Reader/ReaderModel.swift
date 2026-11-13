@@ -209,7 +209,7 @@ final class ReaderModel {
         guard number >= 1, number <= pages.count, let page = document?.page(at: number - 1) else { return nil }
         let geometry = PageGeometry(page: page)
         let box = pages[number - 1]
-        let raw = page.string ?? ""
+        let raw = page.readingText
         if Self.hasTextLayer(raw) {
             return CardsModel.PageSource(page: number, text: raw, width: box.width, height: box.height)
         }
@@ -274,7 +274,7 @@ final class ReaderModel {
 
     /// Text that surrounds a selection on a page: the start of the page's text.
     func pageContext(_ number: Int) -> String? {
-        guard let text = document?.page(at: number - 1)?.string?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        guard let text = document?.page(at: number - 1)?.readingText.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
         return String(text.prefix(YarnAnchor.contextLength))
     }
 

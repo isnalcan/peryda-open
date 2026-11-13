@@ -3,6 +3,18 @@ import PDFKit
 import PerydaKit
 import Vision
 
+extension PDFPage {
+    /// The page's text layer as PDFKit reads it, with the words PDFKit broke after their first capital
+    /// ("E" / "nlightenment", in Chrome-printed PDFs set in Type3 fonts) joined again; see
+    /// `SelectionText`. What page translation, thread context and "extract page text" read.
+    var readingText: String {
+        let raw = string ?? ""
+        guard SelectionText.mayHaveBrokenWords(raw), let all = selection(for: bounds(for: .mediaBox)) else { return raw }
+        let pieces = all.selectionsByLine().map { SelectionText.Piece(text: $0.string ?? "", bounds: $0.bounds(for: self)) }
+        return SelectionText.joinBrokenWords(in: raw, pieces: pieces)
+    }
+}
+
 /// A page's text for translation and for "extract page text": the PDF's own text layer, or, for a
 /// scanned page, text read from the page's picture on this Mac with Apple Vision (nothing leaves the
 /// Mac for this step).
@@ -14,7 +26,7 @@ enum PageText {
     }
 
     @MainActor static func read(_ geometry: PageGeometry, lang: Lang) async -> Result {
-        let own = clean(geometry.page.string ?? "")
+        let own = clean(geometry.page.readingText)
         if !geometry.isTextless, own.count >= 40 { return Result(text: own, recognized: false) }
         guard let image = geometry.render(longSide: 2400) else { return Result(text: own, recognized: false) }
         let read = await recognize(image, lang: lang)
