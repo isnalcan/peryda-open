@@ -9,14 +9,81 @@ import { cappedScale } from '../pdf/canvasLimit'
 /** The page's own text layer as pdf.js reports it, line ends kept. */
 export async function rawPageText(page: PDFPageProxy): Promise<string> {
   const content = await page.getTextContent()
+  const runs: TextRun[] = []
+  for (const item of content.items) if ('str' in item) runs.push(item)
+  return joinTextItems(runs)
+}
+
+/** What `joinTextItems` reads from a pdf.js text item. */
+export interface TextRun {
+  str: string
+  hasEOL: boolean
+  /** Text matrix in page units, [a, b, c, d, x, y]; the run starts at (x, y). */
+  transform: number[]
+  /** Advance of the run along its baseline, in page units. */
+  width: number
+}
+
+/**
+ * Below this gap (in font sizes) two runs on one line belong to the same word. pdf.js splits a word into
+ * runs wherever the font changes (a PDF whose ı ş ğ İ come from a separate font subset, for example), and
+ * it already reports a real space between runs as a run of its own; a normal space is about 0.25–0.33.
+ */
+const WORD_GAP = 0.2
+/**
+ * Runs whose baselines are closer than this (in font sizes) sit on one baseline. A raised or lowered run (a
+ * note mark, an author's affiliation letters, a subscript) is set apart with a space, so "Awad" and a
+ * superscript "a,b" do not become "Awada,b".
+ */
+const SAME_LINE = 0.15
+/** A run may overlap the one before it by this much (kerning) and still continue it. */
+const OVERLAP = 0.2
+
+/**
+ * pdf.js text runs joined into the page's text: a line end after a run that ends a line; a space between
+ * two runs only when there is a real gap between them, or when they are not side by side on one line.
+ */
+export function joinTextItems(runs: readonly TextRun[]): string {
   let out = ''
-  for (const item of content.items) {
-    if (!('str' in item)) continue
-    out += item.str
-    if (item.hasEOL) out += '\n'
-    else if (item.str && !/\s$/.test(item.str)) out += ' '
+  let open: TextRun | null = null
+  for (const run of runs) {
+    if (run.str) {
+      if (open && !/^\s/.test(run.str) && !continues(open, run)) out += ' '
+      out += run.str
+      open = /\s$/.test(run.str) ? null : run
+    }
+    if (run.hasEOL) {
+      out += '\n'
+      open = null
+    }
   }
   return out
+}
+
+/** Whether `next` starts where `prev` ends, on the same line, so the two are one piece of text. */
+function continues(prev: TextRun, next: TextRun): boolean {
+  const a = prev.transform
+  const b = next.transform
+  if (a.length < 6 || b.length < 6 || !Number.isFinite(prev.width) || prev.width < 0) return false
+  const size = Math.max(fontSize(a), fontSize(b))
+  const run = Math.hypot(a[0]!, a[1]!)
+  if (!(size > 0) || !(run > 0)) return false
+  // Measured along prev's baseline, so rotated text works too.
+  const ux = a[0]! / run
+  const uy = a[1]! / run
+  const dx = b[4]! - a[4]!
+  const dy = b[5]! - a[5]!
+  const along = dx * ux + dy * uy
+  const across = dy * ux - dx * uy
+  if (!Number.isFinite(along) || !Number.isFinite(across)) return false
+  if (Math.abs(across) > SAME_LINE * size) return false
+  const gap = along - prev.width
+  return gap >= -OVERLAP * size && gap < WORD_GAP * size
+}
+
+/** Font size of a run in page units: the height of its text matrix. */
+function fontSize(t: number[]): number {
+  return Math.hypot(t[2]!, t[3]!)
 }
 
 /** A page has a text layer when it holds at least 25 characters besides spaces. */
