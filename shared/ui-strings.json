@@ -167,6 +167,18 @@
     "de": "{n} Zeichen",
     "es": "{n} caracteres"
   },
+  "checkForUpdates": {
+    "tr": "Güncellemeleri denetle…",
+    "en": "Check for Updates…",
+    "de": "Nach Updates suchen…",
+    "es": "Buscar actualizaciones…"
+  },
+  "checkNow": {
+    "tr": "Şimdi denetle",
+    "en": "Check now",
+    "de": "Jetzt suchen",
+    "es": "Buscar ahora"
+  },
   "claudeKey": {
     "tr": "Claude anahtarı",
     "en": "Claude key",
@@ -424,6 +436,18 @@
     "en": "Keep link",
     "de": "Dauerhaft verbinden",
     "es": "Enlazar"
+  },
+  "keysStoredLocal": {
+    "tr": "Anahtarların bu cihazda şifrelenmiş olarak saklanır; yedeklere ve dışa aktarılan dosyalara hiç girmez.",
+    "en": "Your keys are kept on this device, encrypted; they never go into backups or exported files.",
+    "de": "Deine Schlüssel werden verschlüsselt auf diesem Gerät gespeichert; sie gelangen nie in Sicherungen oder exportierte Dateien.",
+    "es": "Tus claves se guardan cifradas en este dispositivo; nunca entran en las copias de seguridad ni en los archivos exportados."
+  },
+  "keysStoredMac": {
+    "tr": "Anahtarların macOS Anahtar Zinciri'nde saklanır; kitaplığa, yedeklere ve dışa aktarılan dosyalara hiç girmez.",
+    "en": "Your keys are kept in the macOS Keychain; they never go into the library, backups or exported files.",
+    "de": "Deine Schlüssel liegen im macOS-Schlüsselbund; sie gelangen nie in die Bibliothek, in Sicherungen oder in exportierte Dateien.",
+    "es": "Tus claves se guardan en el llavero de macOS; nunca entran en la biblioteca, las copias de seguridad ni los archivos exportados."
   },
   "language": {
     "tr": "Dil",
@@ -970,6 +994,96 @@
     "en": "Only PDF and EPUB files can be added.",
     "de": "Nur PDF- und EPUB-Dateien können hinzugefügt werden.",
     "es": "Solo se pueden añadir archivos PDF y EPUB."
+  },
+  "upToDate": {
+    "tr": "Peryda güncel.",
+    "en": "Peryda is up to date.",
+    "de": "Peryda ist auf dem neuesten Stand.",
+    "es": "Peryda está al día."
+  },
+  "updateFailed": {
+    "tr": "Güncelleme denetlenemedi. İnternet bağlantını denetleyip yeniden dene.",
+    "en": "Could not check for updates. Check your internet connection and try again.",
+    "de": "Die Suche nach Updates ist fehlgeschlagen. Prüfe deine Internetverbindung und versuche es erneut.",
+    "es": "No se pudo buscar actualizaciones. Revisa tu conexión a internet e inténtalo de nuevo."
+  },
+  "updateInstall": {
+    "tr": "Kur ve yeniden başlat",
+    "en": "Install and restart",
+    "de": "Installieren und neu starten",
+    "es": "Instalar y reiniciar"
+  },
+  "updateInstalling": {
+    "tr": "Güncelleme indiriliyor…",
+    "en": "Downloading the update…",
+    "de": "Update wird geladen…",
+    "es": "Descargando la actualización…"
+  },
+  "updateLater": {
+    "tr": "Sonra",
+    "en": "Later",
+    "de": "Später",
+    "es": "Más tarde"
+  },
+  "updateReady": {
+    "tr": "Peryda {v} hazır.",
+    "en": "Peryda {v} is ready.",
+    "de": "Peryda {v} ist bereit.",
+    "es": "Peryda {v} está lista."
+  },
+  "updates": {
+    "tr": "Güncellemeler",
+    "en": "Updates",
+    "de": "Updates",
+    "es": "Actualizaciones"
+  },
+  "updatesAllow": {
+    "tr": "Denetlesin",
+    "en": "Check automatically",
+    "de": "Automatisch suchen",
+    "es": "Buscar automáticamente"
+  },
+  "updatesAsk": {
+    "tr": "Peryda yeni sürümleri kendiliğinden denetlesin mi?",
+    "en": "Should Peryda check for new versions automatically?",
+    "de": "Soll Peryda automatisch nach neuen Versionen suchen?",
+    "es": "¿Quieres que Peryda busque nuevas versiones automáticamente?"
+  },
+  "updatesAskLater": {
+    "tr": "Bunu istediğin zaman Ayarlar'dan değiştirebilirsin.",
+    "en": "You can change this any time in Settings.",
+    "de": "Du kannst das jederzeit in den Einstellungen ändern.",
+    "es": "Puedes cambiarlo cuando quieras en Ajustes."
+  },
+  "updatesAuto": {
+    "tr": "Yeni sürümleri kendiliğinden denetle",
+    "en": "Check for new versions automatically",
+    "de": "Automatisch nach neuen Versionen suchen",
+    "es": "Buscar nuevas versiones automáticamente"
+  },
+  "updatesDeny": {
+    "tr": "Denetlemesin",
+    "en": "Don't check",
+    "de": "Nicht suchen",
+    "es": "No buscar"
+  },
+  "updatesHint": {
+    "tr": "Açıkken Peryda günde bir kez GitHub'a yeni sürüm olup olmadığını sorar. Kitapların, notların ve anahtarların gönderilmez. Bir güncelleme yalnız Peryda'nın imzasını taşıyorsa kurulur.",
+    "en": "When this is on, Peryda asks GitHub about once a day whether a new version is out. Your books, notes and keys are not sent. An update is installed only if it carries Peryda's signature.",
+    "de": "Wenn das eingeschaltet ist, fragt Peryda etwa einmal am Tag bei GitHub, ob es eine neue Version gibt. Deine Bücher, Notizen und Schlüssel werden nicht gesendet. Ein Update wird nur installiert, wenn es Perydas Signatur trägt.",
+    "es": "Si está activado, Peryda pregunta a GitHub más o menos una vez al día si hay una versión nueva. No se envían tus libros, notas ni claves. Una actualización solo se instala si lleva la firma de Peryda."
+  },
+  "updatesUnavailable": {
+    "tr": "Bu sürüm kendini güncellemez (geliştirme sürümü).",
+    "en": "This build does not update itself (development build).",
+    "de": "Diese Version aktualisiert sich nicht selbst (Entwicklungsversion).",
+    "es": "Esta versión no se actualiza sola (versión de desarrollo)."
+  },
+  "versionIs": {
+    "tr": "Sürüm {v}",
+    "en": "Version {v}",
+    "de": "Version {v}",
+    "es": "Versión {v}"
   },
   "welcomeAddKey": {
     "tr": "Anahtar ekle",

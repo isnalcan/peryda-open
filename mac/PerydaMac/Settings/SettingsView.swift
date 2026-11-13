@@ -21,6 +21,10 @@ struct SettingsView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    Label(t["keysStoredMac"], systemImage: "lock")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(ProviderID.allCases, id: \.self) { provider in
                     ProviderSection(provider: provider, settings: $draft)
@@ -59,6 +63,7 @@ struct SettingsView: View {
                     Text(t["themeLight"]).tag(ThemePreference.light)
                     Text(t["themeDark"]).tag(ThemePreference.dark)
                 }
+                UpdateSettings(updates: model.updates, t: t)
             }
             .formStyle(.grouped)
             .tabItem { Label(t["theme"], systemImage: "paintbrush") }
@@ -73,6 +78,35 @@ struct SettingsView: View {
         .onAppear {
             draft = model.settings
             remember = model.rememberKeys
+        }
+    }
+}
+
+/// Whether Peryda looks for new versions by itself, and a button to look now.
+struct UpdateSettings: View {
+    let updates: Updates
+    let t: UIText
+
+    var body: some View {
+        Section(t["updates"]) {
+            if updates.available {
+                Toggle(t["updatesAuto"], isOn: Binding(get: { updates.checksAutomatically }, set: { updates.setAutomatic($0) }))
+                Text(t["updatesHint"])
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Text(t("versionIs", ["v": updates.version]))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(t["checkNow"]) { updates.checkNow() }
+                        .disabled(!updates.canCheckNow)
+                }
+            } else {
+                Text(t["updatesUnavailable"])
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

@@ -13,6 +13,8 @@ import { SettingsDialog, type ThemePref } from '../settings/SettingsDialog'
 import { ErrorBoundary } from './ErrorBoundary'
 import { WelcomeDialog } from './WelcomeDialog'
 import { STRINGS } from '../i18n/strings'
+import { useDesktopUpdates } from '../updates/desktopUpdates'
+import { UpdateNotice } from '../updates/UpdateViews'
 
 const THEMES: readonly ThemePref[] = ['system', 'light', 'dark']
 
@@ -34,6 +36,7 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
+  const updates = useDesktopUpdates()
 
   useEffect(() => {
     void (async () => {
@@ -162,8 +165,10 @@ export function App() {
             void setPref('theme', th)
           }}
           onClose={() => setShowSettings(false)}
+          updates={updates}
         />
       )}
+      {updates && !showWelcome && <UpdateNotice updates={updates} />}
     </I18nProvider>
   )
 }

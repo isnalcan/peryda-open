@@ -1475,9 +1475,63 @@ button:disabled {
   padding-top: 12px !important;
 }
 
-.dialog-privacy {
+.dialog-privacy,
+.dialog-updates {
   border-top: 1px solid var(--line);
   padding-top: 12px !important;
+}
+
+.dialog-updates .dialog-note {
+  margin-top: 0;
+}
+
+.update-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-version,
+.update-result {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+}
+
+.update-result {
+  flex: 1;
+}
+
+/* Windows app: the update question and "new version ready", a card in the corner that never blocks reading. */
+.update-card {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  width: min(360px, calc(100vw - 40px));
+  padding: 16px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+}
+
+.update-card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.update-card p {
+  margin: 0 0 8px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .privacy-text summary {

@@ -5,10 +5,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 /**
- * Content Security Policy for the built app: only our own files, and network access only to the two
+ * Content Security Policy for the built app: only our own files, and network access only to the four
  * AI providers the reader chooses. Added at build time so the development server keeps working.
  */
-const CSP = [
+const CSP_PARTS = [
   "default-src 'none'",
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline' blob:",
@@ -22,12 +22,22 @@ const CSP = [
   "base-uri 'none'",
   "form-action 'none'",
   "object-src 'none'",
-].join('; ')
+]
+
+/**
+ * The Windows build (`vite build --mode tauri`) may also talk to its own window shell, for the update
+ * check; that channel never leaves the computer. The web build's policy is unchanged.
+ */
+function cspFor(mode: string): string {
+  const parts = CSP_PARTS.map((p) => (mode === 'tauri' && p.startsWith('connect-src ') ? `${p} ipc: http://ipc.localhost` : p))
+  return parts.join('; ')
+}
 
 /** The policy goes right after this tag in index.html. */
 const CSP_MARKER = '<meta charset="UTF-8" />'
 
-function contentSecurityPolicy(): Plugin {
+function contentSecurityPolicy(mode: string): Plugin {
+  const CSP = cspFor(mode)
   return {
     name: 'peryda-csp',
     apply: 'build',
@@ -84,8 +94,8 @@ function thirdPartyNotices() {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), contentSecurityPolicy(), thirdPartyNotices()],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), contentSecurityPolicy(mode), thirdPartyNotices()],
   resolve: {
     alias: { '@shared': fileURLToPath(new URL('../shared', import.meta.url)) },
   },
@@ -93,4 +103,4 @@ export default defineConfig({
   // Maps are written for debugging but not referenced from the shipped files.
   build: { target: 'es2022', sourcemap: 'hidden' },
   test: { environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'] },
-})
+}))

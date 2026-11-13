@@ -9,6 +9,7 @@
           {
             "ul": [
               "Hesap yok, Peryda sunucusu yok; ölçüm, reklam ve izleme yok. Okuduğun, yazdığın ya da sorduğun hiçbir şey geliştiriciye ulaşmaz.",
+              "Mac ve Windows uygulamaları yeni sürüm olup olmadığına ancak sen izin verirsen bakar.",
               "Kitapların, ilmeklerin, notların ve ayarların senin cihazında kalır.",
               "Pery'ye bir şey sorduğunda istek, kendi anahtarınla, doğrudan cihazından seçtiğin yapay zekâ sağlayıcısına gider. Sağlayıcı onu kendi koşullarına göre işler."
             ]
@@ -24,10 +25,28 @@
           {
             "ul": [
               "Eklediğin PDF ve EPUB dosyaları, okuma yerlerin, ilmekler ve kartları, çeviriler, notlar, Kitap Günlüğü ve ayarların. Mac'te Peryda'nın kendine ayrılmış korumalı klasöründe, Windows'ta Windows hesabına ait Peryda uygulama verisi klasöründe, web'de bu tarayıcının bu site için ayırdığı alanda durur. Uygulamayı kaldırmak ya da sitenin verilerini temizlemek hepsini siler.",
-              "Yapay zekâ anahtarların: Mac'te macOS Anahtar Zinciri'nde; Windows'ta ve web'de uygulamanın kendi alanında, tarayıcı motorunun dışarı vermediği bir anahtarla şifrelenmiş olarak. Bilgisayarındaki kullanıcı hesabını kullanabilen biri yine de onlara ulaşabilir; ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat. Her anahtar yalnızca kendi sağlayıcısına gönderilir.",
               "Dışa aktardığın yedek, senin sakladığın bir dosyadır. Anahtarlarını asla içermez ve şifreli değildir.",
               "Mac'te taranmış bir sayfanın metni, Apple'ın yerleşik metin tanımasıyla Mac'in kendisinde okunur.",
               "Bir kitap internete erişemez: Peryda kitabın içinden internetteki resim, yazı tipi, stil ya da betik yüklemez."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "Anahtarların nasıl korunur",
+        "blocks": [
+          {
+            "p": "Anahtarların yalnızca bu cihazda saklanır ve yalnızca kendi sağlayıcısına gönderilir. Ayrıntısı:"
+          },
+          {
+            "ul": [
+              "Mac'te macOS Anahtar Zinciri'nde dururlar. Anahtar Zinciri onları şifreler ve Mac'ine giriş yaptığında açar; başka bir uygulama onlara ancak sen izin verirsen ulaşabilir.",
+              "Windows'ta ve web'de uygulamanın bu cihazdaki kendi alanında, AES-256 ile şifrelenmiş olarak dururlar. Şifreyi açan anahtarı tarayıcı motoru (Windows'ta Microsoft Edge WebView2) üretir ve dışarı vermez; bu yüzden anahtarların hiçbir dosyada düz yazı olarak görünmez.",
+              "Sınırını da bilmeni isteriz: bu şifreleme, bilgisayarındaki kullanıcı hesabını kullanabilen birine ya da orada çalışan zararlı bir yazılıma karşı tam koruma değildir. Ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat; o zaman anahtarların hiç kaydedilmez ve uygulamayı kapatınca (web'de sayfayı kapatınca) unutulur.",
+              "Her anahtar şifreli bağlantıyla (HTTPS) yalnızca kendi sağlayıcısına gider; isteğin başlığında taşınır, adres satırına yazılmaz. Windows'ta ve web'de uygulamanın güvenlik kuralı (Content Security Policy), kendi dosyaları ve bu dört sağlayıcı dışında hiçbir adrese bağlanmaya izin vermez. Peryda internetten kod yüklemez; reklam, ölçüm ya da sohbet eklentisi gibi başka şirketlerin betiklerini içermez.",
+              "Anahtarların yedeklere ve dışa aktarılan dosyalara hiç girmez.",
+              "Önerimiz: Peryda için ayrı bir anahtar oluştur ve sağlayıcında bir harcama sınırı koy. Anahtarının ele geçtiğinden şüphelenirsen onu sağlayıcının sitesinden iptal et; iptal edilen anahtar hemen çalışmaz olur.",
+              "Peryda açık kaynaklıdır: anahtarların nasıl saklanıp gönderildiğini herkes kodda denetleyebilir (github.com/isnalcan/peryda-open)."
             ]
           }
         ]
@@ -78,7 +97,9 @@
               "Peryda'yı GitHub'dan indirdiğinde o indirme için GitHub'ın gizlilik bildirimi geçerlidir.",
               "Web uygulamasını Google Firebase Hosting sunar; dosyaları ulaştırmak için IP adresin gibi bağlantı bilgilerini işler. Peryda buna herhangi bir ölçüm ya da istek kaydı eklemedi.",
               "Windows'ta Peryda, Microsoft'un güncel tuttuğu bir Windows parçası olan Microsoft Edge WebView2 içinde çalışır.",
-              "Uygulamalar güncelleme olup olmadığını kendiliğinden denetlemez."
+              "Mac ve Windows uygulamaları sen izin vermeden yeni sürüm aramaz. İkinci açılışta sorarlar; izin verirsen günde bir kez GitHub'dan küçük bir sürüm dosyası isterler. GitHub bu istekte, her web isteğinde olduğu gibi, IP adresini ve isteği yapan uygulamanın adını ve sürümünü görebilir. Kitapların, notların, anahtarların ya da bilgisayarın hakkında hiçbir şey gönderilmez. Bu denetimi Ayarlar'dan istediğin zaman açıp kapatabilirsin.",
+              "Bir güncelleme yalnızca Peryda'nın güncelleme anahtarıyla imzalanmışsa kurulur; imzası tutmayan ya da değiştirilmiş bir dosya reddedilir. Yeni bir sürüm bulunduğunda uygulama kurmadan önce sorar; Mac'te güncellemelerin kendiliğinden kurulmasını da seçebilirsin.",
+              "Web uygulaması ayrıca bir şey denetlemez: sayfayı her açtığında en yeni sürüm gelir."
             ]
           }
         ]
@@ -111,6 +132,7 @@
           {
             "ul": [
               "There is no account and no Peryda server; no analytics, no advertising and no tracking. Nothing you read, write or ask reaches the developer.",
+              "The Mac and Windows apps look for new versions only if you allow it.",
               "Your books, threads, notes and settings stay on your device.",
               "When you ask Pery, the request goes straight from your device to the AI provider you chose, with your own key. That provider handles it under its own terms."
             ]
@@ -126,10 +148,28 @@
           {
             "ul": [
               "The PDF and EPUB files you add, your reading positions, threads and their cards, translations, notes, the Book Journal and your settings. On a Mac they are kept in Peryda's own sandboxed folder, on Windows in Peryda's app data folder for your Windows account, and on the web in this browser's storage for the site. Removing the app or clearing the site's data deletes them.",
-              "Your AI keys: on a Mac in the macOS Keychain; on Windows and the web in the app's own storage, encrypted with a key the browser engine never lets out. Someone who can use your account on the computer could still reach them, so on a shared computer turn off “Remember keys on this device”. Each key is only ever sent to its own provider.",
               "A backup you export is a file you keep. It never contains your keys and is not encrypted.",
               "On a Mac, the text of a scanned page is read on the Mac itself, with Apple's built-in text recognition.",
               "A book cannot reach the internet: Peryda loads no images, fonts, styles or scripts from the web inside a book."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "How your keys are protected",
+        "blocks": [
+          {
+            "p": "Your keys are kept only on this device and are sent only to their own provider. In detail:"
+          },
+          {
+            "ul": [
+              "On a Mac they are kept in the macOS Keychain, which encrypts them and unlocks them when you log in to your Mac; another app can reach them only if you allow it.",
+              "On Windows and the web they are kept in the app's own storage on this device, encrypted with AES-256. The key that decrypts them is made by the browser engine (on Windows, Microsoft Edge WebView2), which never lets it out, so your keys never appear as plain text in any file.",
+              "Know the limit, too: this encryption is not full protection against someone who can use your account on the computer, or against malware running there. On a shared computer, turn off “Remember keys on this device”: your keys are then never saved and are forgotten when you quit the app (on the web, when you close the page).",
+              "Each key goes over an encrypted connection (HTTPS) to its own provider only, in the request's header, never in the address. On Windows and the web, the app's security policy (Content Security Policy) allows no connection to any address other than its own files and these four providers. Peryda loads no code from the internet and contains no scripts from other companies, such as advertising, analytics or chat widgets.",
+              "Your keys never go into backups or exported files.",
+              "Our advice: create a separate key for Peryda and set a spending limit at your provider. If you think a key has leaked, revoke it on the provider's site; a revoked key stops working at once.",
+              "Peryda is open source: anyone can check in the code how keys are stored and sent (github.com/isnalcan/peryda-open)."
             ]
           }
         ]
@@ -180,7 +220,9 @@
               "When you download Peryda from GitHub, GitHub's privacy statement applies to that download.",
               "The web app is served by Google Firebase Hosting, which processes connection details such as your IP address to deliver its files. Peryda has not added any analytics or request logging to it.",
               "On Windows, Peryda runs in Microsoft Edge WebView2, a part of Windows that Microsoft keeps up to date.",
-              "The apps do not check for updates by themselves."
+              "The Mac and Windows apps never look for a new version without your permission. They ask on the second start; if you allow it, they fetch a small version file from GitHub about once a day. Like any web request, this lets GitHub see your IP address and the name and version of the app making it. Nothing about your books, notes, keys or computer is sent. You can turn this check on or off in Settings at any time.",
+              "An update is installed only if it is signed with Peryda's update key; a file with a wrong signature, or one that has been altered, is refused. When a new version is found, the app asks before installing it; on a Mac you can also choose to have updates installed automatically.",
+              "The web app checks nothing separately: each time you open the page you get the newest version."
             ]
           }
         ]
@@ -213,6 +255,7 @@
           {
             "ul": [
               "Es gibt kein Konto und keinen Peryda-Server; keine Analyse, keine Werbung und kein Tracking. Nichts, was du liest, schreibst oder fragst, erreicht den Entwickler.",
+              "Die Mac- und Windows-Apps suchen nur nach neuen Versionen, wenn du es erlaubst.",
               "Deine Bücher, Fäden, Notizen und Einstellungen bleiben auf deinem Gerät.",
               "Wenn du Pery fragst, geht die Anfrage mit deinem eigenen Schlüssel direkt von deinem Gerät an den KI-Anbieter, den du gewählt hast. Der Anbieter verarbeitet sie nach seinen eigenen Bedingungen."
             ]
@@ -228,10 +271,28 @@
           {
             "ul": [
               "Die PDF- und EPUB-Dateien, die du hinzufügst, deine Lesepositionen, Fäden und ihre Karten, Übersetzungen, Notizen, das Buchjournal und deine Einstellungen. Auf dem Mac liegen sie in Perydas eigenem, abgeschirmtem Ordner, unter Windows im App-Datenordner von Peryda für dein Windows-Konto und im Web im Speicher dieses Browsers für die Website. Wenn du die App entfernst oder die Websitedaten löschst, werden sie gelöscht.",
-              "Deine KI-Schlüssel: auf dem Mac im macOS-Schlüsselbund; unter Windows und im Web im eigenen Speicher der App, verschlüsselt mit einem Schlüssel, den die Browser-Engine nie herausgibt. Wer dein Benutzerkonto auf dem Computer verwenden kann, könnte sie trotzdem erreichen; schalte auf einem gemeinsam genutzten Computer „Schlüssel auf diesem Gerät merken“ aus. Jeder Schlüssel wird nur an seinen eigenen Anbieter gesendet.",
               "Eine Sicherung, die du exportierst, ist eine Datei, die du aufbewahrst. Sie enthält nie deine Schlüssel und ist nicht verschlüsselt.",
               "Auf dem Mac wird der Text einer gescannten Seite auf dem Mac selbst gelesen, mit Apples eingebauter Texterkennung.",
               "Ein Buch kann nicht ins Internet: Peryda lädt in einem Buch keine Bilder, Schriften, Stile oder Skripte aus dem Web."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "Wie deine Schlüssel geschützt sind",
+        "blocks": [
+          {
+            "p": "Deine Schlüssel werden nur auf diesem Gerät gespeichert und nur an ihren eigenen Anbieter gesendet. Im Einzelnen:"
+          },
+          {
+            "ul": [
+              "Auf dem Mac liegen sie im macOS-Schlüsselbund, der sie verschlüsselt und entsperrt, wenn du dich an deinem Mac anmeldest; eine andere App kommt nur an sie heran, wenn du es erlaubst.",
+              "Unter Windows und im Web liegen sie im eigenen Speicher der App auf diesem Gerät, mit AES-256 verschlüsselt. Den Schlüssel zum Entschlüsseln erzeugt die Browser-Engine (unter Windows Microsoft Edge WebView2), die ihn nie herausgibt; deshalb stehen deine Schlüssel in keiner Datei als lesbarer Text.",
+              "Auch die Grenze solltest du kennen: Diese Verschlüsselung schützt nicht vollständig vor jemandem, der dein Benutzerkonto auf dem Computer verwenden kann, oder vor Schadsoftware, die dort läuft. Schalte auf einem gemeinsam genutzten Computer „Schlüssel auf diesem Gerät merken“ aus: Dann werden deine Schlüssel nie gespeichert und beim Beenden der App (im Web beim Schließen der Seite) vergessen.",
+              "Jeder Schlüssel geht über eine verschlüsselte Verbindung (HTTPS) nur an seinen eigenen Anbieter, im Kopf der Anfrage, nie in der Adresse. Unter Windows und im Web erlaubt die Sicherheitsrichtlinie der App (Content Security Policy) keine Verbindung zu einer anderen Adresse als ihren eigenen Dateien und diesen vier Anbietern. Peryda lädt keinen Code aus dem Internet und enthält keine Skripte anderer Firmen wie Werbung, Analyse oder Chat-Widgets.",
+              "Deine Schlüssel gelangen nie in Sicherungen oder exportierte Dateien.",
+              "Unser Rat: Lege für Peryda einen eigenen Schlüssel an und setze bei deinem Anbieter ein Ausgabenlimit. Wenn du glaubst, dass ein Schlüssel in fremde Hände geraten ist, widerrufe ihn auf der Website des Anbieters; ein widerrufener Schlüssel funktioniert sofort nicht mehr.",
+              "Peryda ist Open Source: Jeder kann im Code prüfen, wie Schlüssel gespeichert und gesendet werden (github.com/isnalcan/peryda-open)."
             ]
           }
         ]
@@ -282,7 +343,9 @@
               "Wenn du Peryda von GitHub herunterlädst, gilt für diesen Download die Datenschutzerklärung von GitHub.",
               "Die Web-App wird von Google Firebase Hosting ausgeliefert, das Verbindungsdaten wie deine IP-Adresse verarbeitet, um die Dateien zu liefern. Peryda hat keine Analyse und keine Protokollierung von Anfragen hinzugefügt.",
               "Unter Windows läuft Peryda in Microsoft Edge WebView2, einem Teil von Windows, den Microsoft aktuell hält.",
-              "Die Apps suchen nicht von selbst nach Updates."
+              "Die Mac- und Windows-Apps suchen nie ohne deine Erlaubnis nach einer neuen Version. Sie fragen beim zweiten Start; wenn du es erlaubst, holen sie etwa einmal am Tag eine kleine Versionsdatei von GitHub. Wie bei jeder Webanfrage kann GitHub dabei deine IP-Adresse sowie Name und Version der anfragenden App sehen. Über deine Bücher, Notizen, Schlüssel oder deinen Computer wird nichts gesendet. Du kannst diese Suche jederzeit in den Einstellungen ein- oder ausschalten.",
+              "Ein Update wird nur installiert, wenn es mit Perydas Update-Schlüssel signiert ist; eine Datei mit falscher Signatur oder eine veränderte Datei wird abgelehnt. Wird eine neue Version gefunden, fragt die App vor der Installation; auf dem Mac kannst du auch festlegen, dass Updates automatisch installiert werden.",
+              "Die Web-App prüft nichts gesondert: Jedes Mal, wenn du die Seite öffnest, bekommst du die neueste Version."
             ]
           }
         ]
@@ -315,6 +378,7 @@
           {
             "ul": [
               "No hay cuenta ni servidor de Peryda; ni analítica, ni publicidad, ni seguimiento. Nada de lo que lees, escribes o preguntas llega al desarrollador.",
+              "Las apps de Mac y Windows solo buscan versiones nuevas si tú lo permites.",
               "Tus libros, hilos, notas y ajustes se quedan en tu dispositivo.",
               "Cuando preguntas a Pery, la petición va directamente desde tu dispositivo al proveedor de IA que elegiste, con tu propia clave. Ese proveedor la trata según sus propios términos."
             ]
@@ -330,10 +394,28 @@
           {
             "ul": [
               "Los archivos PDF y EPUB que añades, tus posiciones de lectura, los hilos y sus tarjetas, las traducciones, las notas, el Diario del libro y tus ajustes. En el Mac se guardan en la carpeta aislada propia de Peryda; en Windows, en la carpeta de datos de Peryda de tu cuenta de Windows, y en la web, en el almacenamiento de este navegador para el sitio. Quitar la app o borrar los datos del sitio los elimina.",
-              "Tus claves de IA: en el Mac, en el llavero de macOS; en Windows y en la web, en el almacenamiento propio de la app, cifradas con una clave que el motor del navegador nunca deja salir. Alguien que pueda usar tu cuenta en el ordenador podría llegar a ellas igualmente, así que en un ordenador compartido desactiva «Recordar las claves en este dispositivo». Cada clave se envía solo a su propio proveedor.",
               "Una copia de seguridad que exportas es un archivo que guardas tú. Nunca contiene tus claves y no está cifrada.",
               "En el Mac, el texto de una página escaneada se lee en el propio Mac, con el reconocimiento de texto integrado de Apple.",
               "Un libro no puede acceder a internet: Peryda no carga imágenes, fuentes, estilos ni scripts de la web dentro de un libro."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "Cómo se protegen tus claves",
+        "blocks": [
+          {
+            "p": "Tus claves se guardan solo en este dispositivo y se envían solo a su propio proveedor. En detalle:"
+          },
+          {
+            "ul": [
+              "En el Mac se guardan en el llavero de macOS, que las cifra y las desbloquea cuando inicias sesión en tu Mac; otra app solo puede llegar a ellas si tú lo permites.",
+              "En Windows y en la web se guardan en el almacenamiento propio de la app en este dispositivo, cifradas con AES-256. La clave que las descifra la genera el motor del navegador (en Windows, Microsoft Edge WebView2), que nunca la deja salir; por eso tus claves no aparecen como texto legible en ningún archivo.",
+              "Conoce también el límite: este cifrado no protege del todo frente a alguien que pueda usar tu cuenta en el ordenador ni frente a software malicioso que se ejecute en él. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»: así tus claves no se guardan nunca y se olvidan al cerrar la app (en la web, al cerrar la página).",
+              "Cada clave viaja por una conexión cifrada (HTTPS) solo a su propio proveedor, en la cabecera de la petición y nunca en la dirección. En Windows y en la web, la política de seguridad de la app (Content Security Policy) no permite conectarse a ninguna dirección salvo sus propios archivos y estos cuatro proveedores. Peryda no carga código de internet ni incluye scripts de otras empresas, como publicidad, analítica o widgets de chat.",
+              "Tus claves nunca entran en las copias de seguridad ni en los archivos exportados.",
+              "Nuestro consejo: crea una clave aparte para Peryda y fija un límite de gasto en tu proveedor. Si crees que una clave se ha filtrado, revócala en el sitio del proveedor; una clave revocada deja de funcionar al instante.",
+              "Peryda es de código abierto: cualquiera puede comprobar en el código cómo se guardan y envían las claves (github.com/isnalcan/peryda-open)."
             ]
           }
         ]
@@ -384,7 +466,9 @@
               "Cuando descargas Peryda desde GitHub, a esa descarga se aplica la declaración de privacidad de GitHub.",
               "La app web la sirve Google Firebase Hosting, que trata datos de conexión como tu dirección IP para entregar sus archivos. Peryda no le ha añadido analítica ni registro de peticiones.",
               "En Windows, Peryda funciona dentro de Microsoft Edge WebView2, una parte de Windows que Microsoft mantiene actualizada.",
-              "Las apps no buscan actualizaciones por sí solas."
+              "Las apps de Mac y Windows nunca buscan una versión nueva sin tu permiso. Te lo preguntan en el segundo inicio; si lo permites, piden a GitHub un pequeño archivo de versión más o menos una vez al día. Como en cualquier petición web, GitHub puede ver tu dirección IP y el nombre y la versión de la app que la hace. No se envía nada sobre tus libros, notas, claves ni tu ordenador. Puedes activar o desactivar esta búsqueda en Ajustes cuando quieras.",
+              "Una actualización solo se instala si está firmada con la clave de actualización de Peryda; un archivo con una firma incorrecta, o modificado, se rechaza. Cuando encuentra una versión nueva, la app pregunta antes de instalarla; en el Mac también puedes elegir que las actualizaciones se instalen solas.",
+              "La app web no comprueba nada aparte: cada vez que abres la página recibes la versión más reciente."
             ]
           }
         ]

@@ -7,7 +7,7 @@
     "frontendDist": "../../web/dist",
     "devUrl": "http://localhost:5191",
     "beforeDevCommand": "npm --prefix ../web run dev",
-    "beforeBuildCommand": "npm --prefix ../web run build"
+    "beforeBuildCommand": "npm --prefix ../web run build -- --mode tauri"
   },
   "app": {
     "withGlobalTauri": false,
@@ -65,5 +65,17 @@
       "../THIRD_PARTY_NOTICES-rust.txt": "THIRD_PARTY_NOTICES-rust.txt"
     },
     "copyright": "Copyright (c) 2026 isnalcan. MIT licence; see LICENSE.txt and NOTICE.txt."
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/isnalcan/peryda-open/releases/latest/download/latest.json"
+      ],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

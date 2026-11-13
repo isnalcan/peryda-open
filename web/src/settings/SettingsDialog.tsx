@@ -20,6 +20,8 @@ import {
 import { maskKey } from '../data/keyVault'
 import { CloseIcon, KeyIcon } from '../ui/icons'
 import { privacyFor } from './privacy'
+import type { DesktopUpdates } from '../updates/desktopUpdates'
+import { UpdateSection } from '../updates/UpdateViews'
 
 export type ThemePref = 'system' | 'light' | 'dark'
 
@@ -32,6 +34,8 @@ interface Props {
   onLang: (lang: Lang) => void
   onTheme: (theme: ThemePref) => void
   onClose: () => void
+  /** The Windows app's update check; absent on the web, where the page is always the newest. */
+  updates?: DesktopUpdates | null
 }
 
 const LANG_NAMES: Record<Lang, string> = { tr: 'Türkçe', en: 'English', de: 'Deutsch', es: 'Español' }
@@ -176,6 +180,7 @@ export function SettingsDialog(props: Props) {
         <h3>{t.aiKeys}</h3>
         <p className="dialog-intro">{t.aiKeysIntro}</p>
         <p className="dialog-note">{t.modelsNote}</p>
+        <p className="dialog-note">{t.keysStoredLocal}</p>
         {PROVIDERS.map((p) => (
           <ProviderField key={p} provider={p} settings={draft} onChange={setDraft} />
         ))}
@@ -218,6 +223,8 @@ export function SettingsDialog(props: Props) {
           </select>
         </label>
       </section>
+
+      {props.updates && <UpdateSection updates={props.updates} />}
 
       <PrivacySection lang={props.lang} />
     </dialog>

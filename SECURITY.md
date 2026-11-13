@@ -12,5 +12,7 @@ few days. Please include the platform (Mac, Windows, web), the version and the s
 - Your books, threads and notes: kept only on your device; no Peryda server, no account, no telemetry.
 - Untrusted input: book files, backup files and AI answers must never run code, reach the network on
   their own or change files outside Peryda's own data.
+- Updates: the Mac and Windows apps check only if the reader allows it, and install only updates signed
+  with Peryda's update keys (with a signed feed on the Mac and a version-bound signature on Windows).
 
 Reports about any of these are very welcome.

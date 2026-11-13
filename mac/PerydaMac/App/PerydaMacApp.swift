@@ -27,7 +27,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct PerydaMacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = AppModel()
+    @State private var model: AppModel
+    /// Kept for the app's lifetime; nil in builds that do not update themselves.
+    private let updater: SparkleUpdates?
+
+    init() {
+        let model = AppModel()
+        _model = State(initialValue: model)
+        updater = SparkleUpdates.start(into: model.updates)
+    }
 
     var body: some Scene {
         Window("Peryda", id: "library") {
@@ -39,6 +47,9 @@ struct PerydaMacApp: App {
         }
         .defaultSize(width: 1100, height: 760)
         .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesCommand(model: model)
+            }
             CommandGroup(replacing: .newItem) {
                 ImportCommand(model: model)
             }
@@ -76,5 +87,17 @@ struct ImportCommand: View {
             if let book = pickAndImport(model) { openWindow(id: "reader", value: book.id) }
         }
         .keyboardShortcut("o")
+    }
+}
+
+/// "Check for Updates…" in the app menu, only in builds that can update themselves.
+struct CheckForUpdatesCommand: View {
+    let model: AppModel
+
+    var body: some View {
+        if model.updates.available {
+            Button(model.t["checkForUpdates"]) { model.updates.checkNow() }
+                .disabled(!model.updates.canCheckNow)
+        }
     }
 }

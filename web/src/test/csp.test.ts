@@ -1,10 +1,17 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import type { Plugin } from 'vite'
-import config from '../../vite.config'
+import type { Plugin, UserConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+import makeConfig from '../../vite.config'
 
-const plugin = (config.plugins ?? []).flat().find((p): p is Plugin => Boolean(p) && (p as Plugin).name === 'peryda-csp')!
-const transform = (html: string) => (plugin.transformIndexHtml as (html: string) => string)(html)
+function transformFor(mode: string) {
+  const config = (makeConfig as unknown as (env: { mode: string; command: 'build' }) => UserConfig)({ mode, command: 'build' })
+  const plugin = (config.plugins ?? []).flat().find((p): p is Plugin => Boolean(p) && (p as Plugin).name === 'peryda-csp')!
+  return (html: string) => (plugin.transformIndexHtml as (html: string) => string)(html)
+}
+const transform = transformFor('production')
+const policyOf = (html: string) => /content="([^"]+)"/.exec(html)![1]!
+const HEAD = '<head>\n    <meta charset="UTF-8" />\n</head>'
 
 describe('Content Security Policy in index.html', () => {
   it('is added right after the charset tag', () => {
@@ -17,4 +24,21 @@ describe('Content Security Policy in index.html', () => {
     expect(() => transform('<head><meta charset="utf-8"></head>')).toThrow(/peryda-csp/)
     expect(() => transform('<meta charset="UTF-8" /><meta charset="UTF-8" />')).toThrow(/peryda-csp/)
   })
+
+  it('is the same policy the web host sends (firebase.json)', () => {
+    const hosting = JSON.parse(readFileSync(new URL('../../../firebase.json', import.meta.url), 'utf8')) as {
+      hosting: { headers: { headers: { key: string; value: string }[] }[] }
+    }
+    const header = hosting.hosting.headers.flatMap((h) => h.headers).find((h) => h.key === 'Content-Security-Policy')!.value
+    // The header adds only frame-ancestors, which a meta tag cannot carry.
+    expect(header).toBe(`${policyOf(transform(HEAD))}; frame-ancestors 'none'`)
+  })
+
+  it('lets only the Windows build talk to its window shell, and adds no other address', () => {
+    const web = policyOf(transform(HEAD))
+    const windows = policyOf(transformFor('tauri')(HEAD))
+    expect(web).not.toContain('ipc')
+    expect(windows.replace(' ipc: http://ipc.localhost', '')).toBe(web)
+  })
 })
+

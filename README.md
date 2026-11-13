@@ -17,6 +17,27 @@ What stays on your device and what goes to your provider is set out in [PRIVACY.
 
 Status: early development.
 
+## Your keys
+
+- **Mac:** kept in the macOS Keychain.
+- **Windows and web:** kept in the app's own storage on your device, encrypted with AES-256 under a key
+  the browser engine generates and never lets out. This keeps keys out of files as plain text; it does
+  not protect against someone who can use your account on that computer, so on a shared computer turn
+  off "Remember keys on this device".
+- Each key is sent only to its own provider, over HTTPS, in a request header. On Windows and the web the
+  Content Security Policy allows connections only to the app's own files and the four providers.
+- Keys never go into backups or exports. We recommend a separate key with a spending limit.
+
+The code that does this: [`web/src/data/keyVault.ts`](web/src/data/keyVault.ts) and
+[`mac/PerydaKit/Sources/PerydaKit/Store/KeyVault.swift`](mac/PerydaKit/Sources/PerydaKit/Store/KeyVault.swift).
+
+## Updates
+
+The web app is always the newest version. The Mac and Windows apps look for a new version only if you
+allow it (they ask on the second start, and Settings can change it): about once a day they fetch a
+small file from this repository's latest GitHub release, and they install only updates signed with
+Peryda's update key.
+
 ## Licence
 
 The code is released under the [MIT licence](LICENSE); see [NOTICE](NOTICE) for what it does not cover (the

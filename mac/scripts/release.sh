@@ -43,6 +43,12 @@ else
   extra="CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=$team OTHER_CODE_SIGN_FLAGS=--timestamp"
 fi
 
+# Every downloadable build can update itself, so it must carry the public half of the update key.
+update_key=$(sed -n 's/^ *PERYDA_UPDATE_PUBLIC_KEY: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' "$here/project.yml" | head -1)
+if [ "$mode" != "--local" ] && [ -z "$update_key" ]; then
+  fail "No update key in project.yml (PERYDA_UPDATE_PUBLIC_KEY). Run scripts/update-keys.sh first."
+fi
+
 cd "$here"
 # The project only uses the local PerydaKit package, so its pins are PerydaKit/Package.resolved.
 [ -f PerydaKit/Package.resolved ] || fail "PerydaKit/Package.resolved is missing; package versions would not be pinned."
@@ -58,7 +64,32 @@ xcodebuild -project PerydaMac.xcodeproj -scheme PerydaMac -configuration Release
 
 app="$work/Peryda.xcarchive/Products/Applications/Peryda.app"
 xattr -cr "$app"
+
+# Sparkle's helpers arrive signed by the Sparkle project for development only. They are signed again with
+# this identity and the hardened runtime, inside out and without --deep (Sparkle's documented order),
+# then the app itself with the entitlements it was built with.
+if [ "$mode" = "--local" ]; then sign_id="-"; stamp="--timestamp=none"; else sign_id="$dmg_identity"; stamp="--timestamp"; fi
+sparkle="$app/Contents/Frameworks/Sparkle.framework"
+[ -d "$sparkle/Versions/B" ] || fail "Sparkle.framework is missing from the app."
+codesign -d --entitlements - --xml "$app" > "$work/entitlements.plist" 2>/dev/null
+codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle/Versions/B/XPCServices/Installer.xpc"
+codesign -f -s "$sign_id" -o runtime "$stamp" --preserve-metadata=entitlements "$sparkle/Versions/B/XPCServices/Downloader.xpc"
+codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle/Versions/B/Autoupdate"
+codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle/Versions/B/Updater.app"
+codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle"
+codesign -f -s "$sign_id" -o runtime "$stamp" --entitlements "$work/entitlements.plist" "$app"
 codesign --verify --deep --strict "$app"
+for part in "$sparkle/Versions/B/XPCServices/Installer.xpc" "$sparkle/Versions/B/XPCServices/Downloader.xpc" \
+  "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle"; do
+  info=$(codesign -dv --verbose=4 "$part" 2>&1)
+  echo "$info" | grep -q '^CodeDirectory .*flags=.*runtime' || fail "$(basename "$part") is not signed with the hardened runtime."
+  if [ -n "$team" ]; then
+    echo "$info" | grep -qx "TeamIdentifier=$team" || fail "$(basename "$part") is not signed by team $team."
+  fi
+done
+if [ "$mode" != "--local" ]; then
+  [ -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist" 2>/dev/null)" ] || fail "The app has no update key."
+fi
 # What is shipped must be what was meant: the hardened runtime, the right team, no debugging entitlement.
 signature=$(codesign -dv --verbose=4 "$app" 2>&1)
 echo "$signature" | grep -q '^CodeDirectory .*flags=.*runtime' || fail "The app is not signed with the hardened runtime."
@@ -68,7 +99,7 @@ fi
 if codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q 'get-task-allow'; then
   fail "The app carries the get-task-allow (debugging) entitlement."
 fi
-echo "› Signature verified: hardened runtime, team ${team:-none (local)}, no get-task-allow"
+echo "› Signature verified: hardened runtime (app and Sparkle's helpers), team ${team:-none (local)}, no get-task-allow"
 
 if [ "$mode" != "--local" ]; then
   echo "› Sending the app to Apple for notarization (usually a few minutes)"
@@ -104,3 +135,4 @@ xcrun stapler staple "$dmg"
 xcrun stapler validate "$dmg"
 spctl --assess --type open --context context:primary-signature -v "$dmg"
 echo "› Ready: $dmg"
+echo "  Next: mac/scripts/appcast.sh \"$dmg\" writes the update feed for this version."

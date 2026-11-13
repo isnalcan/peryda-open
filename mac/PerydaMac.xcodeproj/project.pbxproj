@@ -41,8 +41,11 @@
 		7DF698DB9724B6B2BE5F2B7F /* SelectableAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384629AFB0332DB3E57CAB7E /* SelectableAnswer.swift */; };
 		81719565CDA08B0CB6392576 /* LayoutAndPagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */; };
 		82838690608AF0C3289D7197 /* DevFakeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */; };
+		893C89907786DCCDE993335B /* Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D43B5DB46C00E60B242F8C /* Updates.swift */; };
 		8967D1837A142B4D15F1EDD6 /* PageTranslationSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A07F05E9327B702E199D9E17 /* PageTranslationSurfaceTests.swift */; };
 		8B49C3893DAEB380676EEAA9 /* EpubReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD64C8DC50DB7C6D66FEB81 /* EpubReaderView.swift */; };
+		8BFD1F680EF188CEEAA99A8A /* SparkleUpdates.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7BAACC9BB56B1CCC6D42214 /* SparkleUpdates.swift */; };
+		8EF612E322F1D10CC413BD04 /* Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D43B5DB46C00E60B242F8C /* Updates.swift */; };
 		96ED8BA17731472B1242571B /* ZoomedHostingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */; };
 		9D3F2E469C8CD473AE41DC3A /* PageGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E8088248E762683F972C10 /* PageGeometry.swift */; };
 		A0E79BC588B6CC0B5BB49946 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832128AA11B18D26E8CA5C09 /* ReaderView.swift */; };
@@ -51,6 +54,7 @@
 		A7E88BDF91628DAD0307AE4C /* PageText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8351C05C06C517B963564756 /* PageText.swift */; };
 		AC6CF276864E870CDCFFE4F6 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63992227231E79C5FAC09A0F /* Theme.swift */; };
 		ACB3E73DBEA890E4D9B7B8F2 /* JournalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */; };
+		B49910311AAA2E3A55B7693A /* UpdatesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 235DD523225E4FE309443751 /* UpdatesTests.swift */; };
 		BF2A6EF6A3FDC0C7BDB18B1B /* LibraryAndJournalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */; };
 		C8280C769C247352E9010752 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7CE9D3516CA5719AE76BA68 /* LibraryView.swift */; };
 		C993D827D90A8D44D69938D5 /* YarnCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B66E0CD54B9EAC61F02372 /* YarnCardView.swift */; };
@@ -67,12 +71,14 @@
 		F3E1B251045C8F406F454425 /* Importing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B431FD23A688527B9426257B /* Importing.swift */; };
 		FB81FE04435211734C81F6F7 /* PageGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E8088248E762683F972C10 /* PageGeometry.swift */; };
 		FC311DFBDFCCFB77C2903519 /* CardButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0539C82F1607F8355034EDC2 /* CardButtonTests.swift */; };
+		FE748B3CEB69FCCE084AD13B /* PerydaUpdater in Frameworks */ = {isa = PBXBuildFile; productRef = B6B37DE5DA7455F9CF889BE8 /* PerydaUpdater */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0539C82F1607F8355034EDC2 /* CardButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardButtonTests.swift; sourceTree = "<group>"; };
 		05B66E0CD54B9EAC61F02372 /* YarnCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YarnCardView.swift; sourceTree = "<group>"; };
 		0BD124CD54D77A918F7C7369 /* YarnRope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YarnRope.swift; sourceTree = "<group>"; };
+		235DD523225E4FE309443751 /* UpdatesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatesTests.swift; sourceTree = "<group>"; };
 		284F501E0821B5F4803B6689 /* JournalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTests.swift; sourceTree = "<group>"; };
 		2C43E0145F027F2D53F4F540 /* ExtractedTextSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractedTextSheet.swift; sourceTree = "<group>"; };
 		2FB22B87F418E361EC2A11EA /* WorldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldView.swift; sourceTree = "<group>"; };
@@ -97,6 +103,7 @@
 		AE0A13E3700E354A513DCAAA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B431FD23A688527B9426257B /* Importing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Importing.swift; sourceTree = "<group>"; };
 		B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalPanel.swift; sourceTree = "<group>"; };
+		B7BAACC9BB56B1CCC6D42214 /* SparkleUpdates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleUpdates.swift; sourceTree = "<group>"; };
 		CC8605DE3FB542A24A0E640C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CE6289DD6252F06364FCD4C1 /* PerydaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PerydaMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D490E1220CB8C386D7FF8E57 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -105,6 +112,7 @@
 		EC7A60F72E4AAFFB8BB43C46 /* CenteringClipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		ECC5AE78686901E8308F3372 /* PerydaMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PerydaMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F5ABA3BE1F8F112F3C2E40F0 /* ReaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderModel.swift; sourceTree = "<group>"; };
+		F9D43B5DB46C00E60B242F8C /* Updates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Updates.swift; sourceTree = "<group>"; };
 		FB6349BF5B675DE49481D564 /* TranslatedPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatedPageView.swift; sourceTree = "<group>"; };
 		FB876352ABDD3CBA19CE9C79 /* EpubReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpubReaderTests.swift; sourceTree = "<group>"; };
 		FE1E8BBDC331EBE4EA1D0F97 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -125,6 +133,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7080F8AB5F6307E550C75C98 /* PerydaKit in Frameworks */,
+				FE748B3CEB69FCCE084AD13B /* PerydaUpdater in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -181,6 +190,7 @@
 				A07F05E9327B702E199D9E17 /* PageTranslationSurfaceTests.swift */,
 				82D53464096D1CA0FFFF1C8E /* ReaderSurfaceTests.swift */,
 				85AAC792D2A509C8D072C23D /* SecurityFixesTests.swift */,
+				235DD523225E4FE309443751 /* UpdatesTests.swift */,
 			);
 			path = PerydaMacTests;
 			sourceTree = "<group>";
@@ -229,7 +239,9 @@
 				D490E1220CB8C386D7FF8E57 /* AppModel.swift */,
 				89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */,
 				FF106CC7BCBBB4ED80799EC7 /* PerydaMacApp.swift */,
+				B7BAACC9BB56B1CCC6D42214 /* SparkleUpdates.swift */,
 				63992227231E79C5FAC09A0F /* Theme.swift */,
+				F9D43B5DB46C00E60B242F8C /* Updates.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -274,6 +286,7 @@
 			name = PerydaMac;
 			packageProductDependencies = (
 				936F64EFADCBF0C06AAEA8E8 /* PerydaKit */,
+				B6B37DE5DA7455F9CF889BE8 /* PerydaUpdater */,
 			);
 			productName = PerydaMac;
 			productReference = CE6289DD6252F06364FCD4C1 /* PerydaMac.app */;
@@ -372,8 +385,10 @@
 				7DF698DB9724B6B2BE5F2B7F /* SelectableAnswer.swift in Sources */,
 				F2705909C98E433C5B23E161 /* SelectionMenuView.swift in Sources */,
 				EE213B9A87FA89A6D91651D5 /* SettingsView.swift in Sources */,
+				8BFD1F680EF188CEEAA99A8A /* SparkleUpdates.swift in Sources */,
 				AC6CF276864E870CDCFFE4F6 /* Theme.swift in Sources */,
 				0B2D0459727B3908646B930F /* TranslatedPageView.swift in Sources */,
+				8EF612E322F1D10CC413BD04 /* Updates.swift in Sources */,
 				64061C7EA1862F097E078444 /* WorldView.swift in Sources */,
 				C993D827D90A8D44D69938D5 /* YarnCardView.swift in Sources */,
 				7AB4649CBC91227190DADE19 /* YarnRope.swift in Sources */,
@@ -414,6 +429,8 @@
 				056E8715CBB3406734C79317 /* SettingsView.swift in Sources */,
 				56E65EE726062F7D4CC34FB2 /* Theme.swift in Sources */,
 				4BC0FB7D21B36A779BF56704 /* TranslatedPageView.swift in Sources */,
+				893C89907786DCCDE993335B /* Updates.swift in Sources */,
+				B49910311AAA2E3A55B7693A /* UpdatesTests.swift in Sources */,
 				6D401CA9D05EE5B34FE9FBE2 /* WorldView.swift in Sources */,
 				EF8C344B959FA0FB59404654 /* YarnCardView.swift in Sources */,
 				074A3C54980AF4C1AB05442E /* YarnRope.swift in Sources */,
@@ -446,6 +463,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				PERYDA_UPDATE_PUBLIC_KEY = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
 				PRODUCT_NAME = Peryda;
 				SDKROOT = macosx;
@@ -497,6 +515,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				PERYDA_UPDATE_PUBLIC_KEY = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
 				PRODUCT_NAME = Peryda;
 				SDKROOT = macosx;
@@ -692,6 +711,10 @@
 		936F64EFADCBF0C06AAEA8E8 /* PerydaKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PerydaKit;
+		};
+		B6B37DE5DA7455F9CF889BE8 /* PerydaUpdater */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PerydaUpdater;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

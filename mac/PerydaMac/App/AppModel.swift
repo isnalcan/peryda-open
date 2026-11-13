@@ -14,6 +14,8 @@ enum ThemePreference: String, CaseIterable {
 final class AppModel {
     let store: LibraryStore
     let client = AIClient()
+    /// The update check (filled in by the updater in the shipped app).
+    let updates = Updates()
 
     /// What streams answers: the provider client, or a local stand-in in development builds.
     var streamer: AnswerStreaming {

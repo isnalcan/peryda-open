@@ -9,6 +9,7 @@
 ## En resumen
 
 - No hay cuenta ni servidor de Peryda; ni analítica, ni publicidad, ni seguimiento. Nada de lo que lees, escribes o preguntas llega al desarrollador.
+- Las apps de Mac y Windows solo buscan versiones nuevas si tú lo permites.
 - Tus libros, hilos, notas y ajustes se quedan en tu dispositivo.
 - Cuando preguntas a Pery, la petición va directamente desde tu dispositivo al proveedor de IA que elegiste, con tu propia clave. Ese proveedor la trata según sus propios términos.
 
@@ -17,10 +18,21 @@ Este texto cubre Peryda para Mac, Windows y la web. Las apps de Peryda para iPho
 ## Lo que se queda en tu dispositivo
 
 - Los archivos PDF y EPUB que añades, tus posiciones de lectura, los hilos y sus tarjetas, las traducciones, las notas, el Diario del libro y tus ajustes. En el Mac se guardan en la carpeta aislada propia de Peryda; en Windows, en la carpeta de datos de Peryda de tu cuenta de Windows, y en la web, en el almacenamiento de este navegador para el sitio. Quitar la app o borrar los datos del sitio los elimina.
-- Tus claves de IA: en el Mac, en el llavero de macOS; en Windows y en la web, en el almacenamiento propio de la app, cifradas con una clave que el motor del navegador nunca deja salir. Alguien que pueda usar tu cuenta en el ordenador podría llegar a ellas igualmente, así que en un ordenador compartido desactiva «Recordar las claves en este dispositivo». Cada clave se envía solo a su propio proveedor.
 - Una copia de seguridad que exportas es un archivo que guardas tú. Nunca contiene tus claves y no está cifrada.
 - En el Mac, el texto de una página escaneada se lee en el propio Mac, con el reconocimiento de texto integrado de Apple.
 - Un libro no puede acceder a internet: Peryda no carga imágenes, fuentes, estilos ni scripts de la web dentro de un libro.
+
+## Cómo se protegen tus claves
+
+Tus claves se guardan solo en este dispositivo y se envían solo a su propio proveedor. En detalle:
+
+- En el Mac se guardan en el llavero de macOS, que las cifra y las desbloquea cuando inicias sesión en tu Mac; otra app solo puede llegar a ellas si tú lo permites.
+- En Windows y en la web se guardan en el almacenamiento propio de la app en este dispositivo, cifradas con AES-256. La clave que las descifra la genera el motor del navegador (en Windows, Microsoft Edge WebView2), que nunca la deja salir; por eso tus claves no aparecen como texto legible en ningún archivo.
+- Conoce también el límite: este cifrado no protege del todo frente a alguien que pueda usar tu cuenta en el ordenador ni frente a software malicioso que se ejecute en él. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»: así tus claves no se guardan nunca y se olvidan al cerrar la app (en la web, al cerrar la página).
+- Cada clave viaja por una conexión cifrada (HTTPS) solo a su propio proveedor, en la cabecera de la petición y nunca en la dirección. En Windows y en la web, la política de seguridad de la app (Content Security Policy) no permite conectarse a ninguna dirección salvo sus propios archivos y estos cuatro proveedores. Peryda no carga código de internet ni incluye scripts de otras empresas, como publicidad, analítica o widgets de chat.
+- Tus claves nunca entran en las copias de seguridad ni en los archivos exportados.
+- Nuestro consejo: crea una clave aparte para Peryda y fija un límite de gasto en tu proveedor. Si crees que una clave se ha filtrado, revócala en el sitio del proveedor; una clave revocada deja de funcionar al instante.
+- Peryda es de código abierto: cualquiera puede comprobar en el código cómo se guardan y envían las claves (github.com/isnalcan/peryda-open).
 
 ## Lo que va a tu proveedor de IA
 
@@ -49,7 +61,9 @@ El proveedor decide cuánto tiempo guarda lo que recibe y para qué puede usarlo
 - Cuando descargas Peryda desde GitHub, a esa descarga se aplica la declaración de privacidad de GitHub.
 - La app web la sirve Google Firebase Hosting, que trata datos de conexión como tu dirección IP para entregar sus archivos. Peryda no le ha añadido analítica ni registro de peticiones.
 - En Windows, Peryda funciona dentro de Microsoft Edge WebView2, una parte de Windows que Microsoft mantiene actualizada.
-- Las apps no buscan actualizaciones por sí solas.
+- Las apps de Mac y Windows nunca buscan una versión nueva sin tu permiso. Te lo preguntan en el segundo inicio; si lo permites, piden a GitHub un pequeño archivo de versión más o menos una vez al día. Como en cualquier petición web, GitHub puede ver tu dirección IP y el nombre y la versión de la app que la hace. No se envía nada sobre tus libros, notas, claves ni tu ordenador. Puedes activar o desactivar esta búsqueda en Ajustes cuando quieras.
+- Una actualización solo se instala si está firmada con la clave de actualización de Peryda; un archivo con una firma incorrecta, o modificado, se rechaza. Cuando encuentra una versión nueva, la app pregunta antes de instalarla; en el Mac también puedes elegir que las actualizaciones se instalen solas.
+- La app web no comprueba nada aparte: cada vez que abres la página recibes la versión más reciente.
 
 ## Tus derechos
 

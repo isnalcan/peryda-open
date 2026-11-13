@@ -9,6 +9,7 @@
 ## Kısaca
 
 - Hesap yok, Peryda sunucusu yok; ölçüm, reklam ve izleme yok. Okuduğun, yazdığın ya da sorduğun hiçbir şey geliştiriciye ulaşmaz.
+- Mac ve Windows uygulamaları yeni sürüm olup olmadığına ancak sen izin verirsen bakar.
 - Kitapların, ilmeklerin, notların ve ayarların senin cihazında kalır.
 - Pery'ye bir şey sorduğunda istek, kendi anahtarınla, doğrudan cihazından seçtiğin yapay zekâ sağlayıcısına gider. Sağlayıcı onu kendi koşullarına göre işler.
 
@@ -17,10 +18,21 @@ Bu metin Peryda'nın Mac, Windows ve web sürümlerini kapsar. Peryda'nın iPhon
 ## Cihazında kalanlar
 
 - Eklediğin PDF ve EPUB dosyaları, okuma yerlerin, ilmekler ve kartları, çeviriler, notlar, Kitap Günlüğü ve ayarların. Mac'te Peryda'nın kendine ayrılmış korumalı klasöründe, Windows'ta Windows hesabına ait Peryda uygulama verisi klasöründe, web'de bu tarayıcının bu site için ayırdığı alanda durur. Uygulamayı kaldırmak ya da sitenin verilerini temizlemek hepsini siler.
-- Yapay zekâ anahtarların: Mac'te macOS Anahtar Zinciri'nde; Windows'ta ve web'de uygulamanın kendi alanında, tarayıcı motorunun dışarı vermediği bir anahtarla şifrelenmiş olarak. Bilgisayarındaki kullanıcı hesabını kullanabilen biri yine de onlara ulaşabilir; ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat. Her anahtar yalnızca kendi sağlayıcısına gönderilir.
 - Dışa aktardığın yedek, senin sakladığın bir dosyadır. Anahtarlarını asla içermez ve şifreli değildir.
 - Mac'te taranmış bir sayfanın metni, Apple'ın yerleşik metin tanımasıyla Mac'in kendisinde okunur.
 - Bir kitap internete erişemez: Peryda kitabın içinden internetteki resim, yazı tipi, stil ya da betik yüklemez.
+
+## Anahtarların nasıl korunur
+
+Anahtarların yalnızca bu cihazda saklanır ve yalnızca kendi sağlayıcısına gönderilir. Ayrıntısı:
+
+- Mac'te macOS Anahtar Zinciri'nde dururlar. Anahtar Zinciri onları şifreler ve Mac'ine giriş yaptığında açar; başka bir uygulama onlara ancak sen izin verirsen ulaşabilir.
+- Windows'ta ve web'de uygulamanın bu cihazdaki kendi alanında, AES-256 ile şifrelenmiş olarak dururlar. Şifreyi açan anahtarı tarayıcı motoru (Windows'ta Microsoft Edge WebView2) üretir ve dışarı vermez; bu yüzden anahtarların hiçbir dosyada düz yazı olarak görünmez.
+- Sınırını da bilmeni isteriz: bu şifreleme, bilgisayarındaki kullanıcı hesabını kullanabilen birine ya da orada çalışan zararlı bir yazılıma karşı tam koruma değildir. Ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat; o zaman anahtarların hiç kaydedilmez ve uygulamayı kapatınca (web'de sayfayı kapatınca) unutulur.
+- Her anahtar şifreli bağlantıyla (HTTPS) yalnızca kendi sağlayıcısına gider; isteğin başlığında taşınır, adres satırına yazılmaz. Windows'ta ve web'de uygulamanın güvenlik kuralı (Content Security Policy), kendi dosyaları ve bu dört sağlayıcı dışında hiçbir adrese bağlanmaya izin vermez. Peryda internetten kod yüklemez; reklam, ölçüm ya da sohbet eklentisi gibi başka şirketlerin betiklerini içermez.
+- Anahtarların yedeklere ve dışa aktarılan dosyalara hiç girmez.
+- Önerimiz: Peryda için ayrı bir anahtar oluştur ve sağlayıcında bir harcama sınırı koy. Anahtarının ele geçtiğinden şüphelenirsen onu sağlayıcının sitesinden iptal et; iptal edilen anahtar hemen çalışmaz olur.
+- Peryda açık kaynaklıdır: anahtarların nasıl saklanıp gönderildiğini herkes kodda denetleyebilir (github.com/isnalcan/peryda-open).
 
 ## Yapay zekâ sağlayıcına gidenler
 
@@ -49,7 +61,9 @@ Aldığını ne kadar saklayacağına ve neye kullanabileceğine sağlayıcı ka
 - Peryda'yı GitHub'dan indirdiğinde o indirme için GitHub'ın gizlilik bildirimi geçerlidir.
 - Web uygulamasını Google Firebase Hosting sunar; dosyaları ulaştırmak için IP adresin gibi bağlantı bilgilerini işler. Peryda buna herhangi bir ölçüm ya da istek kaydı eklemedi.
 - Windows'ta Peryda, Microsoft'un güncel tuttuğu bir Windows parçası olan Microsoft Edge WebView2 içinde çalışır.
-- Uygulamalar güncelleme olup olmadığını kendiliğinden denetlemez.
+- Mac ve Windows uygulamaları sen izin vermeden yeni sürüm aramaz. İkinci açılışta sorarlar; izin verirsen günde bir kez GitHub'dan küçük bir sürüm dosyası isterler. GitHub bu istekte, her web isteğinde olduğu gibi, IP adresini ve isteği yapan uygulamanın adını ve sürümünü görebilir. Kitapların, notların, anahtarların ya da bilgisayarın hakkında hiçbir şey gönderilmez. Bu denetimi Ayarlar'dan istediğin zaman açıp kapatabilirsin.
+- Bir güncelleme yalnızca Peryda'nın güncelleme anahtarıyla imzalanmışsa kurulur; imzası tutmayan ya da değiştirilmiş bir dosya reddedilir. Yeni bir sürüm bulunduğunda uygulama kurmadan önce sorar; Mac'te güncellemelerin kendiliğinden kurulmasını da seçebilirsin.
+- Web uygulaması ayrıca bir şey denetlemez: sayfayı her açtığında en yeni sürüm gelir.
 
 ## Hakların
 
