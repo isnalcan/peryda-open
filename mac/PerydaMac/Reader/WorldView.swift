@@ -116,6 +116,7 @@ final class WorldView: NSView {
             documentView.frame = docFrame
             documentView.setBoundsOrigin(docFrame.origin)
         }
+        clipView.contentBottom = model.contentRect.maxY
         if yarnView.frame != docFrame {
             yarnView.frame = docFrame
             yarnView.setBoundsOrigin(docFrame.origin)

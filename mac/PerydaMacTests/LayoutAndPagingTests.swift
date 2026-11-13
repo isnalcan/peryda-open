@@ -159,3 +159,24 @@ final class LayoutAndPagingTests: XCTestCase {
         try paged.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-paged.png"))
     }
 }
+
+extension LayoutAndPagingTests {
+    /// Past the last page the reader may scroll on until only a strip of the book is left at the top of
+    /// the window, whatever the zoom; never further, and never above the first page.
+    func testScrollingGoesOnPastTheLastPageUntilAStripIsLeft() throws {
+        world.sync()
+        let clip = world.scrollView.contentView
+        let bottom = reader.contentRect.maxY
+        for magnification in [1.0, 0.35, 2.0] {
+            world.scrollView.magnification = magnification
+            clip.scroll(to: CGPoint(x: clip.bounds.minX, y: 1_000_000))
+            world.scrollView.reflectScrolledClipView(clip)
+            let leftOnScreen = (bottom - clip.bounds.minY) * magnification
+            XCTAssertEqual(leftOnScreen, CenteringClipView.keptInView, accuracy: 1, "a strip of the last page stays in view at ×\(magnification)")
+
+            clip.scroll(to: CGPoint(x: clip.bounds.minX, y: -1_000_000))
+            world.scrollView.reflectScrolledClipView(clip)
+            XCTAssertEqual(clip.bounds.minY, 0, accuracy: 0.5, "and no further up than the first page at ×\(magnification)")
+        }
+    }
+}
