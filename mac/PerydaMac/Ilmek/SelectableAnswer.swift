@@ -8,7 +8,9 @@ struct SelectableAnswer: NSViewRepresentable {
     let text: String
     /// The reading face by default; follow-up questions use the interface face.
     var font: NSFont = SelectableAnswer.font
-    let onSelect: (String, CGRect) -> Void
+    /// Pery's answers and journal text are Markdown; the reader's own questions and notes are shown as typed.
+    var markdown = true
+    var onSelect: (String, CGRect) -> Void = { _, _ in }
 
     static let font: NSFont = {
         let base = NSFont.systemFont(ofSize: 14)
@@ -16,29 +18,17 @@ struct SelectableAnswer: NSViewRepresentable {
         return NSFont(descriptor: serif, size: 14) ?? base
     }()
 
-    /// Markdown (bold, italic, code) to attributed text in the reading face.
-    static func attributed(_ markdown: String, font baseFont: NSFont = SelectableAnswer.font) -> NSAttributedString {
-        let parsed = (try? AttributedString(markdown: markdown, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(markdown)
-        let out = NSMutableAttributedString()
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.lineSpacing = 3
-        for run in parsed.runs {
-            let piece = String(parsed[run.range].characters)
-            var font = baseFont
-            if let intent = run.inlinePresentationIntent {
-                var traits: NSFontDescriptor.SymbolicTraits = []
-                if intent.contains(.stronglyEmphasized) { traits.insert(.bold) }
-                if intent.contains(.emphasized) { traits.insert(.italic) }
-                if intent.contains(.code) { font = .monospacedSystemFont(ofSize: 12.5, weight: .regular) }
-                if !traits.isEmpty { font = NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(traits), size: font.pointSize) ?? font }
-            }
-            out.append(NSAttributedString(string: piece, attributes: [.font: font, .foregroundColor: Theme.ink, .paragraphStyle: paragraph]))
-        }
-        return out
+    static func style(_ font: NSFont) -> MarkdownText.Style {
+        MarkdownText.Style(font: font, color: Theme.ink, soft: Theme.inkSoft, line: Theme.lineStrong, lineSpacing: 3, blockSpacing: 8, itemSpacing: 3, headingSpacing: 10)
+    }
+
+    /// Markdown (paragraphs, headings, lists, quotes, lines; bold, italic, code) in the reading face.
+    static func attributed(_ markdown: String, font: NSFont = SelectableAnswer.font) -> NSAttributedString {
+        MarkdownText.attributed(markdown, style: style(font))
     }
 
     func makeNSView(context: Context) -> AnswerTextView {
-        let view = AnswerTextView()
+        let view = AnswerTextView(usingTextLayoutManager: false)
         view.isEditable = false
         view.isSelectable = true
         view.drawsBackground = false
@@ -54,7 +44,7 @@ struct SelectableAnswer: NSViewRepresentable {
     func updateNSView(_ view: AnswerTextView, context: Context) {
         if view.source != text {
             view.source = text
-            view.textStorage?.setAttributedString(Self.attributed(text, font: font))
+            view.textStorage?.setAttributedString(markdown ? Self.attributed(text, font: font) : MarkdownText.plain(text, style: Self.style(font)))
         }
         view.onSelect = onSelect
     }
@@ -68,9 +58,37 @@ struct SelectableAnswer: NSViewRepresentable {
     }
 }
 
+/// TextKit 1 text (create it with `usingTextLayoutManager: false`) that also draws the `---` lines and
+/// quote bars MarkdownText marks.
 final class AnswerTextView: NSTextView {
     var source = ""
     var onSelect: ((String, CGRect) -> Void)?
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard let storage = textStorage, storage.length > 0, let layout = layoutManager, let container = textContainer else { return }
+        let all = NSRange(location: 0, length: storage.length)
+        let origin = textContainerOrigin
+        let left = origin.x + container.lineFragmentPadding
+        let width = max(container.size.width - 2 * container.lineFragmentPadding, 0)
+        storage.enumerateAttribute(.markdownRule, in: all) { value, range, _ in
+            guard let color = value as? NSColor else { return }
+            let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return }
+            let row = layout.lineFragmentUsedRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            color.setFill()
+            NSRect(x: left, y: (origin.y + row.midY).rounded(.down), width: width, height: 1).fill()
+        }
+        storage.enumerateAttribute(.markdownQuote, in: all) { value, range, _ in
+            guard let color = value as? NSColor else { return }
+            let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return }
+            let first = layout.lineFragmentUsedRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let last = layout.lineFragmentUsedRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil)
+            color.setFill()
+            NSRect(x: left, y: origin.y + first.minY + 2, width: 2, height: max(last.maxY - first.minY - 4, 2)).fill()
+        }
+    }
 
     /// Selecting in a card works on the first click, even when the window was not in front.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -89,7 +107,7 @@ final class AnswerTextView: NSTextView {
     private func reportSelection() {
         let range = selectedRange()
         guard range.length > 0, let layout = layoutManager, let container = textContainer else { return }
-        let text = (string as NSString).substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = (string as NSString).substring(with: range).replacingOccurrences(of: "\u{00A0}", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         let local = layout.boundingRect(forGlyphRange: glyphs, in: container).offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)

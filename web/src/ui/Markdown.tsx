@@ -1,8 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
 
 /**
- * A small, safe renderer for Pery's answers: paragraphs, headings, bullet and numbered lists, bold,
- * italic and inline code. It builds React elements only; no HTML from the provider is ever inserted.
+ * A small, safe renderer for Pery's answers: paragraphs, headings, bullet and numbered lists, quotes,
+ * lines (`---`), and bold, italic and inline code. It builds React elements only; no HTML from the
+ * provider is ever inserted, and a link or image keeps its words but not its address. The Mac app
+ * follows the same rules (PerydaKit Markdown.swift); both are checked against
+ * shared/vectors/markdown.json.
  */
 export function Markdown({ text }: { text: string }) {
   const blocks = parseBlocks(text)
@@ -13,70 +16,147 @@ export function Markdown({ text }: { text: string }) {
         if (b.type === 'ol') return <ol key={i}>{b.items.map((it, j) => <li key={j}>{inline(it)}</li>)}</ol>
         if (b.type === 'h') return <p key={i} className="md-heading">{inline(b.text)}</p>
         if (b.type === 'quote') return <blockquote key={i}>{inline(b.text)}</blockquote>
+        if (b.type === 'hr') return <hr key={i} className="md-rule" />
         return <p key={i}>{inline(b.text)}</p>
       })}
     </>
   )
 }
 
-type Block =
+export type Block =
   | { type: 'p'; text: string }
   | { type: 'h'; text: string }
   | { type: 'quote'; text: string }
   | { type: 'ul'; items: string[] }
   | { type: 'ol'; items: string[] }
+  | { type: 'hr' }
+
+const SETEXT = /^\s*(?:={2,}|-{2,})\s*$/
+const RULE = /^\s*([-*_])(?:\s*\1){2,}\s*$/
+const HEADING = /^\s*#{1,6}\s+(.+?)(?:\s+#+)?\s*$/
+const BULLET = /^\s*[-*•+]\s+(.*)$/
+const NUMBER = /^\s*\d+[.)]\s+(.*)$/
+const QUOTE = /^\s*>\s?(.*)$/
+const INDENTED = /^\s+\S/
 
 export function parseBlocks(text: string): Block[] {
   const blocks: Block[] = []
-  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const lines = text.replace(/\r\n?/g, '\n').split('\n')
   let paragraph: string[] = []
+  let previous: 'blank' | 'paragraph' | 'item' | 'quote' | 'other' = 'blank'
   const flush = () => {
     if (paragraph.length) blocks.push({ type: 'p', text: paragraph.join(' ') })
     paragraph = []
   }
   for (const raw of lines) {
     const line = raw.trimEnd()
-    const bullet = /^\s*[-*•]\s+(.*)$/.exec(line)
-    const numbered = /^\s*\d+[.)]\s+(.*)$/.exec(line)
-    const heading = /^\s*#{1,6}\s+(.*)$/.exec(line)
-    const quote = /^\s*>\s?(.*)$/.exec(line)
+    const last = blocks[blocks.length - 1]
     if (!line.trim()) {
       flush()
-    } else if (bullet || numbered) {
+      previous = 'blank'
+      continue
+    }
+    if (paragraph.length && SETEXT.test(line)) {
+      blocks.push({ type: 'h', text: paragraph.join(' ') })
+      paragraph = []
+      previous = 'other'
+      continue
+    }
+    if (RULE.test(line)) {
+      flush()
+      blocks.push({ type: 'hr' })
+      previous = 'other'
+      continue
+    }
+    const heading = HEADING.exec(line)
+    if (heading) {
+      flush()
+      blocks.push({ type: 'h', text: heading[1]! })
+      previous = 'other'
+      continue
+    }
+    const bullet = BULLET.exec(line)
+    const numbered = bullet ? null : NUMBER.exec(line)
+    if (bullet || numbered) {
       flush()
       const type = bullet ? 'ul' : 'ol'
       const item = (bullet ?? numbered)![1]!
-      const last = blocks[blocks.length - 1]
-      if (last && last.type === type) last.items.push(item)
+      const current = blocks[blocks.length - 1]
+      if (current && current.type === type) current.items.push(item)
       else blocks.push({ type, items: [item] })
-    } else if (heading) {
-      flush()
-      blocks.push({ type: 'h', text: heading[1]! })
-    } else if (quote) {
-      flush()
-      blocks.push({ type: 'quote', text: quote[1]! })
-    } else {
-      paragraph.push(line.trim())
+      previous = 'item'
+      continue
     }
+    if (previous === 'item' && INDENTED.test(line) && last && (last.type === 'ul' || last.type === 'ol')) {
+      // An indented line under a list item goes on with that item.
+      last.items[last.items.length - 1] += ` ${line.trim()}`
+      continue
+    }
+    const quote = QUOTE.exec(line)
+    if (quote) {
+      flush()
+      const current = blocks[blocks.length - 1]
+      if (previous === 'quote' && current && current.type === 'quote') current.text += ` ${quote[1]!}`
+      else blocks.push({ type: 'quote', text: quote[1]! })
+      previous = 'quote'
+      continue
+    }
+    paragraph.push(line.trim())
+    previous = 'paragraph'
   }
   flush()
   return blocks
 }
 
-const INLINE = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*\s][^*]*\*|_[^_\s][^_]*_|`[^`]+`)/g
+export interface Span {
+  text: string
+  bold?: boolean
+  italic?: boolean
+  code?: boolean
+}
 
-function inline(text: string): ReactNode {
-  const out: ReactNode[] = []
+/**
+ * Bold italic, bold, italic, code, and links or images (their words only). A closing mark must follow a
+ * letter, not a space, and an underscore inside a word is just an underscore.
+ */
+const INLINE =
+  /(\*\*\*[^*\s](?:[^*]*[^*\s])?\*\*\*|\*\*[^*\s](?:[^*]*[^*\s])?\*\*|__[^_\s](?:[^_]*[^_\s])?__|\*[^*\s](?:[^*]*[^*\s])?\*|(?<![\p{L}\p{N}])_[^_\s](?:[^_]*[^_\s])?_(?![\p{L}\p{N}])|`[^`]+`|!?\[[^\]]+\]\([^)\s]*\))/gu
+
+export function parseInline(text: string): Span[] {
+  const out: Span[] = []
+  const add = (span: Span) => {
+    if (!span.text) return
+    const prev = out[out.length - 1]
+    const plain = (s: Span) => !s.bold && !s.italic && !s.code
+    if (prev && plain(prev) && plain(span)) prev.text += span.text
+    else out.push(span)
+  }
   let last = 0
   for (const m of text.matchAll(INLINE)) {
     const token = m[0]
     const start = m.index ?? 0
-    if (start > last) out.push(text.slice(last, start))
-    if (token.startsWith('**') || token.startsWith('__')) out.push(<strong key={start}>{token.slice(2, -2)}</strong>)
-    else if (token.startsWith('`')) out.push(<code key={start}>{token.slice(1, -1)}</code>)
-    else out.push(<em key={start}>{token.slice(1, -1)}</em>)
+    if (start > last) add({ text: text.slice(last, start) })
+    if (token.startsWith('***')) add({ text: token.slice(3, -3), bold: true, italic: true })
+    else if (token.startsWith('**') || token.startsWith('__')) add({ text: token.slice(2, -2), bold: true })
+    else if (token.startsWith('`')) add({ text: token.slice(1, -1), code: true })
+    else if (token.startsWith('[') || token.startsWith('![')) add({ text: token.slice(token.indexOf('[') + 1, token.indexOf(']')) })
+    else add({ text: token.slice(1, -1), italic: true })
     last = start + token.length
   }
-  if (last < text.length) out.push(text.slice(last))
-  return <Fragment>{out}</Fragment>
+  if (last < text.length) add({ text: text.slice(last) })
+  return out
+}
+
+function inline(text: string): ReactNode {
+  return (
+    <Fragment>
+      {parseInline(text).map((s, i) => {
+        if (s.code) return <code key={i}>{s.text}</code>
+        let node: ReactNode = s.text
+        if (s.italic) node = <em>{node}</em>
+        if (s.bold) node = <strong>{node}</strong>
+        return <Fragment key={i}>{node}</Fragment>
+      })}
+    </Fragment>
+  )
 }

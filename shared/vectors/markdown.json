@@ -1,0 +1,132 @@
+{
+  "description": "How Pery's answers, page translations and journal text are read as Markdown. The web engine (web/src/ui/Markdown.tsx) and the Mac app (PerydaKit Markdown.swift) must both produce exactly these blocks and spans. Block types: p (paragraph), h (heading), quote, ul, ol, hr (a line). Spans list only the styles that are on; neighbouring plain text is one span. Links and images keep only their words.",
+  "blocks": [
+    {
+      "name": "a typical answer: heading, star bullets, a line, numbers, a quote",
+      "text": "### Kısaca\n\nBu cümle **iki** şey söylüyor:\n\n* Birincisi, *zaman*.\n* İkincisi, `mekân`.\n\n---\n\n1. Bir\n2) İki\n\n> Alıntı bir\n> devam\n\nSon paragraf\nikinci satır.",
+      "blocks": [
+        { "type": "h", "text": "Kısaca" },
+        { "type": "p", "text": "Bu cümle **iki** şey söylüyor:" },
+        { "type": "ul", "items": ["Birincisi, *zaman*.", "İkincisi, `mekân`."] },
+        { "type": "hr" },
+        { "type": "ol", "items": ["Bir", "İki"] },
+        { "type": "quote", "text": "Alıntı bir devam" },
+        { "type": "p", "text": "Son paragraf ikinci satır." }
+      ]
+    },
+    {
+      "name": "every way of writing a line",
+      "text": "a\n\n***\n\nb\n\n___\n\n* * *\n\n- - -\n\n----------",
+      "blocks": [
+        { "type": "p", "text": "a" },
+        { "type": "hr" },
+        { "type": "p", "text": "b" },
+        { "type": "hr" },
+        { "type": "hr" },
+        { "type": "hr" },
+        { "type": "hr" }
+      ]
+    },
+    {
+      "name": "a line of dashes or equals signs right under text makes that text a heading",
+      "text": "Birinci bölüm\n---\nmetin\n\nİkinci\nbölüm\n===\n\n===",
+      "blocks": [
+        { "type": "h", "text": "Birinci bölüm" },
+        { "type": "p", "text": "metin" },
+        { "type": "h", "text": "İkinci bölüm" },
+        { "type": "p", "text": "===" }
+      ]
+    },
+    {
+      "name": "heading levels, closing hashes, and hashes that are not headings",
+      "text": "# Bir #\n###### Altı\n####### yedi\n#etiket",
+      "blocks": [
+        { "type": "h", "text": "Bir" },
+        { "type": "h", "text": "Altı" },
+        { "type": "p", "text": "####### yedi #etiket" }
+      ]
+    },
+    {
+      "name": "an indented line continues a list item; nested items join the list",
+      "text": "- bir\n  devamı\n  - alt\n- iki\n\nsonra",
+      "blocks": [
+        { "type": "ul", "items": ["bir devamı", "alt", "iki"] },
+        { "type": "p", "text": "sonra" }
+      ]
+    },
+    {
+      "name": "other bullet marks, and lists of different kinds side by side",
+      "text": "• bir\n+ iki\n1. üç\n- dört",
+      "blocks": [
+        { "type": "ul", "items": ["bir", "iki"] },
+        { "type": "ol", "items": ["üç"] },
+        { "type": "ul", "items": ["dört"] }
+      ]
+    },
+    {
+      "name": "stars inside text are not bullets",
+      "text": "2 * 3 * 4 eder\n*vurgu* ile başlayan satır",
+      "blocks": [{ "type": "p", "text": "2 * 3 * 4 eder *vurgu* ile başlayan satır" }]
+    },
+    {
+      "name": "Windows line ends",
+      "text": "a\r\nb\r\n\r\n- c",
+      "blocks": [
+        { "type": "p", "text": "a b" },
+        { "type": "ul", "items": ["c"] }
+      ]
+    },
+    {
+      "name": "nothing",
+      "text": " \n\n  ",
+      "blocks": []
+    }
+  ],
+  "inline": [
+    {
+      "name": "bold, italic and code",
+      "text": "**kalın** ve *eğik* ve `kod`",
+      "spans": [
+        { "text": "kalın", "bold": true },
+        { "text": " ve " },
+        { "text": "eğik", "italic": true },
+        { "text": " ve " },
+        { "text": "kod", "code": true }
+      ]
+    },
+    {
+      "name": "bold italic and the underscore forms",
+      "text": "***ikisi*** __alt__ _alt eğik_",
+      "spans": [
+        { "text": "ikisi", "bold": true, "italic": true },
+        { "text": " " },
+        { "text": "alt", "bold": true },
+        { "text": " " },
+        { "text": "alt eğik", "italic": true }
+      ]
+    },
+    {
+      "name": "underscores inside words and spaced stars stay as they are",
+      "text": "snake_case_name ve 2 * 3 * 4",
+      "spans": [{ "text": "snake_case_name ve 2 * 3 * 4" }]
+    },
+    {
+      "name": "links and images keep their words, never their address",
+      "text": "[bölüm 3](https://evil.example/k) ve ![resim](https://evil.example/i.png)",
+      "spans": [{ "text": "bölüm 3 ve resim" }]
+    },
+    {
+      "name": "unclosed marks stay as they are",
+      "text": "**yarım ve *tek",
+      "spans": [{ "text": "**yarım ve *tek" }]
+    },
+    {
+      "name": "stars inside code stay",
+      "text": "`a*b*c` sonra",
+      "spans": [
+        { "text": "a*b*c", "code": true },
+        { "text": " sonra" }
+      ]
+    }
+  ]
+}

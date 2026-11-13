@@ -154,7 +154,7 @@ struct TranslationText: NSViewRepresentable {
 /// smallest does not.
 final class FittingTextView: NSView {
     let scroll = NSScrollView()
-    let textView = AnswerTextView()
+    let textView = AnswerTextView(usingTextLayoutManager: false)
     var source = ""
     private var laidOut: (String, CGSize)?
 
@@ -211,38 +211,15 @@ final class FittingTextView: NSView {
         return ceil(layout.usedRect(for: container).height)
     }
 
-    /// '# ' headings, '- ' list items and blank-line paragraphs, in the reading face.
+    /// The translation's Markdown (headings, lists, quotes, lines, emphasis) in the reading face, on the
+    /// page's own light paper whatever the app's appearance.
     static func attributed(_ source: String, size: Double) -> NSAttributedString {
-        let out = NSMutableAttributedString()
         let base = NSFont(descriptor: NSFont.systemFont(ofSize: size).fontDescriptor.withDesign(.serif) ?? NSFont.systemFont(ofSize: size).fontDescriptor, size: size) ?? .systemFont(ofSize: size)
-        let blocks = source.replacingOccurrences(of: "\r", with: "").components(separatedBy: "\n")
-        var first = true
-        for raw in blocks {
-            let line = raw.trimmingCharacters(in: .whitespaces)
-            if line.isEmpty { continue }
-            let para = NSMutableParagraphStyle()
-            para.lineSpacing = size * 0.28
-            para.paragraphSpacingBefore = first ? 0 : size * 0.55
-            var font = base
-            var body = line
-            if line.hasPrefix("#") {
-                body = line.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)
-                font = NSFont(descriptor: base.fontDescriptor.withSymbolicTraits(.bold), size: size * 1.12) ?? base
-                para.paragraphSpacingBefore = first ? 0 : size * 0.9
-            } else if line.hasPrefix("- ") || line.hasPrefix("• ") || line.hasPrefix("* ") {
-                body = "•\t" + line.dropFirst(2)
-                para.headIndent = size * 1.2
-                para.firstLineHeadIndent = 0
-                para.tabStops = [NSTextTab(textAlignment: .left, location: size * 1.2)]
-                para.paragraphSpacingBefore = first ? 0 : size * 0.25
-            }
-            let piece = SelectableAnswer.attributed(body, font: font)
-            let mutable = NSMutableAttributedString(attributedString: piece)
-            mutable.addAttributes([.paragraphStyle: para, .foregroundColor: TranslatedPageView.ink], range: NSRange(location: 0, length: mutable.length))
-            if !first { out.append(NSAttributedString(string: "\n")) }
-            out.append(mutable)
-            first = false
-        }
-        return out
+        let soft = NSColor(srgbRed: 0x6F / 255, green: 0x64 / 255, blue: 0x57 / 255, alpha: 1)
+        let style = MarkdownText.Style(
+            font: base, color: TranslatedPageView.ink, soft: soft, line: NSColor(white: 0, alpha: 0.16),
+            lineSpacing: size * 0.28, blockSpacing: size * 0.55, itemSpacing: size * 0.25, headingSpacing: size * 0.9, headingScale: 1.12
+        )
+        return MarkdownText.attributed(source, style: style)
     }
 }

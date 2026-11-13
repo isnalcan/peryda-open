@@ -4,7 +4,13 @@ import SwiftUI
 
 /// Peryda's "Kenar Notu" colours from shared/tokens.json, adapting to light and dark appearance.
 enum Theme {
+    /// "#RRGGBB", or "rgba(r, g, b, a)" as the line tokens are written.
     static func hex(_ s: String) -> NSColor {
+        if s.hasPrefix("rgb") {
+            let parts = s.drop { $0 != "(" }.dropFirst().prefix { $0 != ")" }.split(separator: ",").map { Double($0.trimmingCharacters(in: .whitespaces)) ?? 0 }
+            guard parts.count >= 3 else { return .black }
+            return NSColor(srgbRed: parts[0] / 255, green: parts[1] / 255, blue: parts[2] / 255, alpha: parts.count > 3 ? parts[3] : 1)
+        }
         var v: UInt64 = 0
         Scanner(string: s.trimmingCharacters(in: CharacterSet(charactersIn: "#"))).scanHexInt64(&v)
         return NSColor(srgbRed: CGFloat((v >> 16) & 0xFF) / 255, green: CGFloat((v >> 8) & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
@@ -28,6 +34,8 @@ enum Theme {
     static let inkSoft = palette(\.inkSoft)
     static let inkFaint = palette(\.inkFaint)
     static let accent = palette(\.accent)
+    static let line = palette(\.line)
+    static let lineStrong = palette(\.lineStrong)
 
     static func yarn(_ color: YarnColor) -> NSColor {
         let tone = SharedContract.tokens.tone(color)

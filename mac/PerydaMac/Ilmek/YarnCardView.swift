@@ -159,9 +159,9 @@ struct YarnCardView: View {
         switch (message.role, message.state) {
         case (.user, _):
             if isNote {
-                SelectableAnswer(text: message.content) { text, rect in onSelectText(cardId, text, rect) }
+                SelectableAnswer(text: message.content, markdown: false) { text, rect in onSelectText(cardId, text, rect) }
             } else if index > 0 || card.kind == .question {
-                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13, weight: .semibold)) { text, rect in onSelectText(cardId, text, rect) }
+                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13, weight: .semibold), markdown: false) { text, rect in onSelectText(cardId, text, rect) }
                     .padding(.top, 4)
             }
         case (.assistant, .error):
@@ -242,17 +242,6 @@ struct YarnCardView: View {
         case "blocked": t["errorBlocked"]
         default: t["errorUnknown"]
         }
-    }
-
-    /// Bold and italics from AI answers, journal entries and backups, never links: a link's text can
-    /// hide where it goes (another app's URL scheme, a file share, a phishing page).
-    static func markdown(_ text: String) -> AttributedString {
-        var out = (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
-        for run in out.runs where run.link != nil || run.imageURL != nil {
-            out[run.range].link = nil
-            out[run.range].imageURL = nil
-        }
-        return out
     }
 
     static func image(fromDataURL url: String) -> NSImage? {

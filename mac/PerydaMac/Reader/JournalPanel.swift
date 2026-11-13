@@ -60,7 +60,7 @@ struct JournalPanel: View {
                                 Spacer()
                                 Text(summary.createdAt, style: .date).font(.caption).foregroundStyle(Color.inkFaint)
                             }
-                            Text(YarnCardView.markdown(summary.text)).font(.reading(14)).textSelection(.enabled)
+                            SelectableAnswer(text: summary.text)
                         }
                         .padding(12)
                         .background(Color.peryda.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
@@ -96,7 +96,7 @@ struct JournalPanel: View {
                                     .overlay(alignment: .leading) { Rectangle().fill(Color.peryda).frame(width: 2) }
                             }
                             if !entry.text.isEmpty {
-                                Text(YarnCardView.markdown(entry.text)).font(.reading(14)).textSelection(.enabled)
+                                SelectableAnswer(text: entry.text)
                             }
                         }
                         .padding(.vertical, 6)

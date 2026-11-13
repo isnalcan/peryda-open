@@ -41,10 +41,17 @@ final class SecurityFixesTests: XCTestCase {
 
     func testJournalTextKeepsItsEmphasisButNoLinks() {
         let text = "**Önemli**: [Re-verify your Gemini key](https://evil.example/k), [chapter 3](vscode://open), <https://evil.example/auto> ![x](https://evil.example/i.png)"
-        let out = YarnCardView.markdown(text)
-        XCTAssertTrue(out.runs.allSatisfy { $0.link == nil && $0.imageURL == nil }, "no run may open anything")
-        XCTAssertTrue(String(out.characters).contains("Re-verify your Gemini key"), "the words stay")
-        XCTAssertTrue(out.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true }, "bold stays")
+        let out = SelectableAnswer.attributed(text)
+        var links = 0
+        var bold = false
+        out.enumerateAttributes(in: NSRange(location: 0, length: out.length)) { attrs, _, _ in
+            if attrs[.link] != nil || attrs[.attachment] != nil { links += 1 }
+            if let font = attrs[.font] as? NSFont, font.fontDescriptor.symbolicTraits.contains(.bold) { bold = true }
+        }
+        XCTAssertEqual(links, 0, "no run may open anything")
+        XCTAssertTrue(out.string.contains("Re-verify your Gemini key"), "the words stay")
+        XCTAssertFalse(out.string.contains("evil.example/k"), "the address does not")
+        XCTAssertTrue(bold, "bold stays")
     }
 
     // MARK: M-14 and M-4 imports

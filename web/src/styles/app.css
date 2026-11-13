@@ -726,8 +726,26 @@ button:disabled {
   background: var(--paper-sunken);
 }
 
-.yarn-answer-text .md-heading {
+.yarn-answer-text .md-heading,
+.journal-text .md-heading,
+.journal-summary .md-heading {
   font-weight: 650;
+}
+
+/* A `---` line in an answer, a translation or the journal. */
+.md-rule {
+  height: 0;
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.journal-text blockquote,
+.journal-summary blockquote {
+  margin: 0 0 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--ink-soft);
 }
 
 .yarn-answer-text blockquote {
@@ -2200,6 +2218,10 @@ button:disabled {
 
 .translated-page-text .md-heading:first-child {
   margin-top: 0;
+}
+
+.translated-page-text .md-rule {
+  border-top-color: rgb(0 0 0 / 0.16);
 }
 
 .translated-page-text ::selection {
