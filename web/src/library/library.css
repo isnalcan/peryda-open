@@ -1,0 +1,331 @@
+/* Library: covers, search, tile tools and the edit dialog.
+   This file loads before app.css (main.tsx imports App first), so rules that touch app.css classes
+   are scoped under .library to win; the new classes are only defined here. */
+
+/* ---------- Header and search ---------- */
+
+.library .library-header {
+  flex-wrap: wrap;
+}
+
+.library-search {
+  position: relative;
+  flex: 1 1 220px;
+  max-width: 320px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  color: var(--ink-faint);
+}
+
+.library-search svg {
+  position: absolute;
+  left: 11px;
+  pointer-events: none;
+}
+
+.library-search input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  appearance: none;
+  transition: border-color 120ms ease-out;
+}
+
+.library-search input::placeholder {
+  color: var(--ink-faint);
+}
+
+.library-search input:focus {
+  border-color: var(--accent);
+}
+
+/* ---------- Tiles ---------- */
+
+.library .book-open {
+  border-radius: 8px;
+  outline-offset: 4px;
+}
+
+.library .book-sub {
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The frame alone decides the size: 3:4, whatever the picture is. */
+.cover-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 5px 10px 10px 5px;
+  background: var(--paper-sunken);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 20px rgb(0 0 0 / 0.09);
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* A shaded spine and a hairline edge, drawn over the picture so a white page still reads as a book. */
+.cover-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.13) 0, rgb(0 0 0 / 0.04) 5px, rgb(255 255 255 / 0.06) 7px, transparent 10px);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.07);
+  pointer-events: none;
+}
+
+.cover-picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Far from 3:4: the whole picture, centred on white. */
+.cover-picture[data-fit='letterbox'] {
+  padding: 8px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.cover-picture[data-arrived] {
+  animation: cover-in 220ms ease-out;
+}
+
+@keyframes cover-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.cover-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 14px 14px 14px 18px;
+  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: var(--paper);
+}
+
+.cover-frame[data-format='epub'] .cover-placeholder {
+  background: linear-gradient(160deg, var(--yarn-sky) 0%, color-mix(in srgb, var(--yarn-sky) 70%, black) 100%);
+}
+
+.cover-placeholder-title {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (hover: hover) {
+  .library .book-open:hover .cover-frame {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.08), 0 14px 28px rgb(0 0 0 / 0.13);
+  }
+}
+
+.library .book-open:focus-visible .cover-frame {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.08), 0 14px 28px rgb(0 0 0 / 0.13);
+}
+
+/* Edit and delete sit on the cover's corner, shown on hover or keyboard focus. */
+.book-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.library .book-tool {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  backdrop-filter: blur(6px);
+}
+
+.library .book-tool:hover {
+  background: var(--paper);
+}
+
+.book-tile:hover .book-tools,
+.book-tile:focus-within .book-tools {
+  opacity: 1;
+}
+
+/* Touch screens have no hover, so the tools stay visible. */
+@media (hover: none) {
+  .book-tools {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .library-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
+  }
+  .library .library-title {
+    margin-top: 28px;
+  }
+  .library .book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 24px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-frame {
+    transition: box-shadow 150ms ease;
+  }
+  .library .book-open:hover .cover-frame,
+  .library .book-open:focus-visible .cover-frame {
+    transform: none;
+  }
+  .cover-picture[data-arrived] {
+    animation: none;
+  }
+}
+
+/* ---------- Edit details dialog ---------- */
+
+.edit-book-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.2);
+}
+
+.edit-book-dialog::backdrop {
+  background: rgb(19 17 16 / 0.35);
+}
+
+.edit-book-fields {
+  display: grid;
+  gap: 12px;
+  padding: 10px 22px 4px;
+}
+
+.edit-book-fields label {
+  display: grid;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.edit-book-fields input {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.edit-book-fields input:focus {
+  border-color: var(--accent);
+}
+
+.edit-book-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 22px 20px;
+}
+
+.edit-book-dialog .edit-book-actions .ghost-button {
+  height: 36px;
+  padding: 0 14px;
+}
+
+/* A quiet drawing in the bottom-right corner (LibraryArt.tsx): behind everything, never in the way. */
+.library-art {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  /* Painted just above the page background, under everything in the library. */
+  z-index: -1;
+  width: clamp(320px, 38vw, 580px);
+  height: auto;
+  color: var(--accent);
+  opacity: 0.34;
+  pointer-events: none;
+}
+
+.library-art-thread {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: library-art-draw 2.4s cubic-bezier(0.33, 0, 0.2, 1) 0.2s both;
+}
+
+.library-art-knot {
+  animation: library-art-appear 0.9s ease-out 1.3s both;
+}
+
+@keyframes library-art-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes library-art-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .library-art {
+    opacity: 0.4;
+  }
+}
+
+:root[data-theme='dark'] .library-art {
+  opacity: 0.4;
+}
+
+@media (max-width: 700px) {
+  .library-art {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-art-thread,
+  .library-art-knot {
+    animation: none;
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "Peryda",
+        "width": 1360,
+        "height": 880,
+        "minWidth": 720,
+        "minHeight": 520,
+        "center": true,
+        "dragDropEnabled": false,
+        "useHttpsScheme": true,
+        "additionalBrowserArgs": "--remote-debugging-port=9222 --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
+      }
+    ]
+  },
+  "bundle": {
+    "active": false
+  }
+}

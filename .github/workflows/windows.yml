@@ -1,0 +1,84 @@
+# Builds the Windows installer (NSIS .exe) on GitHub's Windows machine, then installs it and runs a
+# smoke test with screenshots. Started by hand only (Actions → "Windows build" → Run workflow): in a
+# private repository every run uses the account's included Actions allowance, so nothing runs on push.
+# Artifacts here are test builds; releases are published separately.
+name: Windows build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            windows/package-lock.json
+            windows/e2e/package-lock.json
+
+      # Dependencies install without running their install scripts; nothing here needs them.
+      - name: Install
+        run: |
+          npm ci --ignore-scripts --prefix web
+          npm ci --ignore-scripts --prefix windows
+          npm ci --ignore-scripts --prefix windows/e2e
+
+      - name: Web tests
+        run: npm test --prefix web
+
+      # Rust comes from windows/src-tauri/rust-toolchain.toml; --locked fails if Cargo.lock would change.
+      - name: Build the installer
+        working-directory: windows
+        run: npx --no-install tauri build -- --locked
+
+      - name: The installed app has no DevTools port
+        shell: pwsh
+        run: |
+          $exe = 'windows/src-tauri/target/release/peryda-windows.exe'
+          if (Select-String -Path $exe -Pattern 'remote-debugging-port' -SimpleMatch -Quiet) { throw 'release build opens a DevTools port' }
+          Get-FileHash windows/src-tauri/target/release/bundle/nsis/*.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" }
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: peryda-windows-installer
+          path: windows/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      # The same app with WebView2's DevTools port open, built into its own folder so it can never be
+      # mistaken for the release build. Used only by the smoke test, never uploaded.
+      - name: Test build for the smoke test
+        working-directory: windows
+        env:
+          CARGO_TARGET_DIR: target-e2e  # relative to src-tauri, where cargo runs
+        run: npx --no-install tauri build --no-bundle --config e2e/tauri.test.json -- --locked
+
+      # Installs the release installer, checks the installed app starts, then drives the test build
+      # like a reader would (no AI key) and saves a screenshot after every step.
+      - name: Smoke test on Windows
+        shell: pwsh
+        run: ./windows/e2e/run.ps1
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: peryda-windows-smoke-test
+          path: windows/e2e/out/
+          if-no-files-found: warn
+          retention-days: 14

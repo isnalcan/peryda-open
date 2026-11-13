@@ -1,0 +1,114 @@
+{
+  "description": "Magnetic right-lane placement (unpinned cards of one lane).",
+  "laneTop": 16,
+  "laneGap": 18,
+  "cases": [
+    {
+      "name": "no overlap",
+      "cards": [
+        {
+          "id": "a",
+          "desiredY": 100,
+          "height": 80
+        },
+        {
+          "id": "b",
+          "desiredY": 400,
+          "height": 120
+        }
+      ],
+      "placedY": {
+        "a": 100,
+        "b": 400
+      }
+    },
+    {
+      "name": "same paragraph",
+      "cards": [
+        {
+          "id": "a",
+          "desiredY": 300,
+          "height": 140
+        },
+        {
+          "id": "b",
+          "desiredY": 310,
+          "height": 90
+        },
+        {
+          "id": "c",
+          "desiredY": 305,
+          "height": 60
+        }
+      ],
+      "placedY": {
+        "a": 300,
+        "c": 458,
+        "b": 536
+      }
+    },
+    {
+      "name": "above lane top",
+      "cards": [
+        {
+          "id": "a",
+          "desiredY": -40,
+          "height": 50
+        },
+        {
+          "id": "b",
+          "desiredY": 0,
+          "height": 50
+        }
+      ],
+      "placedY": {
+        "a": 16,
+        "b": 84
+      }
+    },
+    {
+      "name": "ties keep order",
+      "cards": [
+        {
+          "id": "x",
+          "desiredY": 200,
+          "height": 40
+        },
+        {
+          "id": "y",
+          "desiredY": 200,
+          "height": 40
+        }
+      ],
+      "placedY": {
+        "x": 200,
+        "y": 258
+      }
+    },
+    {
+      "name": "unsorted input",
+      "cards": [
+        {
+          "id": "late",
+          "desiredY": 900,
+          "height": 100
+        },
+        {
+          "id": "early",
+          "desiredY": 850,
+          "height": 100
+        },
+        {
+          "id": "mid",
+          "desiredY": 860,
+          "height": 10
+        }
+      ],
+      "placedY": {
+        "early": 850,
+        "mid": 968,
+        "late": 996
+      }
+    }
+  ]
+}

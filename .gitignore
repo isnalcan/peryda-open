@@ -1,0 +1,48 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.vite/
+coverage/
+# Local secrets never belong here; BYOK keys live only in each user's device vault.
+.env
+.env.*
+web/dev-samples/
+*.tsbuildinfo
+web/public/pdfjs/
+.build/
+.swiftpm/
+xcuserdata/
+DerivedData/
+mac/build/
+
+
+# The owner's private notes (plans, release guides, audits): never published.
+notes/
+
+# Signing material, credentials and release outputs never belong in the repo.
+*.p8
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.keystore
+*.jks
+*.dmg
+*.exe
+*.msi
+*.xcarchive
+ExportOptions*.plist
+.npmrc
+.cargo/credentials*
+# Local tool settings.
+.claude/
+.xcodebuildmcp/
+.vscode/
+.idea/
+# Copies made by iCloud sync ("name 2.ext", "folder 3").
+* [0-9]
+* [0-9].*

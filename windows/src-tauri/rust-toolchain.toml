@@ -1,0 +1,4 @@
+# The toolchain the Windows build is made with (CI installs exactly this one).
+[toolchain]
+channel = "1.100.0"
+profile = "minimal"

@@ -1,0 +1,18 @@
+Peryda
+Copyright (c) 2026 isnalcan
+
+The source code in this repository is licensed under the MIT licence (see LICENSE), with these
+exceptions:
+
+- The name "Peryda", the Peryda logo and the brand artwork are not licensed under MIT:
+  web/public/brand/, the app icons in mac/PerydaMac/Resources/Assets.xcassets/AppIcon.appiconset/,
+  windows/app-icon.png and windows/src-tauri/icons/. Please do not use them for other apps or in a way
+  that suggests a build is the official Peryda.
+- The fonts in web/public/fonts/ (Literata, Instrument Sans) are licensed under the SIL Open Font
+  Licence 1.1 (web/public/fonts/OFL.txt).
+- Data files copied from pdf.js into the web build (character maps, standard fonts, colour profiles,
+  image decoders) keep their own licences, shipped next to them.
+- Third-party libraries keep their own licences. The web build includes THIRD_PARTY_NOTICES.txt for
+  the bundled JavaScript packages; the Windows app also includes THIRD_PARTY_NOTICES-rust.txt
+  (windows/THIRD_PARTY_NOTICES-rust.txt) for the Rust crates in its executable. jszip is used under
+  its MIT licence.

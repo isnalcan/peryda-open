@@ -1,0 +1,248 @@
+import AppKit
+import PerydaKit
+import SwiftUI
+
+/// A whole-page translation, drawn as a page of its own beside the PDF page: same size, level with
+/// it, paper and ink like a printed page. Its text can be selected to open threads, as on the PDF.
+struct TranslatedPageView: View {
+    let cardId: String
+    let reader: ReaderModel
+    let lang: Lang
+    let openSettings: () -> Void
+    /// Called with the selected text and its rectangle in window coordinates.
+    var onSelectText: (String, String, CGRect) -> Void = { _, _, _ in }
+
+    /// Printed-page colours: the translation reads like the PDF beside it, in either theme.
+    static let paper = Color.white
+    static let ink = NSColor(srgbRed: 0x21 / 255, green: 0x1F / 255, blue: 0x1A / 255, alpha: 1)
+    static let faint = Color(nsColor: NSColor(srgbRed: 0x6F / 255, green: 0x64 / 255, blue: 0x57 / 255, alpha: 1))
+
+    private var t: UIText { UIText(lang) }
+
+    var body: some View {
+        if let card = reader.cards.cards.first(where: { $0.id == cardId }) {
+            let answer = card.messages.last { $0.role == .assistant }
+            VStack(alignment: .leading, spacing: 0) {
+                header(card, answer: answer)
+                    .padding(.bottom, 14)
+                content(card, answer: answer)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .padding(EdgeInsets(top: 20, leading: 52, bottom: 40, trailing: 44))
+            .frame(width: card.width, height: card.height.map { CGFloat($0) } ?? 980, alignment: .topLeading)
+            .background(Self.paper)
+            .overlay(Rectangle().stroke(Color.black.opacity(0.06)))
+            .shadow(color: .black.opacity(0.10), radius: 10, y: 3)
+            .background(GeometryReader { g in
+                Color.clear
+                    .onAppear { report(g.size.height) }
+                    .onChange(of: g.size.height) { _, h in report(h) }
+            })
+        }
+    }
+
+    private func report(_ height: Double) {
+        if abs((reader.heights[cardId] ?? 0) - height) > 0.5 { reader.heights[cardId] = height }
+    }
+
+    private func header(_ card: YarnCard, answer: YarnMessage?) -> some View {
+        let language = Lang(rawValue: card.translationLanguage ?? "")?.languageName ?? ""
+        return HStack(spacing: 8) {
+            Image(systemName: "translate").font(.system(size: 10, weight: .semibold))
+            Text(t("translationOf", ["language": language, "page": card.translatedPage ?? 0]).uppercased(with: Locale(identifier: lang.rawValue)))
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.9)
+            if answer?.state == .streaming, card.batchJob == nil, !(answer?.content.isEmpty ?? true) {
+                Text("· " + t["translating"]).font(.system(size: 10))
+            }
+            Spacer(minLength: 8)
+            if answer?.state != .streaming {
+                Button { reader.cards.retranslate(cardId) } label: { Image(systemName: "arrow.clockwise").frame(width: 22, height: 22) }
+                    .buttonStyle(.borderless)
+                    .help(t["retranslate"])
+            }
+            Button { reader.cards.remove(cardId) } label: { Image(systemName: "xmark").frame(width: 22, height: 22) }
+                .buttonStyle(.borderless)
+                .help(t["close"])
+        }
+        .foregroundStyle(Self.faint)
+    }
+
+    @ViewBuilder
+    private func content(_ card: YarnCard, answer: YarnMessage?) -> some View {
+        // No answer yet: waiting for its batch or its wave.
+        if answer == nil {
+            waiting(card)
+        } else {
+            answerView(card, answer: answer)
+        }
+    }
+
+    @ViewBuilder
+    private func answerView(_ card: YarnCard, answer: YarnMessage?) -> some View {
+        switch (answer?.state, answer?.content.isEmpty ?? true) {
+        case (.error, _):
+            VStack(alignment: .leading, spacing: 8) {
+                Text(Self.errorText(answer?.content ?? "", t)).font(.system(size: 13)).foregroundStyle(Color(nsColor: Self.ink))
+                if answer?.content == "no-key" || answer?.content == "key" {
+                    LinkButton(title: t["openSettings"], action: openSettings)
+                } else {
+                    LinkButton(title: t["retry"]) { reader.cards.retranslate(cardId) }
+                }
+            }
+        case (.streaming, true):
+            waiting(card)
+        default:
+            TranslationText(text: answer?.content ?? "") { text, rect in onSelectText(cardId, text, rect) }
+        }
+    }
+
+    /// Waiting on the batch job; after a minute the reader may choose not to wait.
+    private func waiting(_ card: YarnCard) -> some View {
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+            let waited = context.date.timeIntervalSince1970 - card.createdAt / 1000
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(card.batchJob == nil ? t["translating"] : t["batchWaiting"])
+                        .font(.system(size: 13))
+                        .foregroundStyle(Self.faint)
+                }
+                if card.batchJob != nil, waited > 60 {
+                    LinkButton(title: t["translateNow"]) { reader.cards.translateNow(cardId) }
+                }
+            }
+        }
+    }
+
+    /// What a failed page says; every error but a missing or rejected key offers Retry, which
+    /// translates the page directly.
+    static func errorText(_ code: String, _ t: UIText) -> String {
+        switch code {
+        case "no-key": t["noKeyBody"]
+        case "expired": t["batchExpired"]
+        case "batch": t["batchFailed"]
+        case "network": t["errorNetwork"]
+        case "key": t["errorKey"]
+        case "quota": t["errorQuota"]
+        case "blocked": t["errorBlocked"]
+        default: t["errorUnknown"]
+        }
+    }
+}
+
+/// The translated text: paragraphs, headings and list items laid out like a page, sized to fill the
+/// page without running over; selectable (selecting opens the same menu as on the PDF).
+struct TranslationText: NSViewRepresentable {
+    let text: String
+    let onSelect: (String, CGRect) -> Void
+
+    func makeNSView(context: Context) -> FittingTextView {
+        FittingTextView()
+    }
+
+    func updateNSView(_ view: FittingTextView, context: Context) {
+        view.textView.onSelect = onSelect
+        if view.source != text {
+            view.source = text
+            view.needsLayout = true
+        }
+    }
+}
+
+/// Picks the largest reading size (10–16 pt) at which the text fits; scrolls only if even the
+/// smallest does not.
+final class FittingTextView: NSView {
+    let scroll = NSScrollView()
+    let textView = AnswerTextView()
+    var source = ""
+    private var laidOut: (String, CGSize)?
+
+    override var isFlipped: Bool { true }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.borderType = .noBorder
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.drawsBackground = false
+        textView.textContainerInset = .zero
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainer?.widthTracksTextView = true
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.selectedTextAttributes = [.backgroundColor: NSColor.selectedTextBackgroundColor.withAlphaComponent(0.5)]
+        scroll.documentView = textView
+        addSubview(scroll)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        scroll.frame = bounds
+        guard bounds.width > 0, bounds.height > 0, laidOut.map({ $0.0 != source || $0.1 != bounds.size }) ?? true else { return }
+        laidOut = (source, bounds.size)
+        var size = 16.0
+        var attributed = Self.attributed(source, size: size)
+        while size > 10, Self.height(of: attributed, width: bounds.width) > bounds.height {
+            size -= 0.5
+            attributed = Self.attributed(source, size: size)
+        }
+        let fits = Self.height(of: attributed, width: bounds.width) <= bounds.height
+        scroll.hasVerticalScroller = !fits
+        textView.textStorage?.setAttributedString(attributed)
+        textView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: max(bounds.height, Self.height(of: attributed, width: bounds.width)))
+    }
+
+    static func height(of text: NSAttributedString, width: CGFloat) -> CGFloat {
+        let storage = NSTextStorage(attributedString: text)
+        let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        let layout = NSLayoutManager()
+        layout.addTextContainer(container)
+        storage.addLayoutManager(layout)
+        layout.ensureLayout(for: container)
+        return ceil(layout.usedRect(for: container).height)
+    }
+
+    /// '# ' headings, '- ' list items and blank-line paragraphs, in the reading face.
+    static func attributed(_ source: String, size: Double) -> NSAttributedString {
+        let out = NSMutableAttributedString()
+        let base = NSFont(descriptor: NSFont.systemFont(ofSize: size).fontDescriptor.withDesign(.serif) ?? NSFont.systemFont(ofSize: size).fontDescriptor, size: size) ?? .systemFont(ofSize: size)
+        let blocks = source.replacingOccurrences(of: "\r", with: "").components(separatedBy: "\n")
+        var first = true
+        for raw in blocks {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty { continue }
+            let para = NSMutableParagraphStyle()
+            para.lineSpacing = size * 0.28
+            para.paragraphSpacingBefore = first ? 0 : size * 0.55
+            var font = base
+            var body = line
+            if line.hasPrefix("#") {
+                body = line.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)
+                font = NSFont(descriptor: base.fontDescriptor.withSymbolicTraits(.bold), size: size * 1.12) ?? base
+                para.paragraphSpacingBefore = first ? 0 : size * 0.9
+            } else if line.hasPrefix("- ") || line.hasPrefix("• ") || line.hasPrefix("* ") {
+                body = "•\t" + line.dropFirst(2)
+                para.headIndent = size * 1.2
+                para.firstLineHeadIndent = 0
+                para.tabStops = [NSTextTab(textAlignment: .left, location: size * 1.2)]
+                para.paragraphSpacingBefore = first ? 0 : size * 0.25
+            }
+            let piece = SelectableAnswer.attributed(body, font: font)
+            let mutable = NSMutableAttributedString(attributedString: piece)
+            mutable.addAttributes([.paragraphStyle: para, .foregroundColor: TranslatedPageView.ink], range: NSRange(location: 0, length: mutable.length))
+            if !first { out.append(NSAttributedString(string: "\n")) }
+            out.append(mutable)
+            first = false
+        }
+        return out
+    }
+}

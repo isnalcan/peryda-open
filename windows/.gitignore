@@ -1,0 +1,5 @@
+src-tauri/target/
+src-tauri/gen/
+e2e/out/
+src-tauri/target-e2e/
+e2e/node_modules/

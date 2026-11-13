@@ -1,0 +1,192 @@
+{
+  "$comment": "The six İlmek kinds. 'runsAI: false' means the card holds the reader's own note and never calls a provider. Labels and prompts exist for tr, en, de, es.",
+  "version": 1,
+  "order": [
+    "coral",
+    "mint",
+    "sky",
+    "amber",
+    "lavender",
+    "cream"
+  ],
+  "kinds": {
+    "coral": {
+      "icon": "example",
+      "runsAI": true,
+      "label": {
+        "tr": "Örnek",
+        "en": "Example",
+        "de": "Beispiel",
+        "es": "Ejemplo"
+      },
+      "cardTitle": {
+        "tr": "SOMUT ÖRNEK",
+        "en": "CONCRETE EXAMPLE",
+        "de": "KONKRETES BEISPIEL",
+        "es": "EJEMPLO CONCRETO"
+      },
+      "prompt": {
+        "tr": "Bu kısmı çok daha iyi anlamam için günlük hayattan ve alandan somut örneklerle açıklar mısın?",
+        "en": "Could you explain this part with concrete examples from everyday life and from the field, so I understand it much better?",
+        "de": "Kannst du diesen Teil mit konkreten Beispielen aus dem Alltag und aus dem Fachgebiet erklären, damit ich ihn viel besser verstehe?",
+        "es": "¿Puedes explicarme esta parte con ejemplos concretos de la vida cotidiana y del campo, para entenderla mucho mejor?"
+      }
+    },
+    "mint": {
+      "icon": "simplify",
+      "runsAI": true,
+      "label": {
+        "tr": "Sadeleştir",
+        "en": "Simplify",
+        "de": "Vereinfachen",
+        "es": "Simplificar"
+      },
+      "cardTitle": {
+        "tr": "SADE ANLATIM",
+        "en": "PLAIN WORDS",
+        "de": "EINFACH GESAGT",
+        "es": "EN PALABRAS SENCILLAS"
+      },
+      "prompt": {
+        "tr": "Bu kavramı hiç bilmeyen birine anlatır gibi sadeleştirip akılda kalıcı bir metaforla açıklar mısın?",
+        "en": "Could you simplify this concept as if explaining it to someone who has never heard of it, and explain it with a memorable metaphor?",
+        "de": "Kannst du diesen Begriff so vereinfachen, als würdest du ihn jemandem erklären, der ihn gar nicht kennt, und ihn mit einer einprägsamen Metapher erklären?",
+        "es": "¿Puedes simplificar este concepto como si se lo explicaras a alguien que nunca lo ha oído y explicarlo con una metáfora fácil de recordar?"
+      }
+    },
+    "sky": {
+      "icon": "compare",
+      "runsAI": true,
+      "label": {
+        "tr": "Kıyasla",
+        "en": "Compare",
+        "de": "Vergleichen",
+        "es": "Comparar"
+      },
+      "cardTitle": {
+        "tr": "KAVRAM KIYASLAMASI",
+        "en": "CONCEPT COMPARISON",
+        "de": "BEGRIFFSVERGLEICH",
+        "es": "COMPARACIÓN DE CONCEPTOS"
+      },
+      "prompt": {
+        "tr": "Seçilen kavramı ilişkili ya da karşıt kavramlarla kıyaslayarak sınırlarını netleştir.",
+        "en": "Clarify the boundaries of the selected concept by comparing it with related or opposing concepts.",
+        "de": "Schärfe die Grenzen des ausgewählten Begriffs, indem du ihn mit verwandten oder gegensätzlichen Begriffen vergleichst.",
+        "es": "Aclara los límites del concepto seleccionado comparándolo con conceptos relacionados u opuestos."
+      }
+    },
+    "amber": {
+      "icon": "exam",
+      "runsAI": true,
+      "label": {
+        "tr": "Sınav",
+        "en": "Exam",
+        "de": "Prüfung",
+        "es": "Examen"
+      },
+      "cardTitle": {
+        "tr": "SINAV ODAĞI",
+        "en": "EXAM FOCUS",
+        "de": "PRÜFUNGSFOKUS",
+        "es": "ENFOQUE DE EXAMEN"
+      },
+      "prompt": {
+        "tr": "Bu kısımdan sınavda nasıl soru gelebileceğini, kritik anahtar noktayı ve olası çeldiricileri belirt.",
+        "en": "Point out how this passage could appear in an exam, the key point to remember, and likely distractors.",
+        "de": "Zeige, wie diese Stelle in einer Prüfung vorkommen könnte, welcher Kernpunkt entscheidend ist und welche Fallstricke wahrscheinlich sind.",
+        "es": "Indica cómo podría aparecer este fragmento en un examen, el punto clave que recordar y las posibles trampas."
+      }
+    },
+    "lavender": {
+      "icon": "deepen",
+      "runsAI": true,
+      "label": {
+        "tr": "Derinleş",
+        "en": "Go deeper",
+        "de": "Vertiefen",
+        "es": "Profundizar"
+      },
+      "cardTitle": {
+        "tr": "DERİN ANALİZ",
+        "en": "DEEPER ANALYSIS",
+        "de": "VERTIEFTE ANALYSE",
+        "es": "ANÁLISIS PROFUNDO"
+      },
+      "prompt": {
+        "tr": "Bu konunun arkasındaki klasik deneyleri, kuramcıları ve akademik arka planı derinlemesine anlatır mısın?",
+        "en": "Could you explain in depth the classic experiments, theorists and academic background behind this topic?",
+        "de": "Kannst du die klassischen Experimente, Theoretiker und den akademischen Hintergrund hinter diesem Thema ausführlich erklären?",
+        "es": "¿Puedes explicar en profundidad los experimentos clásicos, los teóricos y el trasfondo académico que hay detrás de este tema?"
+      }
+    },
+    "cream": {
+      "icon": "note",
+      "runsAI": false,
+      "label": {
+        "tr": "Notum",
+        "en": "My note",
+        "de": "Meine Notiz",
+        "es": "Mi nota"
+      },
+      "cardTitle": {
+        "tr": "KENAR NOTU",
+        "en": "MARGIN NOTE",
+        "de": "RANDNOTIZ",
+        "es": "NOTA AL MARGEN"
+      },
+      "prompt": {
+        "tr": "",
+        "en": "",
+        "de": "",
+        "es": ""
+      }
+    }
+  },
+  "custom": {
+    "$comment": "A free question typed in 'Ya da soru sor.' uses the accent colour (mint) unless the reader picks another kind first.",
+    "color": "mint",
+    "cardTitle": {
+      "tr": "SORU",
+      "en": "QUESTION",
+      "de": "FRAGE",
+      "es": "PREGUNTA"
+    }
+  },
+  "bridge": {
+    "cardTitle": {
+      "tr": "KÖPRÜ",
+      "en": "BRIDGE",
+      "de": "BRÜCKE",
+      "es": "PUENTE"
+    },
+    "prompt": {
+      "tr": "İki seçimi birlikte ele al: aralarındaki ilişkiyi, benzerlikleri ve farkları açıkla.",
+      "en": "Consider the two selections together: explain how they relate, where they agree and where they differ.",
+      "de": "Betrachte beide Auswahlen zusammen: Erkläre, wie sie zusammenhängen, worin sie übereinstimmen und worin sie sich unterscheiden.",
+      "es": "Considera las dos selecciones juntas: explica cómo se relacionan, en qué coinciden y en qué difieren."
+    }
+  },
+  "translate": {
+    "$comment": "Selection translation (the iPhone app's inline translation). {language} is the reader's language.",
+    "color": "sky",
+    "cardTitle": {
+      "tr": "ÇEVİRİ",
+      "en": "TRANSLATION",
+      "de": "ÜBERSETZUNG",
+      "es": "TRADUCCIÓN"
+    },
+    "label": {
+      "tr": "Çevir",
+      "en": "Translate",
+      "de": "Übersetzen",
+      "es": "Traducir"
+    },
+    "prompt": {
+      "tr": "Seçilen pasajı şu dile çevir: {language}. Yalnız çeviriyi yaz; anlamı bozmadan doğal bir dil kullan.",
+      "en": "Translate the selected passage into {language}. Write only the translation, in natural language that keeps the meaning.",
+      "de": "Übersetze die ausgewählte Stelle in diese Sprache: {language}. Schreib nur die Übersetzung, natürlich und sinngetreu.",
+      "es": "Traduce el fragmento seleccionado a este idioma: {language}. Escribe solo la traducción, con naturalidad y fiel al sentido."
+    }
+  }
+}

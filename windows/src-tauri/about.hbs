@@ -1,0 +1,18 @@
+Peryda for Windows: third-party Rust components
+================================================
+
+The Windows app's executable includes the following open-source Rust crates. Each is used under the
+licence shown; the full licence texts follow.
+
+{{#each overview}}
+- {{{name}}}: {{count}} crates
+{{/each}}
+
+{{#each licenses}}
+------------------------------------------------------------------------
+{{{name}}}
+Used by: {{#each used_by}}{{crate.name}} {{crate.version}}{{#unless @last}}, {{/unless}}{{/each}}
+
+{{{text}}}
+
+{{/each}}

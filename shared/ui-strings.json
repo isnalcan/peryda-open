@@ -1,0 +1,1004 @@
+{
+  "activeProvider": {
+    "tr": "Yanıtı veren",
+    "en": "Answers come from",
+    "de": "Antworten kommen von",
+    "es": "Responde"
+  },
+  "addBook": {
+    "tr": "Kitap ekle",
+    "en": "Add book",
+    "de": "Buch hinzufügen",
+    "es": "Añadir libro"
+  },
+  "addNote": {
+    "tr": "Bir not ekle…",
+    "en": "Add a note…",
+    "de": "Notiz hinzufügen…",
+    "es": "Añadir una nota…"
+  },
+  "aiKeys": {
+    "tr": "Yapay zekâ anahtarları",
+    "en": "AI keys",
+    "de": "KI-Schlüssel",
+    "es": "Claves de IA"
+  },
+  "aiKeysIntro": {
+    "tr": "Peryda yapay zekâ için senin anahtarını kullanır. İstekler bu cihazdan doğrudan seçtiğin sağlayıcıya gider; arada Peryda sunucusu yoktur. Anahtar yalnız bu cihazda saklanır ve yalnız kendi sağlayıcısına gönderilir. Bu bilgisayarı başkalarıyla paylaşıyorsan \"hatırla\"yı kapat; sağlayıcında harcama sınırı koyduğun bir anahtar kullanmanı öneririz.",
+    "en": "Peryda uses your own key for AI. Requests go straight from this device to the provider you choose; there is no Peryda server in between. The key is kept only on this device and is sent only to its own provider. If others use this computer, turn \"remember\" off; we recommend a key with a spending limit set at your provider.",
+    "de": "Peryda nutzt für KI deinen eigenen Schlüssel. Anfragen gehen direkt von diesem Gerät an den Anbieter deiner Wahl; dazwischen gibt es keinen Peryda-Server. Der Schlüssel bleibt nur auf diesem Gerät und geht nur an seinen eigenen Anbieter. Wenn andere diesen Computer nutzen, schalte „Merken“ aus; wir empfehlen einen Schlüssel mit Ausgabenlimit bei deinem Anbieter.",
+    "es": "Peryda usa tu propia clave para la IA. Las solicitudes van directamente de este dispositivo al proveedor que elijas; no hay ningún servidor de Peryda en medio. La clave se guarda solo en este dispositivo y solo se envía a su propio proveedor. Si otras personas usan este ordenador, desactiva «recordar»; te recomendamos una clave con límite de gasto en tu proveedor."
+  },
+  "appName": {
+    "tr": "Peryda",
+    "en": "Peryda",
+    "de": "Peryda",
+    "es": "Peryda"
+  },
+  "archiveIntro": {
+    "tr": "Başka kitaplarındaki ilgili notlar:",
+    "en": "Related notes from your other books:",
+    "de": "Passende Notizen aus deinen anderen Büchern:",
+    "es": "Notas relacionadas de tus otros libros:"
+  },
+  "archiveLink": {
+    "tr": "Arşiv bağı",
+    "en": "Archive link",
+    "de": "Archivverbindung",
+    "es": "Enlace de archivo"
+  },
+  "areaSelection": {
+    "tr": "Seçilen bölge",
+    "en": "Selected region",
+    "de": "Ausgewählter Bereich",
+    "es": "Zona seleccionada"
+  },
+  "askPlaceholder": {
+    "tr": "Ya da soru sor.",
+    "en": "Or ask a question.",
+    "de": "Oder stell eine Frage.",
+    "es": "O haz una pregunta."
+  },
+  "back": {
+    "tr": "Kitaplık",
+    "en": "Library",
+    "de": "Bibliothek",
+    "es": "Biblioteca"
+  },
+  "backToLane": {
+    "tr": "Rayına dön",
+    "en": "Back to the lane",
+    "de": "Zurück in die Spur",
+    "es": "Volver al carril"
+  },
+  "backup": {
+    "tr": "Yedek",
+    "en": "Backup",
+    "de": "Sicherung",
+    "es": "Copia de seguridad"
+  },
+  "backupIntro": {
+    "tr": "Kitapların, ilmeklerin ve günlüğün bu cihazda saklanır. Başka bir yere taşımak ya da korumak için tek bir dosyaya aktar. Anahtarlar yedeğe girmez. Yedek dosyası şifresizdir; güvendiğin bir yerde sakla.",
+    "en": "Your books, threads and journal are stored on this device. Export them to one file to move or keep them safe. Keys are never included. The backup file is not encrypted; keep it somewhere you trust.",
+    "de": "Deine Bücher, Fäden und dein Journal werden auf diesem Gerät gespeichert. Exportiere sie in eine Datei, um sie umzuziehen oder zu sichern. Schlüssel sind nie enthalten. Die Sicherungsdatei ist nicht verschlüsselt; bewahre sie an einem vertrauenswürdigen Ort auf.",
+    "es": "Tus libros, hilos y diario se guardan en este dispositivo. Expórtalos a un archivo para moverlos o protegerlos. Las claves nunca se incluyen. El archivo de copia no está cifrado; guárdalo en un lugar de confianza."
+  },
+  "batchExpired": {
+    "tr": "Bu toplu iş Google tarafında artık yok. Yeniden çevirebilirsin.",
+    "en": "Google no longer has this batch job. You can translate the page again.",
+    "de": "Google hat diesen Batch-Auftrag nicht mehr. Du kannst die Seite neu übersetzen.",
+    "es": "Google ya no tiene este trabajo por lotes. Puedes volver a traducir la página."
+  },
+  "batchFailed": {
+    "tr": "Toplu çeviri başlatılamadı. Yeniden denersen bu sayfa doğrudan (tam fiyatla) çevrilir.",
+    "en": "The batch translation could not start. If you try again, this page is translated directly (at full price).",
+    "de": "Die Stapelübersetzung konnte nicht starten. Wenn du es erneut versuchst, wird diese Seite direkt (zum vollen Preis) übersetzt.",
+    "es": "No se pudo iniciar la traducción por lotes. Si lo intentas de nuevo, esta página se traduce directamente (a precio completo)."
+  },
+  "batchWaiting": {
+    "tr": "Sırada (toplu iş)",
+    "en": "Queued (batch)",
+    "de": "In der Warteschlange (Batch)",
+    "es": "En cola (lote)"
+  },
+  "blurAnswers": {
+    "tr": "Yanıtları bulanıklaştır",
+    "en": "Blur answers",
+    "de": "Antworten verwischen",
+    "es": "Difuminar respuestas"
+  },
+  "bookAuthorField": {
+    "tr": "Yazar",
+    "en": "Author",
+    "de": "Autor",
+    "es": "Autor"
+  },
+  "bookTitleField": {
+    "tr": "Başlık",
+    "en": "Title",
+    "de": "Titel",
+    "es": "Título"
+  },
+  "bridge": {
+    "tr": "Köprü kur",
+    "en": "Build a bridge",
+    "de": "Brücke bauen",
+    "es": "Tender un puente"
+  },
+  "bridgeCompare": {
+    "tr": "İki seçimi ilmekle ve kıyasla",
+    "en": "Thread and compare both selections",
+    "de": "Beide Auswahlen verbinden und vergleichen",
+    "es": "Unir y comparar ambas selecciones"
+  },
+  "bridgeHeld": {
+    "tr": "İlk seçim tutuldu — bağlamak istediğin ikinci yeri seç.",
+    "en": "First selection held — select the second place to connect.",
+    "de": "Erste Auswahl gehalten — wähle die zweite Stelle zum Verbinden.",
+    "es": "Primera selección guardada: elige el segundo lugar que quieres unir."
+  },
+  "brushColor": {
+    "tr": "Fırça rengi",
+    "en": "Brush colour",
+    "de": "Pinselfarbe",
+    "es": "Color del pincel"
+  },
+  "cameraFocus": {
+    "tr": "Odak",
+    "en": "Focus",
+    "de": "Fokus",
+    "es": "Enfoque"
+  },
+  "cameraMap": {
+    "tr": "Harita",
+    "en": "Map",
+    "de": "Karte",
+    "es": "Mapa"
+  },
+  "cancel": {
+    "tr": "Vazgeç",
+    "en": "Cancel",
+    "de": "Abbrechen",
+    "es": "Cancelar"
+  },
+  "characters": {
+    "tr": "{n} karakter",
+    "en": "{n} characters",
+    "de": "{n} Zeichen",
+    "es": "{n} caracteres"
+  },
+  "claudeKey": {
+    "tr": "Claude anahtarı",
+    "en": "Claude key",
+    "de": "Claude-Schlüssel",
+    "es": "Clave de Claude"
+  },
+  "clip": {
+    "tr": "Özete kırp",
+    "en": "Clip to journal",
+    "de": "Ins Journal",
+    "es": "Al diario"
+  },
+  "clipped": {
+    "tr": "Kitap Günlüğü'ne eklendi",
+    "en": "Added to the Book Journal",
+    "de": "Zum Buchjournal hinzugefügt",
+    "es": "Añadido al Diario del libro"
+  },
+  "close": {
+    "tr": "Kapat",
+    "en": "Close",
+    "de": "Schließen",
+    "es": "Cerrar"
+  },
+  "collapse": {
+    "tr": "Düğüme katla",
+    "en": "Fold into a knot",
+    "de": "Zum Knoten falten",
+    "es": "Plegar en un nudo"
+  },
+  "continuePlaceholder": {
+    "tr": "Bu ilmeği devam ettir…",
+    "en": "Continue this thread…",
+    "de": "Diesen Faden fortsetzen…",
+    "es": "Continúa este hilo…"
+  },
+  "copied": {
+    "tr": "Kopyalandı",
+    "en": "Copied",
+    "de": "Kopiert",
+    "es": "Copiado"
+  },
+  "copyAll": {
+    "tr": "Tümünü kopyala",
+    "en": "Copy all",
+    "de": "Alles kopieren",
+    "es": "Copiar todo"
+  },
+  "deepseekKey": {
+    "tr": "DeepSeek anahtarı",
+    "en": "DeepSeek key",
+    "de": "DeepSeek-Schlüssel",
+    "es": "Clave de DeepSeek"
+  },
+  "delete": {
+    "tr": "Sil",
+    "en": "Delete",
+    "de": "Löschen",
+    "es": "Eliminar"
+  },
+  "deleteBook": {
+    "tr": "Kitabı sil",
+    "en": "Delete book",
+    "de": "Buch löschen",
+    "es": "Eliminar libro"
+  },
+  "deleteBookConfirm": {
+    "tr": "Bu kitap, vurguları ve ilmekleri bu cihazdan silinsin mi? Geri alınamaz.",
+    "en": "Delete this book, its highlights and threads from this device? This cannot be undone.",
+    "de": "Dieses Buch, seine Markierungen und Fäden von diesem Gerät löschen? Das lässt sich nicht rückgängig machen.",
+    "es": "¿Eliminar este libro, sus subrayados e hilos de este dispositivo? No se puede deshacer."
+  },
+  "deleteEntry": {
+    "tr": "Kaydı sil",
+    "en": "Delete entry",
+    "de": "Eintrag löschen",
+    "es": "Eliminar entrada"
+  },
+  "dropHere": {
+    "tr": "Dosyayı bırak",
+    "en": "Drop the file",
+    "de": "Datei ablegen",
+    "es": "Suelta el archivo"
+  },
+  "editInfo": {
+    "tr": "Bilgileri düzenle",
+    "en": "Edit details",
+    "de": "Angaben bearbeiten",
+    "es": "Editar datos"
+  },
+  "errorBlocked": {
+    "tr": "Sağlayıcı bu isteği yanıtlamadı.",
+    "en": "The provider did not answer this request.",
+    "de": "Der Anbieter hat diese Anfrage nicht beantwortet.",
+    "es": "El proveedor no respondió a esta solicitud."
+  },
+  "errorBrowser": {
+    "tr": "Bu sağlayıcı tarayıcıdan gelen isteği kabul etmedi. Başka bir sağlayıcıyı ya da masaüstü uygulamasını dene.",
+    "en": "This provider refused a request from the browser. Try another provider or the desktop app.",
+    "de": "Dieser Anbieter hat eine Anfrage aus dem Browser abgelehnt. Versuche einen anderen Anbieter oder die Desktop-App.",
+    "es": "Este proveedor rechazó una solicitud del navegador. Prueba otro proveedor o la app de escritorio."
+  },
+  "errorKey": {
+    "tr": "Anahtar kabul edilmedi. Ayarlar'da anahtarı kontrol et.",
+    "en": "The key was not accepted. Check it in Settings.",
+    "de": "Der Schlüssel wurde nicht akzeptiert. Prüfe ihn in den Einstellungen.",
+    "es": "La clave no fue aceptada. Revísala en Ajustes."
+  },
+  "errorNetwork": {
+    "tr": "Sağlayıcıya ulaşılamadı. Bağlantını kontrol et.",
+    "en": "Could not reach the provider. Check your connection.",
+    "de": "Der Anbieter war nicht erreichbar. Prüfe deine Verbindung.",
+    "es": "No se pudo contactar con el proveedor. Revisa tu conexión."
+  },
+  "errorQuota": {
+    "tr": "Sağlayıcı bu anahtar için sınıra ulaşıldığını söylüyor.",
+    "en": "The provider says this key has reached its limit.",
+    "de": "Laut Anbieter hat dieser Schlüssel sein Limit erreicht.",
+    "es": "El proveedor indica que esta clave alcanzó su límite."
+  },
+  "errorUnknown": {
+    "tr": "Bir şey ters gitti.",
+    "en": "Something went wrong.",
+    "de": "Etwas ist schiefgelaufen.",
+    "es": "Algo salió mal."
+  },
+  "expand": {
+    "tr": "Aç",
+    "en": "Open",
+    "de": "Öffnen",
+    "es": "Abrir"
+  },
+  "exportData": {
+    "tr": "Dışa aktar",
+    "en": "Export",
+    "de": "Exportieren",
+    "es": "Exportar"
+  },
+  "exported": {
+    "tr": "Yedek dosyası hazırlandı",
+    "en": "Backup file ready",
+    "de": "Sicherungsdatei bereit",
+    "es": "Archivo de copia listo"
+  },
+  "extractText": {
+    "tr": "Sayfanın metnini çıkar",
+    "en": "Extract page text",
+    "de": "Seitentext extrahieren",
+    "es": "Extraer el texto de la página"
+  },
+  "extractedText": {
+    "tr": "Çıkarılan metin",
+    "en": "Extracted text",
+    "de": "Extrahierter Text",
+    "es": "Texto extraído"
+  },
+  "fileTooLarge": {
+    "tr": "Bu dosya çok büyük (en fazla {n} MB).",
+    "en": "This file is too large (at most {n} MB).",
+    "de": "Diese Datei ist zu groß (höchstens {n} MB).",
+    "es": "Este archivo es demasiado grande (como máximo {n} MB)."
+  },
+  "fitWidth": {
+    "tr": "%100",
+    "en": "100%",
+    "de": "100%",
+    "es": "100%"
+  },
+  "focusLane": {
+    "tr": "Yan yana",
+    "en": "Side by side",
+    "de": "Nebeneinander",
+    "es": "Lado a lado"
+  },
+  "fromPage": {
+    "tr": "İlk sayfa",
+    "en": "First page",
+    "de": "Erste Seite",
+    "es": "Primera página"
+  },
+  "geminiKey": {
+    "tr": "Google Gemini anahtarı",
+    "en": "Google Gemini key",
+    "de": "Google-Gemini-Schlüssel",
+    "es": "Clave de Google Gemini"
+  },
+  "geminiKeyNeeded": {
+    "tr": "Sayfa çevirisi Gemini anahtarıyla çalışır. Ayarlardan bir Gemini anahtarı ekle.",
+    "en": "Page translation runs on a Gemini key. Add a Gemini key in Settings.",
+    "de": "Die Seitenübersetzung läuft mit einem Gemini-Schlüssel. Füge in den Einstellungen einen hinzu.",
+    "es": "La traducción de páginas funciona con una clave de Gemini. Añade una en Ajustes."
+  },
+  "goToPage": {
+    "tr": "Sayfaya git",
+    "en": "Go to page",
+    "de": "Gehe zu Seite",
+    "es": "Ir a la página"
+  },
+  "hide": {
+    "tr": "Gizle",
+    "en": "Hide",
+    "de": "Ausblenden",
+    "es": "Ocultar"
+  },
+  "hideThreads": {
+    "tr": "İlmekleri gizle",
+    "en": "Hide threads",
+    "de": "Fäden ausblenden",
+    "es": "Ocultar hilos"
+  },
+  "importBackupFailed": {
+    "tr": "Bu yedek dosyası okunamadı.",
+    "en": "This backup file could not be read.",
+    "de": "Diese Sicherungsdatei konnte nicht gelesen werden.",
+    "es": "No se pudo leer este archivo de copia."
+  },
+  "importData": {
+    "tr": "Yedekten yükle",
+    "en": "Restore from backup",
+    "de": "Aus Sicherung wiederherstellen",
+    "es": "Restaurar desde una copia"
+  },
+  "importFailed": {
+    "tr": "Bu dosya açılamadı.",
+    "en": "This file could not be opened.",
+    "de": "Diese Datei konnte nicht geöffnet werden.",
+    "es": "No se pudo abrir este archivo."
+  },
+  "imported": {
+    "tr": "{n} kitap yedekten yüklendi",
+    "en": "{n} books restored from the backup",
+    "de": "{n} Bücher aus der Sicherung wiederhergestellt",
+    "es": "{n} libros restaurados desde la copia"
+  },
+  "importing": {
+    "tr": "Ekleniyor…",
+    "en": "Adding…",
+    "de": "Wird hinzugefügt…",
+    "es": "Añadiendo…"
+  },
+  "journal": {
+    "tr": "Kitap Günlüğü",
+    "en": "Book Journal",
+    "de": "Buchjournal",
+    "es": "Diario del libro"
+  },
+  "journalEmpty": {
+    "tr": "Henüz günlükte bir şey yok. Bir pasajı özete kırp ya da bir ilmeği günlüğe kaydet.",
+    "en": "Nothing in the journal yet. Clip a passage or save a thread to the journal.",
+    "de": "Noch nichts im Journal. Übernimm eine Stelle oder speichere einen Faden im Journal.",
+    "es": "Aún no hay nada en el diario. Recorta un fragmento o guarda un hilo en el diario."
+  },
+  "keepLink": {
+    "tr": "Kalıcı bağla",
+    "en": "Keep link",
+    "de": "Dauerhaft verbinden",
+    "es": "Enlazar"
+  },
+  "language": {
+    "tr": "Dil",
+    "en": "Language",
+    "de": "Sprache",
+    "es": "Idioma"
+  },
+  "lastOpenFailed": {
+    "tr": "Bu kitap geçen sefer açılamadı; kitaplığa döndük.",
+    "en": "This book could not be opened last time, so we went back to the library.",
+    "de": "Dieses Buch ließ sich beim letzten Mal nicht öffnen, deshalb sind wir zur Bibliothek zurückgekehrt.",
+    "es": "Este libro no se pudo abrir la última vez, así que volvimos a la biblioteca."
+  },
+  "lastRead": {
+    "tr": "Son okuma {when}",
+    "en": "Last read {when}",
+    "de": "Zuletzt gelesen {when}",
+    "es": "Última lectura {when}"
+  },
+  "libraryEmpty": {
+    "tr": "Henüz kitap yok. Bir PDF ya da EPUB dosyasını buraya bırak ya da ekle.",
+    "en": "No books yet. Drop a PDF or EPUB here, or add one.",
+    "de": "Noch keine Bücher. Lege hier eine PDF- oder EPUB-Datei ab oder füge eine hinzu.",
+    "es": "Aún no hay libros. Suelta aquí un PDF o un EPUB, o añade uno."
+  },
+  "libraryTitle": {
+    "tr": "Kitaplık",
+    "en": "Library",
+    "de": "Bibliothek",
+    "es": "Biblioteca"
+  },
+  "linked": {
+    "tr": "Bağlı",
+    "en": "Linked",
+    "de": "Verbunden",
+    "es": "Enlazado"
+  },
+  "loadModels": {
+    "tr": "Modelleri getir",
+    "en": "Load models",
+    "de": "Modelle laden",
+    "es": "Cargar modelos"
+  },
+  "menuGo": {
+    "tr": "Git",
+    "en": "Go",
+    "de": "Gehe zu",
+    "es": "Ir"
+  },
+  "model": {
+    "tr": "Model",
+    "en": "Model",
+    "de": "Model",
+    "es": "Modelo"
+  },
+  "modelsNote": {
+    "tr": "Tüm modelleri seçebilirsiniz; ancak özel düşünme (thinking) ve üslup ayarları önerilen modellere göre kalibre edilmiştir ve sistem en yüksek ilmek/çeviri kalitesini Gemini önerilen modelleriyle verir.",
+    "en": "You can choose any model; but the thinking and style settings are calibrated for the recommended models, and threads and translations are at their best with the recommended Gemini models.",
+    "de": "Du kannst jedes Modell wählen; die Denk- und Stileinstellungen sind aber auf die empfohlenen Modelle abgestimmt, und Fäden wie Übersetzungen gelingen mit den empfohlenen Gemini-Modellen am besten.",
+    "es": "Puedes elegir cualquier modelo; pero los ajustes de razonamiento y estilo están calibrados para los modelos recomendados, y los hilos y las traducciones salen mejor con los modelos recomendados de Gemini."
+  },
+  "myNote": {
+    "tr": "Notum",
+    "en": "My note",
+    "de": "Meine Notiz",
+    "es": "Mi nota"
+  },
+  "nextPage": {
+    "tr": "Sonraki sayfa",
+    "en": "Next page",
+    "de": "Nächste Seite",
+    "es": "Página siguiente"
+  },
+  "noKeyBody": {
+    "tr": "Pery'nin yanıtlayabilmesi için Ayarlar'a bir yapay zekâ anahtarı ekle (Gemini, OpenAI, DeepSeek ya da Claude).",
+    "en": "To let Pery answer, add an AI key in Settings (Gemini, OpenAI, DeepSeek or Claude).",
+    "de": "Damit Pery antworten kann, füge in den Einstellungen einen KI-Schlüssel hinzu (Gemini, OpenAI, DeepSeek oder Claude).",
+    "es": "Para que Pery pueda responder, añade una clave de IA en Ajustes (Gemini, OpenAI, DeepSeek o Claude)."
+  },
+  "noKeyTitle": {
+    "tr": "Önce bir anahtar ekle",
+    "en": "Add a key first",
+    "de": "Zuerst einen Schlüssel hinzufügen",
+    "es": "Primero añade una clave"
+  },
+  "noTextFound": {
+    "tr": "Bu sayfada okunabilir metin bulunamadı.",
+    "en": "No readable text was found on this page.",
+    "de": "Auf dieser Seite wurde kein lesbarer Text gefunden.",
+    "es": "No se encontró texto legible en esta página."
+  },
+  "notePlaceholder": {
+    "tr": "Kişisel kenar notunu yaz…",
+    "en": "Write your margin note…",
+    "de": "Schreib deine Randnotiz…",
+    "es": "Escribe tu nota al margen…"
+  },
+  "offscreenThread": {
+    "tr": "Yeni ilmek ekranın dışında açıldı.",
+    "en": "The new thread opened off screen.",
+    "de": "Der neue Faden wurde außerhalb des Bildschirms geöffnet.",
+    "es": "El nuevo hilo se abrió fuera de la pantalla."
+  },
+  "openSettings": {
+    "tr": "Ayarları aç",
+    "en": "Open Settings",
+    "de": "Einstellungen öffnen",
+    "es": "Abrir Ajustes"
+  },
+  "openaiKey": {
+    "tr": "OpenAI anahtarı",
+    "en": "OpenAI key",
+    "de": "OpenAI-Schlüssel",
+    "es": "Clave de OpenAI"
+  },
+  "otherModels": {
+    "tr": "Diğer modeller",
+    "en": "Other models",
+    "de": "Weitere Modelle",
+    "es": "Otros modelos"
+  },
+  "pageNumber": {
+    "tr": "Sayfa numarası",
+    "en": "Page number",
+    "de": "Seitenzahl",
+    "es": "Número de página"
+  },
+  "pageOf": {
+    "tr": "{p} / {n}",
+    "en": "{p} / {n}",
+    "de": "{p} / {n}",
+    "es": "{p} / {n}"
+  },
+  "pages": {
+    "tr": "{n} sayfa",
+    "en": "{n} pages",
+    "de": "{n} Seiten",
+    "es": "{n} páginas"
+  },
+  "pagesToTranslate": {
+    "tr": "{n} sayfa çevrilecek",
+    "en": "{n} pages will be translated",
+    "de": "{n} Seiten werden übersetzt",
+    "es": "Se traducirán {n} páginas"
+  },
+  "pin": {
+    "tr": "Sabitle",
+    "en": "Pin",
+    "de": "Anheften",
+    "es": "Fijar"
+  },
+  "previousPage": {
+    "tr": "Önceki sayfa",
+    "en": "Previous page",
+    "de": "Vorherige Seite",
+    "es": "Página anterior"
+  },
+  "provider_claude": {
+    "tr": "Claude",
+    "en": "Claude",
+    "de": "Claude",
+    "es": "Claude"
+  },
+  "provider_deepseek": {
+    "tr": "DeepSeek",
+    "en": "DeepSeek",
+    "de": "DeepSeek",
+    "es": "DeepSeek"
+  },
+  "provider_gemini": {
+    "tr": "Gemini",
+    "en": "Gemini",
+    "de": "Gemini",
+    "es": "Gemini"
+  },
+  "provider_openai": {
+    "tr": "OpenAI",
+    "en": "OpenAI",
+    "de": "OpenAI",
+    "es": "OpenAI"
+  },
+  "quoteShorten": {
+    "tr": "Kısalt",
+    "en": "Shorten",
+    "de": "Kürzen",
+    "es": "Acortar"
+  },
+  "quoteShowAll": {
+    "tr": "Tamamını göster",
+    "en": "Show all",
+    "de": "Alles zeigen",
+    "es": "Mostrar todo"
+  },
+  "rangeBatchNote": {
+    "tr": "İkiden fazla sayfa Gemini ile toplu iş olarak gider: yarı fiyattır, ne zaman biteceğini Google belirler. Diğer sağlayıcılarda sayfalar dörder dörder çevrilir.",
+    "en": "More than two pages go to Gemini as one batch job: half the price, finished whenever Google finishes it. With other providers, pages are translated four at a time.",
+    "de": "Mehr als zwei Seiten gehen als ein Batch-Auftrag an Gemini: halber Preis, fertig, wann Google ihn abschließt. Bei anderen Anbietern werden je vier Seiten zugleich übersetzt.",
+    "es": "Más de dos páginas van a Gemini como un solo trabajo por lotes: mitad de precio, listo cuando Google lo termine. Con otros proveedores se traducen de cuatro en cuatro."
+  },
+  "rangeLimit": {
+    "tr": "Bir seferde en fazla {n} sayfa çevrilebilir.",
+    "en": "At most {n} pages can be translated at once.",
+    "de": "Höchstens {n} Seiten können auf einmal übersetzt werden.",
+    "es": "Se pueden traducir como máximo {n} páginas a la vez."
+  },
+  "readByPage": {
+    "tr": "Sayfa sayfa",
+    "en": "Page by page",
+    "de": "Seitenweise",
+    "es": "Página a página"
+  },
+  "readScrolling": {
+    "tr": "Kaydırarak",
+    "en": "Scrolling",
+    "de": "Fortlaufend",
+    "es": "Continuo"
+  },
+  "readWithPery": {
+    "tr": "Pery ile oku",
+    "en": "Read with Pery",
+    "de": "Mit Pery lesen",
+    "es": "Leer con Pery"
+  },
+  "readWithPeryNote": {
+    "tr": "Bu sayfanın metin katmanı yok. Pery, sayfanın görüntüsünü senin anahtarınla okuyup yazıya geçirebilir.",
+    "en": "This page has no text layer. Pery can read the page's picture with your key and write out its text.",
+    "de": "Diese Seite hat keine Textebene. Pery kann das Seitenbild mit deinem Schlüssel lesen und den Text abschreiben.",
+    "es": "Esta página no tiene capa de texto. Pery puede leer la imagen de la página con tu clave y transcribir el texto."
+  },
+  "readingText": {
+    "tr": "Metin okunuyor…",
+    "en": "Reading the text…",
+    "de": "Text wird gelesen…",
+    "es": "Leyendo el texto…"
+  },
+  "recommended": {
+    "tr": "Önerilen",
+    "en": "Recommended",
+    "de": "Empfohlen",
+    "es": "Recomendado"
+  },
+  "rememberKeys": {
+    "tr": "Anahtarları bu cihazda hatırla",
+    "en": "Remember keys on this device",
+    "de": "Schlüssel auf diesem Gerät merken",
+    "es": "Recordar las claves en este dispositivo"
+  },
+  "removeCard": {
+    "tr": "İlmeği sil",
+    "en": "Delete thread",
+    "de": "Faden löschen",
+    "es": "Eliminar hilo"
+  },
+  "removeCardConfirm": {
+    "tr": "Bu ilmek ve içindeki yanıtlar silinsin mi?",
+    "en": "Delete this thread and its answers?",
+    "de": "Diesen Faden und seine Antworten löschen?",
+    "es": "¿Eliminar este hilo y sus respuestas?"
+  },
+  "removeKey": {
+    "tr": "Anahtarı kaldır",
+    "en": "Remove key",
+    "de": "Schlüssel entfernen",
+    "es": "Quitar la clave"
+  },
+  "resizeCard": {
+    "tr": "Boyutlandır (çift tıkla: kendi boyutu)",
+    "en": "Resize (double-click: natural size)",
+    "de": "Größe ändern (Doppelklick: eigene Größe)",
+    "es": "Cambiar tamaño (doble clic: tamaño propio)"
+  },
+  "retranslate": {
+    "tr": "Yeniden çevir",
+    "en": "Translate again",
+    "de": "Neu übersetzen",
+    "es": "Volver a traducir"
+  },
+  "retry": {
+    "tr": "Yeniden dene",
+    "en": "Try again",
+    "de": "Erneut versuchen",
+    "es": "Reintentar"
+  },
+  "save": {
+    "tr": "Kaydet",
+    "en": "Save",
+    "de": "Speichern",
+    "es": "Guardar"
+  },
+  "saveToJournal": {
+    "tr": "Günlüğe kaydet",
+    "en": "Save to journal",
+    "de": "Im Journal speichern",
+    "es": "Guardar en el diario"
+  },
+  "saved": {
+    "tr": "Kaydedildi",
+    "en": "Saved",
+    "de": "Gespeichert",
+    "es": "Guardado"
+  },
+  "savedToJournal": {
+    "tr": "Günlüğe kaydedildi",
+    "en": "Saved to the journal",
+    "de": "Im Journal gespeichert",
+    "es": "Guardado en el diario"
+  },
+  "searchBooks": {
+    "tr": "Kitaplarda ara",
+    "en": "Search books",
+    "de": "Bücher durchsuchen",
+    "es": "Buscar libros"
+  },
+  "send": {
+    "tr": "Gönder",
+    "en": "Send",
+    "de": "Senden",
+    "es": "Enviar"
+  },
+  "settings": {
+    "tr": "Ayarlar",
+    "en": "Settings",
+    "de": "Einstellungen",
+    "es": "Ajustes"
+  },
+  "show": {
+    "tr": "Göster",
+    "en": "Show",
+    "de": "Zeigen",
+    "es": "Mostrar"
+  },
+  "showAnswers": {
+    "tr": "Yanıtları göster",
+    "en": "Show answers",
+    "de": "Antworten zeigen",
+    "es": "Mostrar respuestas"
+  },
+  "showThreads": {
+    "tr": "İlmekleri göster",
+    "en": "Show threads",
+    "de": "Fäden einblenden",
+    "es": "Mostrar hilos"
+  },
+  "sourceClip": {
+    "tr": "Kırpılan pasaj",
+    "en": "Clipped passage",
+    "de": "Übernommene Stelle",
+    "es": "Fragmento recortado"
+  },
+  "sourceNote": {
+    "tr": "Not",
+    "en": "Note",
+    "de": "Notiz",
+    "es": "Nota"
+  },
+  "sourceThread": {
+    "tr": "İlmekten",
+    "en": "From a thread",
+    "de": "Aus einem Faden",
+    "es": "De un hilo"
+  },
+  "stop": {
+    "tr": "Durdur",
+    "en": "Stop",
+    "de": "Stoppen",
+    "es": "Detener"
+  },
+  "stopTranslating": {
+    "tr": "Çevirmeyi durdur",
+    "en": "Stop translating",
+    "de": "Übersetzen beenden",
+    "es": "Dejar de traducir"
+  },
+  "summarize": {
+    "tr": "Özetle",
+    "en": "Summarise",
+    "de": "Zusammenfassen",
+    "es": "Resumir"
+  },
+  "summaryEmpty": {
+    "tr": "Özetlemek için önce günlüğe bir şeyler ekle.",
+    "en": "Add something to the journal first.",
+    "de": "Füge zuerst etwas zum Journal hinzu.",
+    "es": "Primero añade algo al diario."
+  },
+  "summaryTitle": {
+    "tr": "Pery'nin özeti",
+    "en": "Pery's summary",
+    "de": "Perys Zusammenfassung",
+    "es": "Resumen de Pery"
+  },
+  "tapToReveal": {
+    "tr": "Görmek için dokun",
+    "en": "Tap to reveal",
+    "de": "Zum Anzeigen tippen",
+    "es": "Toca para ver"
+  },
+  "theme": {
+    "tr": "Görünüm",
+    "en": "Appearance",
+    "de": "Darstellung",
+    "es": "Apariencia"
+  },
+  "themeDark": {
+    "tr": "Koyu",
+    "en": "Dark",
+    "de": "Dunkel",
+    "es": "Oscuro"
+  },
+  "themeLight": {
+    "tr": "Açık",
+    "en": "Light",
+    "de": "Hell",
+    "es": "Claro"
+  },
+  "themeSystem": {
+    "tr": "Sistem",
+    "en": "System",
+    "de": "System",
+    "es": "Sistema"
+  },
+  "thinking": {
+    "tr": "Pery okuyor…",
+    "en": "Pery is reading…",
+    "de": "Pery liest…",
+    "es": "Pery está leyendo…"
+  },
+  "threadModel": {
+    "tr": "İlmek modeli",
+    "en": "Thread model",
+    "de": "Modell für Fäden",
+    "es": "Modelo para hilos"
+  },
+  "toPage": {
+    "tr": "Son sayfa",
+    "en": "Last page",
+    "de": "Letzte Seite",
+    "es": "Última página"
+  },
+  "toolArea": {
+    "tr": "Alan ilmeği",
+    "en": "Area thread",
+    "de": "Bereichsfaden",
+    "es": "Hilo de zona"
+  },
+  "toolBrush": {
+    "tr": "İlmek fırçası",
+    "en": "Thread brush",
+    "de": "Fadenpinsel",
+    "es": "Pincel de hilo"
+  },
+  "toolSelect": {
+    "tr": "Seçim ve okuma",
+    "en": "Select and read",
+    "de": "Auswählen und lesen",
+    "es": "Seleccionar y leer"
+  },
+  "translate": {
+    "tr": "Çevir",
+    "en": "Translate",
+    "de": "Übersetzen",
+    "es": "Traducir"
+  },
+  "translateInto": {
+    "tr": "Şu dile çevir",
+    "en": "Translate into",
+    "de": "Übersetzen in",
+    "es": "Traducir al"
+  },
+  "translateNow": {
+    "tr": "Beklemeden çevir",
+    "en": "Translate now",
+    "de": "Jetzt übersetzen",
+    "es": "Traducir ahora"
+  },
+  "translatePages": {
+    "tr": "Sayfa çevirisi",
+    "en": "Page translation",
+    "de": "Seitenübersetzung",
+    "es": "Traducción de páginas"
+  },
+  "translateRange": {
+    "tr": "Sayfa aralığını çevir…",
+    "en": "Translate a page range…",
+    "de": "Seitenbereich übersetzen…",
+    "es": "Traducir un rango de páginas…"
+  },
+  "translateThisPage": {
+    "tr": "Bu sayfayı çevir",
+    "en": "Translate this page",
+    "de": "Diese Seite übersetzen",
+    "es": "Traducir esta página"
+  },
+  "translating": {
+    "tr": "Çevriliyor…",
+    "en": "Translating…",
+    "de": "Wird übersetzt…",
+    "es": "Traduciendo…"
+  },
+  "translationModel": {
+    "tr": "Çeviri modeli",
+    "en": "Translation model",
+    "de": "Modell für Übersetzung",
+    "es": "Modelo para traducción"
+  },
+  "translationOf": {
+    "tr": "Çeviri · {language} · Sayfa {page}",
+    "en": "Translation · {language} · Page {page}",
+    "de": "Übersetzung · {language} · Seite {page}",
+    "es": "Traducción · {language} · Página {page}"
+  },
+  "translationsPending": {
+    "tr": "{n} sayfa çevriliyor",
+    "en": "Translating {n} pages",
+    "de": "{n} Seiten werden übersetzt",
+    "es": "Traduciendo {n} páginas"
+  },
+  "translationsStopped": {
+    "tr": "{n} sayfanın çevirisi durduruldu. Çevrilmiş sayfalar duruyor.",
+    "en": "Stopped translating {n} pages. Pages already translated stay.",
+    "de": "Übersetzung von {n} Seiten beendet. Bereits übersetzte Seiten bleiben.",
+    "es": "Se detuvo la traducción de {n} páginas. Las páginas ya traducidas se quedan."
+  },
+  "unsupportedFile": {
+    "tr": "Yalnız PDF ve EPUB dosyaları eklenebilir.",
+    "en": "Only PDF and EPUB files can be added.",
+    "de": "Nur PDF- und EPUB-Dateien können hinzugefügt werden.",
+    "es": "Solo se pueden añadir archivos PDF y EPUB."
+  },
+  "welcomeAddKey": {
+    "tr": "Anahtar ekle",
+    "en": "Add a key",
+    "de": "Schlüssel hinzufügen",
+    "es": "Añadir una clave"
+  },
+  "welcomeIlmek": {
+    "tr": "Bir cümleyi seç; Pery'nin açıklaması sayfanın kenarına iple bağlı bir kartta açılsın.",
+    "en": "Select a sentence and Pery's explanation opens in a card threaded to the margin.",
+    "de": "Wähle einen Satz aus, und Perys Erklärung öffnet sich in einer Karte, die mit dem Rand verbunden ist.",
+    "es": "Selecciona una frase y la explicación de Pery se abre en una tarjeta unida al margen con un hilo."
+  },
+  "welcomeKey": {
+    "tr": "Yapay zekâ için kendi anahtarını kullanırsın (Gemini, OpenAI, DeepSeek ya da Claude). İstekler doğrudan o sağlayıcıya gider; arada Peryda sunucusu yoktur.",
+    "en": "For AI you use your own key (Gemini, OpenAI, DeepSeek or Claude). Requests go straight to that provider; there is no Peryda server in between.",
+    "de": "Für KI nutzt du deinen eigenen Schlüssel (Gemini, OpenAI, DeepSeek oder Claude). Anfragen gehen direkt an diesen Anbieter; dazwischen gibt es keinen Peryda-Server.",
+    "es": "Para la IA usas tu propia clave (Gemini, OpenAI, DeepSeek o Claude). Las solicitudes van directamente a ese proveedor; no hay ningún servidor de Peryda en medio."
+  },
+  "welcomeLater": {
+    "tr": "Şimdilik değil",
+    "en": "Not now",
+    "de": "Nicht jetzt",
+    "es": "Ahora no"
+  },
+  "welcomeRead": {
+    "tr": "Kendi PDF ve EPUB dosyalarını oku. Her şey bu cihazda kalır.",
+    "en": "Read your own PDF and EPUB files. Everything stays on this device.",
+    "de": "Lies deine eigenen PDF- und EPUB-Dateien. Alles bleibt auf diesem Gerät.",
+    "es": "Lee tus propios archivos PDF y EPUB. Todo se queda en este dispositivo."
+  },
+  "welcomeTitle": {
+    "tr": "Peryda'ya hoş geldin",
+    "en": "Welcome to Peryda",
+    "de": "Willkommen bei Peryda",
+    "es": "Te damos la bienvenida a Peryda"
+  },
+  "zoomIn": {
+    "tr": "Yakınlaştır",
+    "en": "Zoom in",
+    "de": "Vergrößern",
+    "es": "Acercar"
+  },
+  "zoomOut": {
+    "tr": "Uzaklaştır",
+    "en": "Zoom out",
+    "de": "Verkleinern",
+    "es": "Alejar"
+  }
+}

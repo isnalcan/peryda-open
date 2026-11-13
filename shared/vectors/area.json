@@ -1,0 +1,88 @@
+{
+  "description": "Area stitch: pixel crop of a rendered page and the minimum-size rule.",
+  "crops": [
+    {
+      "canvas": [
+        1224,
+        1584
+      ],
+      "norm": {
+        "x": 0.1,
+        "y": 0.2,
+        "width": 0.3,
+        "height": 0.25
+      },
+      "pixels": {
+        "sx": 122,
+        "sy": 317,
+        "sw": 367,
+        "sh": 396
+      }
+    },
+    {
+      "canvas": [
+        1000,
+        1000
+      ],
+      "norm": {
+        "x": 0.0005,
+        "y": 0.9995,
+        "width": 0.0001,
+        "height": 0.0004
+      },
+      "pixels": {
+        "sx": 1,
+        "sy": 1000,
+        "sw": 1,
+        "sh": 1
+      }
+    },
+    {
+      "canvas": [
+        1191,
+        1684
+      ],
+      "norm": {
+        "x": 0.333,
+        "y": 0.125,
+        "width": 0.5,
+        "height": 0.0625
+      },
+      "pixels": {
+        "sx": 397,
+        "sy": 211,
+        "sw": 596,
+        "sh": 105
+      }
+    }
+  ],
+  "minimum": [
+    {
+      "norm": {
+        "x": 0.1,
+        "y": 0.1,
+        "width": 0.019,
+        "height": 0.2
+      },
+      "accepted": false
+    },
+    {
+      "norm": {
+        "x": 0.1,
+        "y": 0.1,
+        "width": 0.2,
+        "height": 0.0149
+      },
+      "accepted": false
+    },
+    {
+      "norm": {
+        "x": 0.1,
+        "y": 0.1,
+        "width": 0.02,
+        "height": 0.015
+      },
+      "accepted": true
+    }
+  ]
+}

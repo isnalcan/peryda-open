@@ -1,0 +1,56 @@
+/* Book Journal additions: the note field and page links. Scoped under .journal-panel so these rules
+   win over app.css whichever file loads first. */
+
+.journal-panel .journal-note {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 2px 20px 12px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--paper-raised);
+  transition: border-color 120ms ease-out;
+}
+
+.journal-panel .journal-note:focus-within {
+  border-color: var(--accent);
+}
+
+.journal-panel .journal-note textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+  max-height: 140px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  field-sizing: content;
+  font-family: 'Literata', Georgia, serif;
+  line-height: 1.45;
+}
+
+.journal-panel .journal-note textarea::placeholder {
+  color: var(--ink-faint);
+}
+
+.journal-panel .journal-page-link {
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.journal-panel .journal-page-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: currentColor;
+}

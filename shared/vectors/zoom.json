@@ -1,0 +1,65 @@
+{
+  "description": "Zoom keeps the world point under the cursor fixed.",
+  "cases": [
+    {
+      "pan": [
+        0,
+        0
+      ],
+      "scale": 1,
+      "cursor": [
+        400,
+        300
+      ],
+      "nextScale": 2,
+      "world": [
+        400.0,
+        300.0
+      ],
+      "nextPan": [
+        -400.0,
+        -300.0
+      ]
+    },
+    {
+      "pan": [
+        -120,
+        40
+      ],
+      "scale": 0.8,
+      "cursor": [
+        512,
+        384
+      ],
+      "nextScale": 1.25,
+      "world": [
+        790.0,
+        430.0
+      ],
+      "nextPan": [
+        -475.5,
+        -153.5
+      ]
+    },
+    {
+      "pan": [
+        10,
+        -500
+      ],
+      "scale": 1.5,
+      "cursor": [
+        0,
+        0
+      ],
+      "nextScale": 0.5,
+      "world": [
+        -6.666666666666667,
+        333.3333333333333
+      ],
+      "nextPan": [
+        3.3333333333333335,
+        -166.66666666666666
+      ]
+    }
+  ]
+}

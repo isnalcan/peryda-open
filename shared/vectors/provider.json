@@ -1,0 +1,53 @@
+{
+  "description": "Which provider answers. Keys here are placeholders, not real keys.",
+  "cases": [
+    {
+      "settings": {
+        "geminiApiKey": "",
+        "openaiApiKey": "",
+        "activeProvider": "openai"
+      },
+      "provider": null
+    },
+    {
+      "settings": {
+        "geminiApiKey": "AIzaSyExampleKey1234",
+        "openaiApiKey": "",
+        "activeProvider": "openai"
+      },
+      "provider": "gemini"
+    },
+    {
+      "settings": {
+        "geminiApiKey": "",
+        "openaiApiKey": "sk-example-key-1234",
+        "activeProvider": "gemini"
+      },
+      "provider": "openai"
+    },
+    {
+      "settings": {
+        "geminiApiKey": "AIzaSyExampleKey1234",
+        "openaiApiKey": "sk-example-key-1234",
+        "activeProvider": "openai"
+      },
+      "provider": "openai"
+    },
+    {
+      "settings": {
+        "geminiApiKey": "AIzaSyExampleKey1234",
+        "openaiApiKey": "sk-example-key-1234",
+        "activeProvider": "gemini"
+      },
+      "provider": "gemini"
+    },
+    {
+      "settings": {
+        "geminiApiKey": "  short    ",
+        "openaiApiKey": "           ",
+        "activeProvider": "gemini"
+      },
+      "provider": null
+    }
+  ]
+}

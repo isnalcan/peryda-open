@@ -1,0 +1,699 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		055E4FACEA13EF86CB6648AE /* SelectableAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384629AFB0332DB3E57CAB7E /* SelectableAnswer.swift */; };
+		056E8715CBB3406734C79317 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1E8BBDC331EBE4EA1D0F97 /* SettingsView.swift */; };
+		074A3C54980AF4C1AB05442E /* YarnRope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BD124CD54D77A918F7C7369 /* YarnRope.swift */; };
+		0B2D0459727B3908646B930F /* TranslatedPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6349BF5B675DE49481D564 /* TranslatedPageView.swift */; };
+		0F5AB68B95880DD63B9306C0 /* Importing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B431FD23A688527B9426257B /* Importing.swift */; };
+		1C2552171F6EB51DEAA3C426 /* ZoomedHostingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */; };
+		1C7AE1E0BEE74AB30257956B /* Covers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2AF45AA00CEB8EE6EDADE7 /* Covers.swift */; };
+		211A956B2CB39B7CA919B1B4 /* PerydaMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF106CC7BCBBB4ED80799EC7 /* PerydaMacApp.swift */; };
+		232AE0AFAF184EF1A79238E4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D490E1220CB8C386D7FF8E57 /* AppModel.swift */; };
+		2528E6AE504B8280FFA06155 /* JournalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */; };
+		2A9C91860E15ED8A291E61D3 /* PageText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8351C05C06C517B963564756 /* PageText.swift */; };
+		3272345CC217CCCEC30099DC /* SelectionMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57678108D2287CDDE9E0A743 /* SelectionMenuView.swift */; };
+		44535B1EF874E4C1F33ECD35 /* EpubReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD64C8DC50DB7C6D66FEB81 /* EpubReaderView.swift */; };
+		498A2665B8DC92C10091374A /* ManyThreadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D1E170DBE15A62FDAEE2579 /* ManyThreadsTests.swift */; };
+		4BC0FB7D21B36A779BF56704 /* TranslatedPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6349BF5B675DE49481D564 /* TranslatedPageView.swift */; };
+		51AE5C17252EA58202DEF3C2 /* ReaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5ABA3BE1F8F112F3C2E40F0 /* ReaderModel.swift */; };
+		52AF5DF75ED8735E44A4EB2E /* ExtractedTextSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C43E0145F027F2D53F4F540 /* ExtractedTextSheet.swift */; };
+		56E65EE726062F7D4CC34FB2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63992227231E79C5FAC09A0F /* Theme.swift */; };
+		572D26C942051BEF10360B14 /* ReaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5ABA3BE1F8F112F3C2E40F0 /* ReaderModel.swift */; };
+		5D5ADDD92578CC0CFDF4A7E3 /* Covers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2AF45AA00CEB8EE6EDADE7 /* Covers.swift */; };
+		5E3AD583CF0864EFA27CE61D /* EpubReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB876352ABDD3CBA19CE9C79 /* EpubReaderTests.swift */; };
+		637D9CF68E2E019678F78E31 /* DevFakeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */; };
+		64061C7EA1862F097E078444 /* WorldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB22B87F418E361EC2A11EA /* WorldView.swift */; };
+		6D401CA9D05EE5B34FE9FBE2 /* WorldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB22B87F418E361EC2A11EA /* WorldView.swift */; };
+		7080F8AB5F6307E550C75C98 /* PerydaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 936F64EFADCBF0C06AAEA8E8 /* PerydaKit */; };
+		71F82404B11F06E4B1441C73 /* LibraryArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AECDD2CC2A0D792C0C8FB22 /* LibraryArt.swift */; };
+		721FE6F6A89583199D4DBBBF /* NestedThreadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DBB1A9A3C29FF1913D08577 /* NestedThreadsTests.swift */; };
+		7AB4649CBC91227190DADE19 /* YarnRope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BD124CD54D77A918F7C7369 /* YarnRope.swift */; };
+		7C2A80EA2E4F7A0351E2E324 /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC7A60F72E4AAFFB8BB43C46 /* CenteringClipView.swift */; };
+		7C330164536E464518A442F0 /* JournalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284F501E0821B5F4803B6689 /* JournalTests.swift */; };
+		7CDA2627B3CFDEE3F25545CD /* CenteringClipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC7A60F72E4AAFFB8BB43C46 /* CenteringClipView.swift */; };
+		7DF698DB9724B6B2BE5F2B7F /* SelectableAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384629AFB0332DB3E57CAB7E /* SelectableAnswer.swift */; };
+		81719565CDA08B0CB6392576 /* LayoutAndPagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */; };
+		82838690608AF0C3289D7197 /* DevFakeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */; };
+		8967D1837A142B4D15F1EDD6 /* PageTranslationSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A07F05E9327B702E199D9E17 /* PageTranslationSurfaceTests.swift */; };
+		8B49C3893DAEB380676EEAA9 /* EpubReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD64C8DC50DB7C6D66FEB81 /* EpubReaderView.swift */; };
+		96ED8BA17731472B1242571B /* ZoomedHostingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */; };
+		9D3F2E469C8CD473AE41DC3A /* PageGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E8088248E762683F972C10 /* PageGeometry.swift */; };
+		A0E79BC588B6CC0B5BB49946 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832128AA11B18D26E8CA5C09 /* ReaderView.swift */; };
+		A2B29878EC48477A5BDB2862 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D490E1220CB8C386D7FF8E57 /* AppModel.swift */; };
+		A2B404AE95BD44CA013CA7A5 /* LibraryArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AECDD2CC2A0D792C0C8FB22 /* LibraryArt.swift */; };
+		A7E88BDF91628DAD0307AE4C /* PageText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8351C05C06C517B963564756 /* PageText.swift */; };
+		AC6CF276864E870CDCFFE4F6 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63992227231E79C5FAC09A0F /* Theme.swift */; };
+		ACB3E73DBEA890E4D9B7B8F2 /* JournalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */; };
+		BF2A6EF6A3FDC0C7BDB18B1B /* LibraryAndJournalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */; };
+		C8280C769C247352E9010752 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7CE9D3516CA5719AE76BA68 /* LibraryView.swift */; };
+		C993D827D90A8D44D69938D5 /* YarnCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B66E0CD54B9EAC61F02372 /* YarnCardView.swift */; };
+		CB737B6F1C6AC9955928479D /* SecurityFixesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85AAC792D2A509C8D072C23D /* SecurityFixesTests.swift */; };
+		D8F3FDDD26AD5E345F610C50 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AE0A13E3700E354A513DCAAA /* Assets.xcassets */; };
+		DAA001A7119708EC7D49ED24 /* ReaderSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D53464096D1CA0FFFF1C8E /* ReaderSurfaceTests.swift */; };
+		DCB70688F03649BFA6BC6D02 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7CE9D3516CA5719AE76BA68 /* LibraryView.swift */; };
+		E43BD20AE26380A0217B5345 /* ExtractedTextSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C43E0145F027F2D53F4F540 /* ExtractedTextSheet.swift */; };
+		E4B68A244551AF6DE74B40E5 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832128AA11B18D26E8CA5C09 /* ReaderView.swift */; };
+		EE213B9A87FA89A6D91651D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1E8BBDC331EBE4EA1D0F97 /* SettingsView.swift */; };
+		EF8C344B959FA0FB59404654 /* YarnCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B66E0CD54B9EAC61F02372 /* YarnCardView.swift */; };
+		F2705909C98E433C5B23E161 /* SelectionMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57678108D2287CDDE9E0A743 /* SelectionMenuView.swift */; };
+		F2BBB57F128BBC9797B61F83 /* PerydaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 4AC0AD8EA6167F3AAF9F13FB /* PerydaKit */; };
+		F3E1B251045C8F406F454425 /* Importing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B431FD23A688527B9426257B /* Importing.swift */; };
+		FB81FE04435211734C81F6F7 /* PageGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E8088248E762683F972C10 /* PageGeometry.swift */; };
+		FC311DFBDFCCFB77C2903519 /* CardButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0539C82F1607F8355034EDC2 /* CardButtonTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0539C82F1607F8355034EDC2 /* CardButtonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardButtonTests.swift; sourceTree = "<group>"; };
+		05B66E0CD54B9EAC61F02372 /* YarnCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YarnCardView.swift; sourceTree = "<group>"; };
+		0BD124CD54D77A918F7C7369 /* YarnRope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YarnRope.swift; sourceTree = "<group>"; };
+		284F501E0821B5F4803B6689 /* JournalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTests.swift; sourceTree = "<group>"; };
+		2C43E0145F027F2D53F4F540 /* ExtractedTextSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractedTextSheet.swift; sourceTree = "<group>"; };
+		2FB22B87F418E361EC2A11EA /* WorldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldView.swift; sourceTree = "<group>"; };
+		384629AFB0332DB3E57CAB7E /* SelectableAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableAnswer.swift; sourceTree = "<group>"; };
+		3DBB1A9A3C29FF1913D08577 /* NestedThreadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedThreadsTests.swift; sourceTree = "<group>"; };
+		4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutAndPagingTests.swift; sourceTree = "<group>"; };
+		57678108D2287CDDE9E0A743 /* SelectionMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMenuView.swift; sourceTree = "<group>"; };
+		592A52B8CF02285CEB48CFD5 /* PerydaKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PerydaKit; path = PerydaKit; sourceTree = SOURCE_ROOT; };
+		5D2AF45AA00CEB8EE6EDADE7 /* Covers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Covers.swift; sourceTree = "<group>"; };
+		63992227231E79C5FAC09A0F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		7D1E170DBE15A62FDAEE2579 /* ManyThreadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManyThreadsTests.swift; sourceTree = "<group>"; };
+		82D53464096D1CA0FFFF1C8E /* ReaderSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSurfaceTests.swift; sourceTree = "<group>"; };
+		832128AA11B18D26E8CA5C09 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
+		8351C05C06C517B963564756 /* PageText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageText.swift; sourceTree = "<group>"; };
+		85AAC792D2A509C8D072C23D /* SecurityFixesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityFixesTests.swift; sourceTree = "<group>"; };
+		86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAndJournalTests.swift; sourceTree = "<group>"; };
+		89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevFakeAI.swift; sourceTree = "<group>"; };
+		8AECDD2CC2A0D792C0C8FB22 /* LibraryArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryArt.swift; sourceTree = "<group>"; };
+		A07F05E9327B702E199D9E17 /* PageTranslationSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTranslationSurfaceTests.swift; sourceTree = "<group>"; };
+		A2E8088248E762683F972C10 /* PageGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageGeometry.swift; sourceTree = "<group>"; };
+		A7CE9D3516CA5719AE76BA68 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		AE0A13E3700E354A513DCAAA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B431FD23A688527B9426257B /* Importing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Importing.swift; sourceTree = "<group>"; };
+		B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalPanel.swift; sourceTree = "<group>"; };
+		CC8605DE3FB542A24A0E640C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		CE6289DD6252F06364FCD4C1 /* PerydaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PerydaMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D490E1220CB8C386D7FF8E57 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		DFD64C8DC50DB7C6D66FEB81 /* EpubReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpubReaderView.swift; sourceTree = "<group>"; };
+		E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomedHostingView.swift; sourceTree = "<group>"; };
+		EC7A60F72E4AAFFB8BB43C46 /* CenteringClipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
+		ECC5AE78686901E8308F3372 /* PerydaMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PerydaMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5ABA3BE1F8F112F3C2E40F0 /* ReaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderModel.swift; sourceTree = "<group>"; };
+		FB6349BF5B675DE49481D564 /* TranslatedPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatedPageView.swift; sourceTree = "<group>"; };
+		FB876352ABDD3CBA19CE9C79 /* EpubReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpubReaderTests.swift; sourceTree = "<group>"; };
+		FE1E8BBDC331EBE4EA1D0F97 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FF106CC7BCBBB4ED80799EC7 /* PerydaMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerydaMacApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4D832A1B6DB714B2543783D7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F2BBB57F128BBC9797B61F83 /* PerydaKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C39F847A37E28E8FD2558606 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7080F8AB5F6307E550C75C98 /* PerydaKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0BAEA6872ABFD7C4858BE3E7 /* Reader */ = {
+			isa = PBXGroup;
+			children = (
+				EC7A60F72E4AAFFB8BB43C46 /* CenteringClipView.swift */,
+				DFD64C8DC50DB7C6D66FEB81 /* EpubReaderView.swift */,
+				2C43E0145F027F2D53F4F540 /* ExtractedTextSheet.swift */,
+				B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */,
+				A2E8088248E762683F972C10 /* PageGeometry.swift */,
+				8351C05C06C517B963564756 /* PageText.swift */,
+				F5ABA3BE1F8F112F3C2E40F0 /* ReaderModel.swift */,
+				832128AA11B18D26E8CA5C09 /* ReaderView.swift */,
+				FB6349BF5B675DE49481D564 /* TranslatedPageView.swift */,
+				2FB22B87F418E361EC2A11EA /* WorldView.swift */,
+				0BD124CD54D77A918F7C7369 /* YarnRope.swift */,
+				E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */,
+			);
+			path = Reader;
+			sourceTree = "<group>";
+		};
+		1BA3DF5C6A6D13DCE7F8A268 /* Ilmek */ = {
+			isa = PBXGroup;
+			children = (
+				384629AFB0332DB3E57CAB7E /* SelectableAnswer.swift */,
+				57678108D2287CDDE9E0A743 /* SelectionMenuView.swift */,
+				05B66E0CD54B9EAC61F02372 /* YarnCardView.swift */,
+			);
+			path = Ilmek;
+			sourceTree = "<group>";
+		};
+		40620E31EC5615806250AD05 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				FE1E8BBDC331EBE4EA1D0F97 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		4948AECB100080DB65E0CB7E /* PerydaMacTests */ = {
+			isa = PBXGroup;
+			children = (
+				0539C82F1607F8355034EDC2 /* CardButtonTests.swift */,
+				FB876352ABDD3CBA19CE9C79 /* EpubReaderTests.swift */,
+				284F501E0821B5F4803B6689 /* JournalTests.swift */,
+				4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */,
+				86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */,
+				7D1E170DBE15A62FDAEE2579 /* ManyThreadsTests.swift */,
+				3DBB1A9A3C29FF1913D08577 /* NestedThreadsTests.swift */,
+				A07F05E9327B702E199D9E17 /* PageTranslationSurfaceTests.swift */,
+				82D53464096D1CA0FFFF1C8E /* ReaderSurfaceTests.swift */,
+				85AAC792D2A509C8D072C23D /* SecurityFixesTests.swift */,
+			);
+			path = PerydaMacTests;
+			sourceTree = "<group>";
+		};
+		6AB13369DC0071A779258072 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				5D2AF45AA00CEB8EE6EDADE7 /* Covers.swift */,
+				B431FD23A688527B9426257B /* Importing.swift */,
+				8AECDD2CC2A0D792C0C8FB22 /* LibraryArt.swift */,
+				A7CE9D3516CA5719AE76BA68 /* LibraryView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		7DD67402507A4900D589CC07 = {
+			isa = PBXGroup;
+			children = (
+				A246826F6F789B0D7D69252D /* Packages */,
+				C82DF02474BA0D9FAA855A56 /* PerydaMac */,
+				4948AECB100080DB65E0CB7E /* PerydaMacTests */,
+				8D3EF7FA27F9DF21918FF199 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8D3EF7FA27F9DF21918FF199 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CE6289DD6252F06364FCD4C1 /* PerydaMac.app */,
+				ECC5AE78686901E8308F3372 /* PerydaMacTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A246826F6F789B0D7D69252D /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				592A52B8CF02285CEB48CFD5 /* PerydaKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		BE9EE5AA71BB7C77FF2FD2F8 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D490E1220CB8C386D7FF8E57 /* AppModel.swift */,
+				89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */,
+				FF106CC7BCBBB4ED80799EC7 /* PerydaMacApp.swift */,
+				63992227231E79C5FAC09A0F /* Theme.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		C82DF02474BA0D9FAA855A56 /* PerydaMac */ = {
+			isa = PBXGroup;
+			children = (
+				CC8605DE3FB542A24A0E640C /* Info.plist */,
+				BE9EE5AA71BB7C77FF2FD2F8 /* App */,
+				1BA3DF5C6A6D13DCE7F8A268 /* Ilmek */,
+				6AB13369DC0071A779258072 /* Library */,
+				0BAEA6872ABFD7C4858BE3E7 /* Reader */,
+				DA9810DEB121FAB7793BB59F /* Resources */,
+				40620E31EC5615806250AD05 /* Settings */,
+			);
+			path = PerydaMac;
+			sourceTree = "<group>";
+		};
+		DA9810DEB121FAB7793BB59F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AE0A13E3700E354A513DCAAA /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		293209FE3DB6A139995F0117 /* PerydaMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0422E81D80475DB71C31511B /* Build configuration list for PBXNativeTarget "PerydaMac" */;
+			buildPhases = (
+				07DD926C4CC6BE887EB52732 /* Sources */,
+				0BDB2F0BB2564D6A6CE10B3F /* Resources */,
+				C39F847A37E28E8FD2558606 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PerydaMac;
+			packageProductDependencies = (
+				936F64EFADCBF0C06AAEA8E8 /* PerydaKit */,
+			);
+			productName = PerydaMac;
+			productReference = CE6289DD6252F06364FCD4C1 /* PerydaMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+		924E3388B1CBBA54507FF4C4 /* PerydaMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ED83B9D03F58F7F765C8655C /* Build configuration list for PBXNativeTarget "PerydaMacTests" */;
+			buildPhases = (
+				2246F62D1694BEBB9AF79646 /* Sources */,
+				4D832A1B6DB714B2543783D7 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PerydaMacTests;
+			packageProductDependencies = (
+				4AC0AD8EA6167F3AAF9F13FB /* PerydaKit */,
+			);
+			productName = PerydaMacTests;
+			productReference = ECC5AE78686901E8308F3372 /* PerydaMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E26D143662D839C7173DE787 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					293209FE3DB6A139995F0117 = {
+						ProvisioningStyle = Manual;
+					};
+					924E3388B1CBBA54507FF4C4 = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = D7BB9068B8338FE7648DB8AF /* Build configuration list for PBXProject "PerydaMac" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7DD67402507A4900D589CC07;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5CA2F0984688BC994A90DAD4 /* XCLocalSwiftPackageReference "PerydaKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8D3EF7FA27F9DF21918FF199 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				293209FE3DB6A139995F0117 /* PerydaMac */,
+				924E3388B1CBBA54507FF4C4 /* PerydaMacTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0BDB2F0BB2564D6A6CE10B3F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D8F3FDDD26AD5E345F610C50 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		07DD926C4CC6BE887EB52732 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2B29878EC48477A5BDB2862 /* AppModel.swift in Sources */,
+				7C2A80EA2E4F7A0351E2E324 /* CenteringClipView.swift in Sources */,
+				5D5ADDD92578CC0CFDF4A7E3 /* Covers.swift in Sources */,
+				82838690608AF0C3289D7197 /* DevFakeAI.swift in Sources */,
+				8B49C3893DAEB380676EEAA9 /* EpubReaderView.swift in Sources */,
+				E43BD20AE26380A0217B5345 /* ExtractedTextSheet.swift in Sources */,
+				0F5AB68B95880DD63B9306C0 /* Importing.swift in Sources */,
+				2528E6AE504B8280FFA06155 /* JournalPanel.swift in Sources */,
+				71F82404B11F06E4B1441C73 /* LibraryArt.swift in Sources */,
+				DCB70688F03649BFA6BC6D02 /* LibraryView.swift in Sources */,
+				FB81FE04435211734C81F6F7 /* PageGeometry.swift in Sources */,
+				2A9C91860E15ED8A291E61D3 /* PageText.swift in Sources */,
+				211A956B2CB39B7CA919B1B4 /* PerydaMacApp.swift in Sources */,
+				572D26C942051BEF10360B14 /* ReaderModel.swift in Sources */,
+				E4B68A244551AF6DE74B40E5 /* ReaderView.swift in Sources */,
+				7DF698DB9724B6B2BE5F2B7F /* SelectableAnswer.swift in Sources */,
+				F2705909C98E433C5B23E161 /* SelectionMenuView.swift in Sources */,
+				EE213B9A87FA89A6D91651D5 /* SettingsView.swift in Sources */,
+				AC6CF276864E870CDCFFE4F6 /* Theme.swift in Sources */,
+				0B2D0459727B3908646B930F /* TranslatedPageView.swift in Sources */,
+				64061C7EA1862F097E078444 /* WorldView.swift in Sources */,
+				C993D827D90A8D44D69938D5 /* YarnCardView.swift in Sources */,
+				7AB4649CBC91227190DADE19 /* YarnRope.swift in Sources */,
+				96ED8BA17731472B1242571B /* ZoomedHostingView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2246F62D1694BEBB9AF79646 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				232AE0AFAF184EF1A79238E4 /* AppModel.swift in Sources */,
+				FC311DFBDFCCFB77C2903519 /* CardButtonTests.swift in Sources */,
+				7CDA2627B3CFDEE3F25545CD /* CenteringClipView.swift in Sources */,
+				1C7AE1E0BEE74AB30257956B /* Covers.swift in Sources */,
+				637D9CF68E2E019678F78E31 /* DevFakeAI.swift in Sources */,
+				5E3AD583CF0864EFA27CE61D /* EpubReaderTests.swift in Sources */,
+				44535B1EF874E4C1F33ECD35 /* EpubReaderView.swift in Sources */,
+				52AF5DF75ED8735E44A4EB2E /* ExtractedTextSheet.swift in Sources */,
+				F3E1B251045C8F406F454425 /* Importing.swift in Sources */,
+				ACB3E73DBEA890E4D9B7B8F2 /* JournalPanel.swift in Sources */,
+				7C330164536E464518A442F0 /* JournalTests.swift in Sources */,
+				81719565CDA08B0CB6392576 /* LayoutAndPagingTests.swift in Sources */,
+				BF2A6EF6A3FDC0C7BDB18B1B /* LibraryAndJournalTests.swift in Sources */,
+				A2B404AE95BD44CA013CA7A5 /* LibraryArt.swift in Sources */,
+				C8280C769C247352E9010752 /* LibraryView.swift in Sources */,
+				498A2665B8DC92C10091374A /* ManyThreadsTests.swift in Sources */,
+				721FE6F6A89583199D4DBBBF /* NestedThreadsTests.swift in Sources */,
+				9D3F2E469C8CD473AE41DC3A /* PageGeometry.swift in Sources */,
+				A7E88BDF91628DAD0307AE4C /* PageText.swift in Sources */,
+				8967D1837A142B4D15F1EDD6 /* PageTranslationSurfaceTests.swift in Sources */,
+				51AE5C17252EA58202DEF3C2 /* ReaderModel.swift in Sources */,
+				DAA001A7119708EC7D49ED24 /* ReaderSurfaceTests.swift in Sources */,
+				A0E79BC588B6CC0B5BB49946 /* ReaderView.swift in Sources */,
+				CB737B6F1C6AC9955928479D /* SecurityFixesTests.swift in Sources */,
+				055E4FACEA13EF86CB6648AE /* SelectableAnswer.swift in Sources */,
+				3272345CC217CCCEC30099DC /* SelectionMenuView.swift in Sources */,
+				056E8715CBB3406734C79317 /* SettingsView.swift in Sources */,
+				56E65EE726062F7D4CC34FB2 /* Theme.swift in Sources */,
+				4BC0FB7D21B36A779BF56704 /* TranslatedPageView.swift in Sources */,
+				6D401CA9D05EE5B34FE9FBE2 /* WorldView.swift in Sources */,
+				EF8C344B959FA0FB59404654 /* YarnCardView.swift in Sources */,
+				074A3C54980AF4C1AB05442E /* YarnRope.swift in Sources */,
+				1C2552171F6EB51DEAA3C426 /* ZoomedHostingView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		03774EAC68B23D27EBEFD565 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PerydaMac/PerydaMac.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PerydaMac/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Peryda;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
+				PRODUCT_NAME = Peryda;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		7E61019FCF78C94BFCD6DF45 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PerydaMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac.tests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "";
+			};
+			name = Release;
+		};
+		8202F748AFCECB4A1C72D738 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PerydaMac/PerydaMac.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PerydaMac/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Peryda;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
+				PRODUCT_NAME = Peryda;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		85D36FED23BC1CCCF439542D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BC976BDFBE555E36B1ED3AA2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PerydaMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac.tests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "";
+			};
+			name = Debug;
+		};
+		F565A863FB99212041E976D1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0422E81D80475DB71C31511B /* Build configuration list for PBXNativeTarget "PerydaMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				03774EAC68B23D27EBEFD565 /* Debug */,
+				8202F748AFCECB4A1C72D738 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D7BB9068B8338FE7648DB8AF /* Build configuration list for PBXProject "PerydaMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F565A863FB99212041E976D1 /* Debug */,
+				85D36FED23BC1CCCF439542D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		ED83B9D03F58F7F765C8655C /* Build configuration list for PBXNativeTarget "PerydaMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC976BDFBE555E36B1ED3AA2 /* Debug */,
+				7E61019FCF78C94BFCD6DF45 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5CA2F0984688BC994A90DAD4 /* XCLocalSwiftPackageReference "PerydaKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = PerydaKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4AC0AD8EA6167F3AAF9F13FB /* PerydaKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PerydaKit;
+		};
+		936F64EFADCBF0C06AAEA8E8 /* PerydaKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PerydaKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = E26D143662D839C7173DE787 /* Project object */;
+}
