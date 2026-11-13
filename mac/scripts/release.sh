@@ -7,6 +7,9 @@
 #                                     the keychain and a notarytool profile, see docs/BUILDING.md)
 #   mac/scripts/release.sh --local    same build signed for this Mac only, no notarization (to try
 #                                     the DMG locally; named …-LOCAL-UNSIGNED.dmg, never to be uploaded)
+#   mac/scripts/release.sh --sign-only  signed with Developer ID exactly like a release, but nothing is
+#                                     sent to Apple (checks the signing before a real run; named
+#                                     …-NOT-NOTARIZED.dmg, never to be uploaded)
 #
 # Settings (environment): NOTARY_PROFILE (default "peryda-notary"), TEAM_ID (default: read from the
 # Developer ID certificate's name, "Developer ID Application: Name (TEAMID)").
@@ -25,6 +28,8 @@ fail() {
   echo "$1" >&2
   exit 1
 }
+
+case "$mode" in release | --local | --sign-only) ;; *) fail "Unknown option: $mode" ;; esac
 
 team=""
 if [ "$mode" = "--local" ]; then
@@ -101,7 +106,7 @@ if codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q 'get-task-all
 fi
 echo "› Signature verified: hardened runtime (app and Sparkle's helpers), team ${team:-none (local)}, no get-task-allow"
 
-if [ "$mode" != "--local" ]; then
+if [ "$mode" = "release" ]; then
   echo "› Sending the app to Apple for notarization (usually a few minutes)"
   ditto -c -k --keepParent "$app" "$work/Peryda.zip"
   xcrun notarytool submit "$work/Peryda.zip" --keychain-profile "$profile" --wait
@@ -116,6 +121,8 @@ ditto "$app" "$work/dmg/Peryda.app"
 ln -s /Applications "$work/dmg/Applications"
 if [ "$mode" = "--local" ]; then
   dmg="$out/Peryda-$version-LOCAL-UNSIGNED.dmg"
+elif [ "$mode" = "--sign-only" ]; then
+  dmg="$out/Peryda-$version-NOT-NOTARIZED.dmg"
 else
   dmg="$out/Peryda-$version.dmg"
 fi
@@ -129,6 +136,10 @@ fi
 
 codesign --sign "$dmg_identity" --timestamp "$dmg"
 codesign -dv "$dmg" 2>&1 | grep -qx "TeamIdentifier=$team" || fail "The disk image is not signed by team $team."
+if [ "$mode" = "--sign-only" ]; then
+  echo "› Signed with Developer ID, not sent to Apple (not for upload): $dmg"
+  exit 0
+fi
 echo "› Sending the disk image to Apple for notarization"
 xcrun notarytool submit "$dmg" --keychain-profile "$profile" --wait
 xcrun stapler staple "$dmg"

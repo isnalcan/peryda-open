@@ -30,6 +30,7 @@ notarytool profile (`xcrun notarytool store-credentials peryda-notary …`). The
 ```bash
 mac/scripts/release.sh           # signed, notarized, stapled DMG in mac/build
 mac/scripts/release.sh --local   # signed for this Mac only, to try the DMG
+mac/scripts/release.sh --sign-only  # signed with Developer ID, nothing sent to Apple
 ```
 
 ## Windows
