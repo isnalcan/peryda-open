@@ -8,12 +8,19 @@
 #
 # notes.html (optional): a few lines of plain HTML shown in the update window ("What's new").
 # Do not edit appcast.xml afterwards: it is signed, and the apps reject a changed feed.
+# Update rehearsal only (scripts/update-rehearsal.sh): PERYDA_DOWNLOAD_BASE=http://127.0.0.1:<port>
+# offers the disk image from there instead, and the feed goes to build/rehearsal/appcast.xml.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 dmg=${1:?usage: appcast.sh <Peryda-x.y.z.dmg> [notes.html]}
 notes=${2:-}
 repo=${PERYDA_REPO:-isnalcan/peryda-open}
+base=${PERYDA_DOWNLOAD_BASE:-}
 out="$here/build/appcast.xml"
+if [ -n "$base" ]; then
+  case "$base" in http://127.0.0.1:*) ;; *) echo "PERYDA_DOWNLOAD_BASE is for the update rehearsal on this Mac (http://127.0.0.1:<port>)." >&2; exit 1 ;; esac
+  out="$here/build/rehearsal/appcast.xml"
+fi
 
 fail() {
   echo "$1" >&2
@@ -44,6 +51,9 @@ signature=$(echo "$enclosure" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1
 [ -n "$signature" ] || fail "sign_update gave no signature."
 "$bin/sign_update" --verify "$dmg" "$signature" >/dev/null || fail "The signature does not verify."
 
+url="https://github.com/$repo/releases/download/v$short/Peryda-$short.dmg"
+[ -z "$base" ] || url="$base/Peryda-$short.dmg"
+
 description=""
 if [ -n "$notes" ]; then
   description="      <description><![CDATA[$(cat "$notes")]]></description>"
@@ -62,7 +72,7 @@ cat > "$out" <<XML
       <sparkle:shortVersionString>$short</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>$minos</sparkle:minimumSystemVersion>
 $description
-      <enclosure url="https://github.com/$repo/releases/download/v$short/Peryda-$short.dmg" type="application/octet-stream" $enclosure/>
+      <enclosure url="$url" type="application/octet-stream" $enclosure/>
     </item>
   </channel>
 </rss>

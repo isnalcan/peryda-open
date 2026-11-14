@@ -13,11 +13,17 @@
 #
 # Settings (environment): NOTARY_PROFILE (default "peryda-notary"), TEAM_ID (default: read from the
 # Developer ID certificate's name, "Developer ID Application: Name (TEAMID)").
+# Update rehearsal only (scripts/update-rehearsal.sh; never with a release): PERYDA_VERSION and
+# PERYDA_BUILD build another version number, PERYDA_UPDATE_FEED_URL points the app at a test feed.
+# The disk image is then named …-REHEARSAL.dmg.
 set -eu
 here=$(cd "$(dirname "$0")/.." && pwd)
 mode=${1:-release}
 profile=${NOTARY_PROFILE:-peryda-notary}
-version=$(grep 'MARKETING_VERSION' "$here/project.yml" | head -1 | sed 's/.*: *//; s/"//g')
+github_feed=$(sed -n 's/^ *PERYDA_UPDATE_FEED_URL: *\(https:[^ ]*\) *$/\1/p' "$here/project.yml" | head -1)
+version=${PERYDA_VERSION:-$(grep 'MARKETING_VERSION' "$here/project.yml" | head -1 | sed 's/.*: *//; s/"//g')}
+rehearsal=""
+if [ -n "${PERYDA_VERSION:-}${PERYDA_BUILD:-}${PERYDA_UPDATE_FEED_URL:-}" ]; then rehearsal=1; fi
 out="$here/build"
 # A fresh folder each time, outside Documents: iCloud's extended attributes break code signing there.
 work=$(mktemp -d "${TMPDIR:-/tmp}/peryda-mac-release.XXXXXX")
@@ -30,6 +36,10 @@ fail() {
 }
 
 case "$mode" in release | --local | --sign-only) ;; *) fail "Unknown option: $mode" ;; esac
+[ -n "$github_feed" ] || fail "No PERYDA_UPDATE_FEED_URL in project.yml."
+if [ -n "$rehearsal" ] && [ "$mode" = "release" ]; then
+  fail "PERYDA_VERSION, PERYDA_BUILD and PERYDA_UPDATE_FEED_URL are for the update rehearsal only (--sign-only or --local)."
+fi
 
 team=""
 if [ "$mode" = "--local" ]; then
@@ -54,6 +64,13 @@ if [ "$mode" != "--local" ] && [ -z "$update_key" ]; then
   fail "No update key in project.yml (PERYDA_UPDATE_PUBLIC_KEY). Run scripts/update-keys.sh first."
 fi
 
+rehearsal_settings=""
+if [ -n "$rehearsal" ]; then
+  rehearsal_settings="MARKETING_VERSION=$version"
+  [ -z "${PERYDA_BUILD:-}" ] || rehearsal_settings="$rehearsal_settings CURRENT_PROJECT_VERSION=$PERYDA_BUILD"
+  [ -z "${PERYDA_UPDATE_FEED_URL:-}" ] || rehearsal_settings="$rehearsal_settings PERYDA_UPDATE_FEED_URL=$PERYDA_UPDATE_FEED_URL"
+fi
+
 cd "$here"
 # The project only uses the local PerydaKit package, so its pins are PerydaKit/Package.resolved.
 [ -f PerydaKit/Package.resolved ] || fail "PerydaKit/Package.resolved is missing; package versions would not be pinned."
@@ -64,7 +81,7 @@ xcodegen generate --quiet
 xcodebuild -project PerydaMac.xcodeproj -scheme PerydaMac -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$work/Peryda.xcarchive" \
   -onlyUsePackageVersionsFromResolvedFile \
-  CODE_SIGN_IDENTITY="$identity" ENABLE_HARDENED_RUNTIME=YES $extra \
+  CODE_SIGN_IDENTITY="$identity" ENABLE_HARDENED_RUNTIME=YES $extra $rehearsal_settings \
   archive -quiet
 
 app="$work/Peryda.xcarchive/Products/Applications/Peryda.app"
@@ -95,6 +112,9 @@ done
 if [ "$mode" != "--local" ]; then
   [ -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist" 2>/dev/null)" ] || fail "The app has no update key."
 fi
+# A release reads updates from the GitHub release feed and from nowhere else.
+feed=$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist" 2>/dev/null || true)
+if [ -z "$rehearsal" ] && [ "$feed" != "$github_feed" ]; then fail "The app's update feed is $feed, not $github_feed."; fi
 # What is shipped must be what was meant: the hardened runtime, the right team, no debugging entitlement.
 signature=$(codesign -dv --verbose=4 "$app" 2>&1)
 echo "$signature" | grep -q '^CodeDirectory .*flags=.*runtime' || fail "The app is not signed with the hardened runtime."
@@ -119,7 +139,9 @@ echo "› Making the disk image"
 mkdir -p "$work/dmg"
 ditto "$app" "$work/dmg/Peryda.app"
 ln -s /Applications "$work/dmg/Applications"
-if [ "$mode" = "--local" ]; then
+if [ -n "$rehearsal" ]; then
+  dmg="$out/Peryda-$version-REHEARSAL.dmg"
+elif [ "$mode" = "--local" ]; then
   dmg="$out/Peryda-$version-LOCAL-UNSIGNED.dmg"
 elif [ "$mode" = "--sign-only" ]; then
   dmg="$out/Peryda-$version-NOT-NOTARIZED.dmg"

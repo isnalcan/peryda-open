@@ -473,6 +473,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
 				PERYDA_UPDATE_PUBLIC_KEY = "Q+rvhmfx5+vfeL6D7XS+sQaQC0NT5cdop49CyYa6v80=";
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
 				PRODUCT_NAME = Peryda;
@@ -496,6 +497,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac.tests;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
@@ -525,6 +527,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
+				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
 				PERYDA_UPDATE_PUBLIC_KEY = "Q+rvhmfx5+vfeL6D7XS+sQaQC0NT5cdop49CyYa6v80=";
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
 				PRODUCT_NAME = Peryda;
@@ -604,6 +607,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
+				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac.tests;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;

@@ -1,0 +1,6 @@
+# One line ending everywhere: files are checked out with LF on Windows too (GitHub's Windows machine
+# otherwise turns them into CRLF), so tests that compare generated text with the files in the
+# repository, such as the privacy text and the shared vectors, agree on every machine.
+* text=auto eol=lf
+# Third-party license texts stay byte for byte as cargo-about wrote them.
+windows/THIRD_PARTY_NOTICES-rust.txt -text

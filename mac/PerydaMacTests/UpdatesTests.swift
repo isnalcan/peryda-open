@@ -21,11 +21,20 @@ final class UpdatesTests: XCTestCase {
         XCTAssertNil(info["SUEnableAutomaticChecks"])
         XCTAssertNil(info["SUEnableSystemProfiling"])
         XCTAssertNil(info["SUScheduledCheckInterval"])
-        XCTAssertEqual(info["SUFeedURL"] as? String, "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml")
+        XCTAssertEqual(info["SUFeedURL"] as? String, "$(PERYDA_UPDATE_FEED_URL)")
         XCTAssertEqual(info["SUPublicEDKey"] as? String, "$(PERYDA_UPDATE_PUBLIC_KEY)")
         XCTAssertEqual(info["SURequireSignedFeed"] as? Bool, true)
         XCTAssertEqual(info["SUVerifyUpdateBeforeExtraction"] as? Bool, true)
         XCTAssertEqual(info["SUEnableInstallerLauncherService"] as? Bool, true)
+    }
+
+    /// The feed comes from one build setting, and every target sets it to the latest GitHub release.
+    /// (Only the update rehearsal builds with another one, and release.sh refuses to ship that.)
+    func testTheFeedIsTheLatestGitHubRelease() throws {
+        let project = try String(contentsOf: macFolder.appendingPathComponent("PerydaMac.xcodeproj/project.pbxproj"), encoding: .utf8)
+        let values = project.matches(of: /PERYDA_UPDATE_FEED_URL = "?([^";]+)"?;/).map { String($0.1) }
+        XCTAssertFalse(values.isEmpty)
+        XCTAssertEqual(Set(values), ["https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml"])
     }
 
     func testTheSandboxOpensOnlySparklesInstallerServices() throws {

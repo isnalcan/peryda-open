@@ -37,9 +37,9 @@ targets:
         CFBundleLocalizations: [tr, en, de, es]
         CFBundleDevelopmentRegion: en
         # Updates (Sparkle). With no SUEnableAutomaticChecks here, the reader is asked before the first
-        # automatic check. The feed is the latest GitHub release; only updates signed with Peryda's
-        # update key (its public half below, set in PERYDA_UPDATE_PUBLIC_KEY) are installed.
-        SUFeedURL: https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml
+        # automatic check. The feed is the latest GitHub release (PERYDA_UPDATE_FEED_URL); only updates
+        # signed with Peryda's update key (its public half below, in PERYDA_UPDATE_PUBLIC_KEY) are installed.
+        SUFeedURL: $(PERYDA_UPDATE_FEED_URL)
         SUPublicEDKey: $(PERYDA_UPDATE_PUBLIC_KEY)
         SUEnableInstallerLauncherService: true
         # The feed itself is signed too, and an update is checked before it is unpacked: a forged feed
@@ -55,6 +55,9 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         # Public half of the update signing key (mac/scripts/update-keys.sh). Empty: no update check.
         PERYDA_UPDATE_PUBLIC_KEY: "Q+rvhmfx5+vfeL6D7XS+sQaQC0NT5cdop49CyYa6v80="
+        # Where the app looks for updates. Only scripts/update-rehearsal.sh changes it (to this Mac's own
+        # 127.0.0.1); release.sh refuses to ship any other feed.
+        PERYDA_UPDATE_FEED_URL: https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Peryda
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.books
@@ -98,9 +101,9 @@ targets:
         CFBundleLocalizations: [tr, en, de, es]
         CFBundleDevelopmentRegion: en
         # Updates (Sparkle). With no SUEnableAutomaticChecks here, the reader is asked before the first
-        # automatic check. The feed is the latest GitHub release; only updates signed with Peryda's
-        # update key (its public half below, set in PERYDA_UPDATE_PUBLIC_KEY) are installed.
-        SUFeedURL: https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml
+        # automatic check. The feed is the latest GitHub release (PERYDA_UPDATE_FEED_URL); only updates
+        # signed with Peryda's update key (its public half below, in PERYDA_UPDATE_PUBLIC_KEY) are installed.
+        SUFeedURL: $(PERYDA_UPDATE_FEED_URL)
         SUPublicEDKey: $(PERYDA_UPDATE_PUBLIC_KEY)
         SUEnableInstallerLauncherService: true
         # The feed itself is signed too, and an update is checked before it is unpacked: a forged feed
@@ -110,6 +113,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.isnalcan.peryda.mac.tests
+        PERYDA_UPDATE_FEED_URL: https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"

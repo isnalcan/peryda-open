@@ -10,14 +10,16 @@ final class SparkleUpdates {
     private var observations: [NSKeyValueObservation] = []
 
     /// Starts the updater, or returns nil for builds that must not update themselves: development builds,
-    /// and any build made without the update key.
+    /// and any build made without the update key or with a feed that is neither HTTPS nor this Mac's own
+    /// 127.0.0.1 (the update rehearsal, scripts/update-rehearsal.sh; the feed and the update are signed
+    /// either way, and release.sh ships only the GitHub feed).
     static func start(into updates: Updates) -> SparkleUpdates? {
         #if DEBUG
         return nil
         #else
         let info = Bundle.main.infoDictionary ?? [:]
         guard let key = info["SUPublicEDKey"] as? String, !key.isEmpty,
-              let feed = info["SUFeedURL"] as? String, feed.hasPrefix("https://")
+              let feed = info["SUFeedURL"] as? String, feed.hasPrefix("https://") || feed.hasPrefix("http://127.0.0.1:")
         else { return nil }
         return SparkleUpdates(updates)
         #endif
