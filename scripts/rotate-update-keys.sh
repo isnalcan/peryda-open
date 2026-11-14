@@ -22,6 +22,9 @@ printf 'This replaces both of Peryda'"'"'s update keys. Type "yes" to go on: '
 read -r answer
 [ "$answer" = "yes" ] || { echo "Nothing changed."; exit 1; }
 
+bin=$("$root/mac/scripts/sparkle-bin.sh")
+old_mac=$("$bin/generate_keys" -p 2>/dev/null || true)
+
 echo "› Removing the old Mac key from the login keychain"
 security delete-generic-password -s "https://sparkle-project.org" -a ed25519 >/dev/null 2>&1 || echo "  (there was none)"
 
@@ -30,6 +33,11 @@ rm -f "$win_key" "$win_key.pub"
 
 echo "› Making the new keys"
 "$root/scripts/update-keys.sh"
+new_mac=$("$bin/generate_keys" -p 2>/dev/null || true)
+if [ -n "$old_mac" ] && [ "$new_mac" = "$old_mac" ]; then
+  echo "The Mac key did not change (the old one could not be removed from the keychain). Stopping." >&2
+  exit 1
+fi
 echo ""
 echo "  (The backup steps printed above are done for you below.)"
 

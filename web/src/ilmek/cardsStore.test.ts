@@ -370,6 +370,26 @@ describe('page translation', () => {
     expect(s.needsPageImage(ids[1]!)).toBe(false)
   })
 
+  // Audit final F-4: a status answer that arrives after the book was deleted writes nothing back.
+  it('a late answer for a deleted book is not written back as its rows', async () => {
+    await db.books.put({ id: 'book', title: 'K', addedAt: 1, openedAt: 1 } as never)
+    const batcher = new FakeBatcher()
+    const s = store(keyed, recorder().streamer, batcher)
+    const ids = s.translatePages([page(1), page(2), page(3)], 'tr')
+    await s.waitForIdle()
+    expect(await db.cards.where('bookId').equals('book').count()).toBe(3)
+    // The reader goes back to the library (the store closes) and deletes the book while a status
+    // question is out; the answer arrives after that.
+    s.dispose()
+    await db.books.delete('book')
+    await db.cards.where('bookId').equals('book').delete()
+    batcher.state = { state: 'done', texts: { [ids[0]!]: 'Bir.', [ids[1]!]: 'İki.', [ids[2]!]: 'Üç.' }, errors: {} }
+    await s.pollBatches()
+    await s.waitForIdle()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(await db.cards.where('bookId').equals('book').count()).toBe(0)
+  })
+
   it('a direct translation of a scanned page drops its picture; translating again sends a new one', async () => {
     const { requests, streamer } = recorder()
     const s = store(keyed, streamer)

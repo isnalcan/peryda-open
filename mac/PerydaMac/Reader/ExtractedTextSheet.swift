@@ -225,7 +225,7 @@ struct ExtractedTextSheet: View {
                 Spacer()
                 Button(t["cancel"]) { askingRange = false }
                 Button(t["read"]) {
-                    readings?.read(from...to, lang: lang)
+                    readings?.read(from...max(from, to), lang: lang)
                     askingRange = false
                 }
                 .keyboardShortcut(.defaultAction)

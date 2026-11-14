@@ -401,6 +401,11 @@ public final class CardsModel {
                 // again in the job (audit MR-2).
                 guard self.batchBound.contains(id), let card = self.cards.first(where: { $0.id == id }), card.messages.last?.state == .streaming, card.batchJob == nil else { continue }
                 let image = await self.picture(for: card)
+                // Drawing takes a moment: the key may have changed, or the page been translated now
+                // or closed, meanwhile. Such a page is not sent, and a key change stops the range
+                // before a full group goes out with the old key (audit F-3).
+                guard generation == self.batchGeneration else { return }
+                guard self.batchBound.contains(id), let card = self.cards.first(where: { $0.id == id }), card.messages.last?.state == .streaming, card.batchJob == nil else { continue }
                 if card.anchors.first?.sourceType == .pdfArea, image == nil {
                     self.failTranslation(id, "unknown")
                     continue
@@ -435,7 +440,11 @@ public final class CardsModel {
                     await batcher.abandon(apiKey: key, name: name)
                     return
                 }
-                let still = ids.filter { self.submissions[$0] == token }
+                // Only pages still waiting for this job take its name (a page failed or translated
+                // meanwhile would otherwise hold a job nobody asks about: audit F-3).
+                let still = ids.filter { id in
+                    self.submissions[id] == token && self.cards.first { $0.id == id }.map { $0.messages.last?.state == .streaming && $0.batchJob == nil } == true
+                }
                 self.batchBound.subtract(ids)
                 for id in still { self.mutate(id) { $0.batchJob = name } }
                 // Every page was taken out (translated now, or closed) while the job was being made.
@@ -476,6 +485,12 @@ public final class CardsModel {
         settling.formUnion(jobs)
         if !jobs.isEmpty { saveNow() }
         return jobs
+    }
+
+    /// Jobs being settled with an old key elsewhere (a book opened while that happens): they are not
+    /// asked about with the new key, which would mark finished, paid pages failed (audit F-2).
+    public func holdSettling(_ jobs: Set<String>) {
+        settling.formUnion(jobs)
     }
 
     /// What became of a job settled with the old key: finished pages are filled in, the others say

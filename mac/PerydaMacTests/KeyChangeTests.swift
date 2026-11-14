@@ -26,6 +26,28 @@ actor KeyRecordingBatcher: PageBatching {
     func delete(apiKey: String, name: String) async { deleted.append((apiKey, name)) }
 }
 
+/// Holds questions asked with one key until released, to open a book while they are out.
+actor HoldingBatcher: PageBatching {
+    let heldKey: String
+    var released = false
+    var asked: [(key: String, name: String)] = []
+    var statuses: [String: GeminiBatch.Status] = [:]
+
+    init(heldKey: String) { self.heldKey = heldKey }
+
+    func set(_ status: GeminiBatch.Status, for name: String) { statuses[name] = status }
+    func release() { released = true }
+
+    func create(apiKey: String, model: String, items: [GeminiBatch.Item]) async throws -> String { "batches/new" }
+    func status(apiKey: String, name: String) async throws -> GeminiBatch.Status {
+        asked.append((apiKey, name))
+        while apiKey == heldKey, !released { try? await Task.sleep(for: .milliseconds(5)) }
+        return statuses[name] ?? .waiting
+    }
+    func cancel(apiKey: String, name: String) async {}
+    func delete(apiKey: String, name: String) async {}
+}
+
 /// A Keychain that refuses every change.
 struct RefusingVault: KeyVault {
     func load() -> ByokSettings { ByokSettings() }
@@ -138,5 +160,41 @@ final class KeyChangeTests: XCTestCase {
         let reader = try XCTUnwrap(ReaderModel(book: book, app: app))
         XCTAssertEqual(app.lastError, UIText(.tr)["unreadableFiles"])
         reader.close()
+    }
+
+    /// A book opened while its job is being settled with the old key leaves the job to that, and takes
+    /// the paid result; its own next save does not write "waiting" (or "key") over it (audit final F-2).
+    func testABookOpenedWhileItsJobIsSettledKeepsThePaidResult() async throws {
+        let store = try store()
+        let old = "AIza-old-placeholder-not-real"
+        let new = "AIza-new-placeholder-not-real"
+        let batcher = HoldingBatcher(heldKey: old)
+        let app = AppModel(store: store, settings: ByokSettings(activeProvider: .gemini, geminiApiKey: old), lang: .tr, batcher: batcher)
+        let pdf = try XCTUnwrap(PDFDocument(url: Self.repo.appendingPathComponent("web/dev-samples/okuma.pdf"))?.dataRepresentation())
+        let book = try store.importBook(data: pdf, fileName: "a.pdf", title: "A", author: nil, pageCount: 1)
+        app.reloadBooks()
+        var card = YarnCard(id: "t-late", bookId: book.id, color: .sky, kind: .translate, anchors: [], messages: [YarnMessage(role: .user, content: "ÇEVİRİ"), YarnMessage(role: .assistant, content: "", state: .streaming)])
+        card.translatedPage = 1
+        card.translationLanguage = "tr"
+        card.batchJob = "batches/held"
+        try store.saveCards([card], for: book.id)
+        await batcher.set(.done(texts: ["t-late": "Çeviri hazır"], errors: [:]), for: "batches/held")
+
+        XCTAssertTrue(app.saveSettings(ByokSettings(activeProvider: .gemini, geminiApiKey: new), remember: false))
+        for _ in 0..<400 where await batcher.asked.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        // The book opens now, with the new key, and asks about its waiting page.
+        let reader = try XCTUnwrap(ReaderModel(book: book, app: app))
+        await reader.cards.pollBatches()
+        let askedNew = await batcher.asked.filter { $0.key == new }
+        XCTAssertTrue(askedNew.isEmpty, "not asked with the new key")
+        await batcher.release()
+        for task in app.pendingWork { await task.value }
+        XCTAssertEqual(reader.cards.cards.first?.messages.last?.content, "Çeviri hazır", "the open window has the result")
+        XCTAssertEqual(store.cards(for: book.id).first?.messages.last?.content, "Çeviri hazır")
+        // The window's own next save keeps it.
+        reader.cards.setCollapsed("t-late", true)
+        await reader.cards.waitForIdle()
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(store.cards(for: book.id).first?.messages.last?.content, "Çeviri hazır")
     }
 }

@@ -3,6 +3,7 @@ import { KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type BatchStatu
 import type { YarnCard, YarnMessage } from '../ilmek/types'
 import type { PageReading } from '../reading/pageReadings'
 import { withoutPageImage } from '../ilmek/cardsStore'
+import { finishSettling, startSettling } from './settlingJobs'
 
 export interface ReleaseOptions {
   /** The open book: its own stores collect or let go of what they hold. */
@@ -32,6 +33,8 @@ export async function releaseJobsOfOldKey(oldKey: string, options: ReleaseOption
     const kept = (await db.prefs.get(key))?.value
     if (Array.isArray(kept)) for (const r of kept as PageReading[]) if (typeof r?.job === 'string' && r.job) jobs.add(r.job)
   }
+  // A book opened while these are asked about leaves them alone and reloads each outcome (audit F-2).
+  startSettling(jobs)
   for (const job of jobs) {
     let status: BatchStatus | null = null
     if (isBatchName(job)) {
@@ -70,6 +73,7 @@ export async function releaseJobsOfOldKey(oldKey: string, options: ReleaseOption
         await db.prefs.put({ key, value: next })
       }
     })
+    finishSettling(job)
     // Saved above; only now is the job let go at Google, with the key that made it.
     if (finished) await batcher.delete(oldKey, job).catch(() => undefined)
     else await abandonBatchJob(oldKey, job, batcher).catch(() => undefined)

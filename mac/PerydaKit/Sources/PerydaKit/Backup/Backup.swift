@@ -62,12 +62,18 @@ public enum Backup {
             return c
         }
         let journal = books.flatMap { store.journal(for: $0.id) }
-        // A book with more threads or entries than a restore takes is refused here, so export and
-        // restore always agree and nothing is dropped silently (audit recheck MR-4).
-        for book in books {
-            if cards.lazy.filter({ $0.bookId == book.id }).count > maxCards || journal.lazy.filter({ $0.bookId == book.id }).count > maxJournal {
-                throw Failure.tooLarge
-            }
+        // A book with more threads, entries or finished readings than a restore takes, or a library
+        // with more threads in all, is refused here, so export and restore always agree and nothing is
+        // dropped silently (audit recheck MR-4, final F-11).
+        var cardsPerBook: [String: Int] = [:]
+        for card in cards { cardsPerBook[card.bookId, default: 0] += 1 }
+        var journalPerBook: [String: Int] = [:]
+        for record in journal { journalPerBook[record.bookId, default: 0] += 1 }
+        if cards.count > maxTotalCards || cardsPerBook.values.contains(where: { $0 > maxCards }) || journalPerBook.values.contains(where: { $0 > maxJournal }) {
+            throw Failure.tooLarge
+        }
+        for book in books where store.readings(for: book.id).filter({ $0.state == .done && !$0.text.isEmpty }).count > maxReadings {
+            throw Failure.tooLarge
         }
         let manifest = Manifest(
             format: format,
@@ -174,6 +180,9 @@ public enum Backup {
     /// per book since the recheck, MR-4). Export refuses a book above them.
     static let maxCards = 20_000
     static let maxJournal = 50_000
+    /// Threads in the whole library: with the checks below linear, a stop for a crafted file that
+    /// would otherwise keep Restore busy (audit final F-5).
+    static let maxTotalCards = 400_000
     static let maxText = 2_000_000
     static let maxQuote = 200_000
     /// The longest chain of threads opened inside threads (a link deeper than this is cut).
@@ -219,9 +228,12 @@ public enum Backup {
         var out = m
         var seen = Set<String>()
         var perBook: [String: Int] = [:]
+        var total = 0
         var cards = m.cards.filter { seen.insert($0.id).inserted }.filter { card in
             perBook[card.bookId, default: 0] += 1
-            return perBook[card.bookId]! <= maxCards
+            guard perBook[card.bookId]! <= maxCards, total < maxTotalCards else { return false }
+            total += 1
+            return true
         }.map { card -> YarnCard in
             var c = card
             if c.parentCardId == c.id { c.parentCardId = nil }
@@ -239,18 +251,22 @@ public enum Backup {
             }
             return c
         }
-        // Parents that loop back to a thread lose the link that closes the loop.
+        // Parents that loop back to a thread lose the link that closes the loop. Each thread has one
+        // parent, so one walk per thread that stops at any thread already walked finds every loop in
+        // linear time (audit final F-5: walking each thread's whole chain was quadratic).
         let index = Dictionary(uniqueKeysWithValues: cards.enumerated().map { ($1.id, $0) })
-        for i in cards.indices {
-            var visited: Set<String> = [cards[i].id]
-            var current = cards[i].parentCardId
-            while let parent = current, let j = index[parent] {
-                if !visited.insert(parent).inserted {
-                    cards[i].parentCardId = nil
-                    break
-                }
-                current = cards[j].parentCardId
+        var state = [UInt8](repeating: 0, count: cards.count) // 0 not seen, 1 on this walk, 2 done
+        for start in cards.indices where state[start] == 0 {
+            var walk: [Int] = []
+            var current: Int? = start
+            while let i = current, state[i] == 0 {
+                state[i] = 1
+                walk.append(i)
+                current = cards[i].parentCardId.flatMap { index[$0] }
             }
+            // The walk came back to a thread on itself: the last step closed a loop.
+            if let i = current, state[i] == 1, let last = walk.last { cards[last].parentCardId = nil }
+            for i in walk { state[i] = 2 }
         }
         // Chains of threads opened inside threads are cut past `maxDepth` (audit recheck MA-11): a
         // book with a chain thousands deep would be very slow to open, or overflow the stack.

@@ -146,4 +146,35 @@ describe('Jobs of an old Gemini key', () => {
     expect(batcher.calls).toEqual([])
     expect(store.cards[0]!.batchJob).toBe('batches/one')
   })
+
+  // Audit final F-2: a book opened while the old key's jobs are asked about leaves them alone and takes
+  // the saved outcome, instead of failing the paid pages with the new key and writing that over them.
+  it('a book opened meanwhile leaves the job to it and takes the saved result', async () => {
+    await db.books.put({ id: 'late', title: 'L', addedAt: 1, openedAt: 1 } as never)
+    await db.cards.put(waitingCard('c1', 'late', 'batches/slow'))
+    const batcher = new KeyRecordingBatcher()
+    batcher.states.set('batches/slow', { state: 'done', texts: { c1: 'Bitti.' }, errors: {} })
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    const status = batcher.status.bind(batcher)
+    batcher.status = async (key: string, name: string) => {
+      if (key === OLD) await held
+      return status(key, name)
+    }
+    const releasing = releaseJobsOfOldKey(OLD, { batcher })
+    await new Promise((r) => setTimeout(r, 20))
+    // The book opens now, with the new key, and polls.
+    const store = new CardsStore({ bookId: 'late', bookTitle: 'L', lang: 'tr', settings: { ...DEFAULT_SETTINGS, geminiApiKey: NEW }, batcher })
+    await store.load()
+    await store.pollBatches()
+    expect(batcher.calls.filter((c) => c.startsWith(`status ${NEW}`))).toEqual([])
+    expect(store.getSnapshot()[0]!.messages[1]!.state).toBe('streaming')
+    release()
+    await releasing
+    for (let i = 0; i < 50 && store.getSnapshot()[0]!.messages[1]!.content !== 'Bitti.'; i++) await new Promise((r) => setTimeout(r, 5))
+    expect(store.getSnapshot()[0]!.messages[1]!.content).toBe('Bitti.')
+    expect((await db.cards.get('c1'))!.messages[1]!.content).toBe('Bitti.')
+    store.dispose()
+    await db.books.delete('late')
+  })
 })

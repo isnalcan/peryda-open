@@ -1,0 +1,5 @@
+# The Windows update key's PUBLIC half (plugins.updater.pubkey in tauri.conf.json), committed in
+# fecfb88 when the update keys were rotated. It is meant to be public; gitleaks' generic rule flags it
+# (audit final F-8). One fingerprint per finding, never a rule or a path: a real secret is still found.
+fecfb88c917dbf4fc202349f291087ebe535d4b1:windows/src-tauri/tauri.conf.json:generic-api-key:71
+windows/src-tauri/tauri.conf.json:generic-api-key:71

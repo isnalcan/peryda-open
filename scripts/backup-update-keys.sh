@@ -12,7 +12,9 @@ win_key="$HOME/.tauri/peryda-update.key"
 
 dir=$(mktemp -d "${TMPDIR:-/tmp}/peryda-key.XXXXXX")
 chmod 700 "$dir"
+# Leave no copy behind and clear the clipboard however the script ends (Return, Ctrl-C, a closed window).
 trap 'rm -rf "$dir"; printf "" | pbcopy' EXIT
+trap 'exit 130' INT TERM HUP
 
 # $1: the file holding the key; $2: which key it is. Waits for Return from the keyboard, not the file.
 clip_then_clear() {

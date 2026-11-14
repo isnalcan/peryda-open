@@ -271,7 +271,7 @@ struct TranslateRangeSheet: View {
                 Spacer()
                 Button(t["cancel"]) { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(t["translate"]) {
-                    reader.translateRange(from...to)
+                    reader.translateRange(from...max(from, to))
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)

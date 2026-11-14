@@ -56,6 +56,8 @@ final class AppModel {
 
     func register(_ reader: ReaderModel) {
         openReaders.add(reader)
+        // Opened while jobs of an old key are being settled: it leaves them to that (audit F-2).
+        if !settlingJobs.isEmpty { reader.holdSettling(settlingJobs) }
         // Its threads, journal or readings file may not have decoded whole (audit recheck MA-4).
         showUnreadableFiles()
     }
@@ -163,6 +165,9 @@ final class AppModel {
     /// already made is asked about once with the old key: finished results are kept (saved, then the
     /// job deleted), unfinished jobs are cancelled and removed, and their pages say so and can be sent
     /// again (audit K-3, KR-1, KR-2). Pages translated or read directly, with any provider, carry on.
+    /// Jobs of an old Gemini key still being settled (asked about, collected or removed).
+    @ObservationIgnored private var settlingJobs = Set<String>()
+
     private func settleGeminiJobs(madeWith oldKey: String) {
         let code = "key-changed"
         var open: [(ReaderModel, Set<String>)] = []
@@ -175,11 +180,13 @@ final class AppModel {
         let store = store
         let batcher = batcher
         let openBooks = openIds
-        pendingWork.append(Task { @MainActor in
+        for (_, jobs) in open { settlingJobs.formUnion(jobs) }
+        pendingWork.append(Task { @MainActor [weak self] in
             for (reader, jobs) in open {
                 for job in jobs {
                     let outcome = await batcher.settle(apiKey: oldKey, name: job)
                     reader.apply(outcome, of: job, code: code)
+                    self?.settlingJobs.remove(job)
                     if case .done = outcome { await batcher.delete(apiKey: oldKey, name: job) }
                 }
             }
@@ -187,10 +194,20 @@ final class AppModel {
             let closed = await Task.detached {
                 store.books().map(\.id).filter { !openBooks.contains($0) }.map { ($0, store.batchJobs(bookId: $0)) }.filter { !$0.1.isEmpty }
             }.value
+            for (_, jobs) in closed { self?.settlingJobs.formUnion(jobs) }
+            // A book opened meanwhile holds these jobs in its window too: from now it leaves them alone.
+            for reader in self?.openReaders.allObjects ?? [] { reader.holdSettling(Set(closed.flatMap(\.1))) }
             for (bookId, jobs) in closed {
                 for job in jobs {
                     let outcome = await batcher.settle(apiKey: oldKey, name: job)
-                    await Task.detached { store.applyBatchOutcome(bookId: bookId, job: job, outcome: outcome, code: code) }.value
+                    // Opened while this was asked: the outcome goes to its window, which saves it, so
+                    // the window's next save cannot write the old "waiting" state over it (audit F-2).
+                    if let reader = self?.openReaders.allObjects.first(where: { $0.book.id == bookId }) {
+                        reader.apply(outcome, of: job, code: code)
+                    } else {
+                        await Task.detached { store.applyBatchOutcome(bookId: bookId, job: job, outcome: outcome, code: code) }.value
+                    }
+                    self?.settlingJobs.remove(job)
                     if case .done = outcome { await batcher.delete(apiKey: oldKey, name: job) }
                 }
             }

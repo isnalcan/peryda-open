@@ -4,6 +4,7 @@ import { JobGone, KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type B
 import { pageTranscriptionSystem, pageTranscriptionTurns } from '../ai/compose'
 import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
 import { db, getPref } from '../data/db'
+import { isSettlingElsewhere, onJobSettled } from '../ai/settlingJobs'
 import type { Lang } from '../i18n/strings'
 import { BATCH_MAX_BYTES, DIRECT_LIMIT, RANGE_LIMIT, WAVE_SIZE, batchItemBytes } from '../ilmek/cardsStore'
 
@@ -276,12 +277,30 @@ export class PageReadingsStore {
   /** The book is on screen (again): waiting jobs are asked about. (React may close and reopen a store.) */
   open() {
     this.closed = false
+    this.stopSettledListener?.()
+    this.stopSettledListener = onJobSettled((job) => void this.reloadSettled(job))
     this.ensurePolling()
+  }
+
+  private stopSettledListener: (() => void) | null = null
+
+  /** A job of an old key was settled for this book while it opened: its saved pages replace the stale ones. */
+  private async reloadSettled(job: string) {
+    const pages = new Set(this.snapshot.filter((r) => r.job === job).map((r) => r.page))
+    if (!pages.size || this.closed) return
+    const kept = await getPref<PageReading[]>(readingsKey(this.options.bookId), [])
+    if (this.closed) return
+    for (const r of Array.isArray(kept) ? kept : []) {
+      if (r && pages.has(r.page) && r.job !== job && this.readings.get(r.page)?.job === job) this.readings.set(r.page, { ...r })
+    }
+    this.emit()
   }
 
   /** The reader left the book: nothing more is asked or saved from here. Jobs stay with Google and land next time. */
   close() {
     this.closed = true
+    this.stopSettledListener?.()
+    this.stopSettledListener = null
     this.generation++
     this.batchGeneration++
     for (const c of this.controllers.values()) c.abort()
@@ -436,8 +455,9 @@ export class PageReadingsStore {
     if (!key) return
     const now = Date.now()
     for (const job of new Set(this.snapshot.map((r) => r.job).filter((j): j is string => !!j))) {
-      // Being collected or let go with an old key (the key changed): not asked with the new one.
-      if (this.releasing.has(job)) continue
+      // Being collected or let go with an old key (the key changed), here or for the whole library
+      // while this book opened: not asked with the new one (audit F-2).
+      if (this.releasing.has(job) || isSettlingElsewhere(job)) continue
       const waiting = this.snapshot.filter((r) => r.job === job && r.state === 'waiting').map((r) => r.page)
       // A page read again meanwhile waits on another job: only pages still on this one are touched.
       const failAll = (code: string) => {

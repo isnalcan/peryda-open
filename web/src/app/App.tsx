@@ -127,13 +127,16 @@ export function App() {
     announceKeysChanged()
   }
 
-  // Keys saved or removed in another tab of this site take effect here too (audit 15 Nov, KR-3).
+  // Keys saved or removed in another tab of this site take effect here too (audit 15 Nov, KR-3). With
+  // "Remember keys" on, the vault is what counts. With it off nothing is stored, so there is nothing to
+  // load: this tab keeps the keys it holds for the session, and since "Remember" is now off it will not
+  // write them back either (audit final F-10: they were dropped).
   useEffect(() => {
     return onKeysChanged(() => {
       void (async () => {
         const keep = (await getPref<unknown>('rememberKeys', true)) !== false
         setRemember(keep)
-        setSettings(keep ? await loadSettings() : { ...DEFAULT_SETTINGS })
+        if (keep) setSettings(await loadSettings())
       })()
     })
   }, [])

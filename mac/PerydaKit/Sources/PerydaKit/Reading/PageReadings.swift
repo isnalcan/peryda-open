@@ -380,6 +380,12 @@ public final class PageReadings {
         return jobs
     }
 
+    /// Jobs being settled with an old key elsewhere (a book opened while that happens): they are not
+    /// asked about with the new key (audit F-2).
+    public func holdSettling(_ jobs: Set<String>) {
+        settling.formUnion(jobs)
+    }
+
     /// What became of a job settled with the old key: finished pages get their text, the others say
     /// `code`; saved before the caller deletes the job at Google (audit KR-2, WR-2).
     public func apply(_ outcome: BatchOutcome, of job: String, code: String) {

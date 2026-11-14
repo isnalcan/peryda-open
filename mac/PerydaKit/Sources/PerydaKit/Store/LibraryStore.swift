@@ -304,13 +304,16 @@ public final class LibraryStore: @unchecked Sendable {
         try queue.sync {
             var list = storedBooks()
             guard let book = list.first(where: { $0.id == bookId }) else { return }
-            deleted.insert(bookId)
             let file = try fileURL(for: book)
             let cards = try path("cards", bookId, "json")
             let journal = try path("journal", bookId, "json")
             let readings = try path("readings", bookId, "json")
             list.removeAll { $0.id == bookId }
             try write(list, libraryFile)
+            // Marked deleted only once it is out of the library: a delete that fails leaves the book
+            // as it was, saving normally (audit F-6). Everything here runs on the store's queue, so no
+            // save slips in between.
+            deleted.insert(bookId)
             try? fm.removeItem(at: file)
             try? fm.removeItem(at: cards)
             try? fm.removeItem(at: journal)

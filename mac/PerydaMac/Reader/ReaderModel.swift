@@ -304,6 +304,12 @@ final class ReaderModel {
         return jobs
     }
 
+    /// Jobs being settled with an old key while this book opened (audit F-2).
+    func holdSettling(_ jobs: Set<String>) {
+        cards.holdSettling(jobs)
+        readings?.holdSettling(jobs)
+    }
+
     /// What became of a job settled with the old key.
     func apply(_ outcome: BatchOutcome, of job: String, code: String) {
         cards.apply(outcome, of: job, code: code)

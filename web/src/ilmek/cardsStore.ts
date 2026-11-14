@@ -5,6 +5,7 @@ import { fakeStream } from '../ai/fake'
 import { JobGone, KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type BatchStatus, type PageBatching } from '../ai/batch'
 import { composeTurns, kindPrompt, pageTranslationSystem, pageTranslationTurns, runsAI, systemPrompt } from '../ai/compose'
 import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
+import { isSettlingElsewhere, onJobSettled } from '../ai/settlingJobs'
 import type { Lang } from '../i18n/strings'
 import { GEOMETRY } from './geometry'
 import type { PdfYarnAnchor, YarnCard, YarnColor, YarnMessage } from './types'
@@ -203,7 +204,15 @@ export class CardsStore {
   /** Writes these cards as they are now and waits for it (a collected result is saved before its job goes). */
   private async saveNow(ids: readonly string[]) {
     const cards = ids.map((id) => this.cards.find((c) => c.id === id)).filter((c): c is YarnCard => !!c)
-    if (cards.length) await db.cards.bulkPut(cards).catch(() => undefined)
+    if (!cards.length) return
+    // A late answer for a book deleted meanwhile is not written back as rows of a book that no longer
+    // exists (audit final F-4; the readings store checks the same way).
+    await db
+      .transaction('rw', [db.books, db.cards], async () => {
+        if (!(await db.books.get(this.bookId))) return
+        await db.cards.bulkPut(cards)
+      })
+      .catch(() => undefined)
   }
 
   /** Copies a finished job's texts into its pages; a page with no text says why. */
@@ -233,6 +242,18 @@ export class CardsStore {
   }
 
   getSnapshot = () => this.cards
+
+  private stopSettledListener: (() => void) | null = null
+
+  /** A job of an old key was settled for this book while it opened: its saved pages replace the stale ones. */
+  private async reloadSettled(job: string) {
+    const ids = this.cards.filter((c) => c.batchJob === job).map((c) => c.id)
+    if (!ids.length || this.disposed) return
+    const rows = (await db.cards.bulkGet(ids)).filter((c): c is YarnCard => !!c && c.batchJob !== job)
+    if (!rows.length || this.disposed) return
+    const byId = new Map(rows.map((r) => [r.id, r]))
+    this.commit(this.cards.map((c) => (c.batchJob === job ? (byId.get(c.id) ?? c) : c)))
+  }
 
   private commit(next: YarnCard[]) {
     this.cards = next
@@ -269,6 +290,8 @@ export class CardsStore {
    */
   async load() {
     this.disposed = false
+    this.stopSettledListener?.()
+    this.stopSettledListener = onJobSettled((job) => void this.reloadSettled(job))
     const rows = await db.cards.where('bookId').equals(this.bookId).sortBy('createdAt')
     const repaired = rows.map((c) => ({
       ...c,
@@ -284,6 +307,8 @@ export class CardsStore {
   /** Stops every running answer (the reader is closing). Batch jobs carry on at Google. */
   dispose() {
     this.disposed = true
+    this.stopSettledListener?.()
+    this.stopSettledListener = null
     // A batch still being drawn stops: the document it draws from is closing.
     this.batchGeneration += 1
     for (const c of this.controllers.values()) c.abort()
@@ -620,8 +645,9 @@ export class CardsStore {
     const now = Date.now()
     const jobs = new Set(this.waitingTranslations.map((c) => c.batchJob!))
     for (const job of jobs) {
-      // Being collected or let go with an old key (the key changed): not asked with the new one.
-      if (this.releasing.has(job)) continue
+      // Being collected or let go with an old key (the key changed), here or for the whole library
+      // while this book opened: not asked with the new one (audit F-2).
+      if (this.releasing.has(job) || isSettlingElsewhere(job)) continue
       const waiting = this.waitingTranslations.filter((c) => c.batchJob === job)
       // Only a name Google could have given goes into a request (a backup may carry anything).
       if (!isBatchName(job)) {
