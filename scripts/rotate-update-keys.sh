@@ -33,30 +33,5 @@ echo "› Making the new keys"
 echo ""
 echo "  (The backup steps printed above are done for you below.)"
 
-clip_then_clear() {
-  # $1: what it is; reads the secret from stdin.
-  pbcopy
-  echo ""
-  echo "  $1 is on the clipboard now."
-  echo "  In Passwords, make a new entry (for example \"Peryda update key — $2\"), paste it into the"
-  printf '  password field, save, then press Return here: '
-  read -r _
-  printf '' | pbcopy
-  echo "  Clipboard cleared."
-}
-
 echo ""
-echo "› Keeping the new private keys in Passwords"
-dir=$(mktemp -d "${TMPDIR:-/tmp}/peryda-key.XXXXXX")
-chmod 700 "$dir"
-trap 'rm -rf "$dir"; printf "" | pbcopy' EXIT
-bin=$("$root/mac/scripts/sparkle-bin.sh")
-"$bin/generate_keys" -x "$dir/mac.key" >/dev/null
-clip_then_clear "The Mac update key" "Mac" < "$dir/mac.key"
-rm -f "$dir/mac.key"
-clip_then_clear "The Windows update key" "Windows" < "$win_key"
-echo ""
-echo "  Also keep the Windows key's password (the one you just chose) in that Windows entry."
-echo ""
-echo "Done. Old copies of the previous keys (Notes, iCloud Drive, Recently Deleted) are now worthless;"
-echo "delete them when convenient. Tell Claude it is done: the new public keys need to be committed."
+"$root/scripts/backup-update-keys.sh"
