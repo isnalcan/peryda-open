@@ -178,16 +178,45 @@ public final class CardsModel {
         public var page: Int
         public var text: String
         public var imageDataURL: String?
+        /// A page without a text layer: it goes as a picture. With `pagePicture` set, the picture is
+        /// drawn when the request is made and never stored in the card (audit MA-2, WW-5).
+        public var scanned: Bool
         public var width: Double
         public var height: Double
 
-        public init(page: Int, text: String, imageDataURL: String? = nil, width: Double, height: Double) {
+        public init(page: Int, text: String, imageDataURL: String? = nil, scanned: Bool? = nil, width: Double, height: Double) {
             self.page = page
             self.text = text
             self.imageDataURL = imageDataURL
+            self.scanned = scanned ?? (imageDataURL != nil)
             self.width = width
             self.height = height
         }
+    }
+
+    /// Draws a scanned page's picture (a JPEG `data:` URL) when its translation is asked for. Pictures
+    /// then stay out of the threads file and the backup: they made a library's own backup too large
+    /// to restore, and held a long range in memory at once (audit MA-2, WW-5, 15 Nov).
+    public var pagePicture: (@MainActor (Int) async -> String?)?
+
+    /// The picture a translation request carries: the one stored with the card (older cards), or one
+    /// drawn now for a scanned page.
+    private func picture(for card: YarnCard) async -> String? {
+        guard let anchor = card.anchors.first, anchor.sourceType == .pdfArea else { return nil }
+        if let stored = anchor.croppedImage { return stored }
+        return await pagePicture?(card.translatedPage ?? anchor.pageNumber)
+    }
+
+    /// Takes stored page pictures out of whole-page translations (made by earlier builds), when they
+    /// can be drawn again; the threads file shrinks at the next save.
+    public func dropStoredPagePictures() {
+        guard pagePicture != nil else { return }
+        var changed = false
+        for i in cards.indices where cards[i].translatedPage != nil && cards[i].anchors.first?.sourceType == .pdfArea && cards[i].anchors.first?.croppedImage != nil {
+            cards[i].anchors[0].croppedImage = nil
+            changed = true
+        }
+        if changed { scheduleSave(immediately: true) }
     }
 
     public func pageTranslation(page: Int, target: Lang) -> YarnCard? {
@@ -245,13 +274,13 @@ public final class CardsModel {
         var created: [YarnCard] = []
         for source in sources.prefix(Self.maxPages) where pageTranslation(page: source.page, target: target) == nil {
             let anchor = YarnAnchor(
-                sourceType: source.imageDataURL == nil ? .pdfText : .pdfArea,
+                sourceType: source.scanned ? .pdfArea : .pdfText,
                 bookId: bookId,
                 pageNumber: source.page,
                 selectedText: source.text,
                 lineRects: [],
                 boundingRect: .zero,
-                croppedImage: source.imageDataURL
+                croppedImage: pagePicture == nil ? source.imageDataURL : nil
             )
             var card = YarnCard(
                 bookId: bookId,
@@ -316,18 +345,18 @@ public final class CardsModel {
     }
 
     /// The request for a page translation with the reader's provider and translation model.
-    private func translationRequest(_ card: YarnCard, provider: ProviderID) -> AIRequest {
+    private func translationRequest(_ card: YarnCard, provider: ProviderID, image: String?) -> AIRequest {
         let anchor = card.anchors.first
         let target = Lang(rawValue: card.translationLanguage ?? "") ?? lang
         var model = settings.model(for: provider, task: .translation)
         // DeepSeek's reasoning model takes no pictures; scanned pages always go to deepseek-flash.
-        if provider == .deepseek, anchor?.croppedImage != nil { model = "deepseek-flash" }
+        if provider == .deepseek, image != nil { model = "deepseek-flash" }
         return AIRequest(
             provider: provider,
             apiKey: settings.key(for: provider),
             model: model,
             system: Compose.pageTranslationSystem(target: target, explainTerms: explainTerms),
-            turns: Compose.pageTranslationTurns(target: target, file: bookTitle, page: card.translatedPage ?? anchor?.pageNumber ?? 1, pages: pageCount, text: anchor?.selectedText ?? "", imageDataURL: anchor?.croppedImage, explainTerms: explainTerms),
+            turns: Compose.pageTranslationTurns(target: target, file: bookTitle, page: card.translatedPage ?? anchor?.pageNumber ?? 1, pages: pageCount, text: anchor?.selectedText ?? "", imageDataURL: image, explainTerms: explainTerms),
             maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .translation),
             temperature: ModelAdvice.temperature(.translation),
             candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil
@@ -342,14 +371,35 @@ public final class CardsModel {
                 c.messages = Array(c.messages.prefix(1)) + [YarnMessage(role: .assistant, content: "", state: .streaming, provider: .gemini, model: model)]
             }
         }
-        let items = ids.compactMap { id -> GeminiBatch.Item? in
-            guard let card = cards.first(where: { $0.id == id }) else { return nil }
-            let r = translationRequest(card, provider: .gemini)
-            return GeminiBatch.Item(key: id, system: r.system, turns: r.turns)
-        }
         // One job per group that fits Google's size limit; each group goes on (or fails) on its own.
-        for group in Self.splitBatch(items, size: Self.batchItemBytes) {
-            submitGroup(group, key: key, model: model)
+        // Scanned pages' pictures are drawn as the group fills and dropped once it is sent, so a
+        // long range is never held in memory at once (audit WW-5).
+        let generation = waveGeneration
+        Task { [weak self] in
+            var group: [GeminiBatch.Item] = []
+            var bytes = 0
+            for id in ids {
+                guard let self, generation == self.waveGeneration else { return }
+                guard let card = self.cards.first(where: { $0.id == id }), card.messages.last?.state == .streaming, card.batchJob == nil else { continue }
+                let image = await self.picture(for: card)
+                if card.anchors.first?.sourceType == .pdfArea, image == nil {
+                    self.failTranslation(id, "unknown")
+                    continue
+                }
+                let r = self.translationRequest(card, provider: .gemini, image: image)
+                let item = GeminiBatch.Item(key: id, system: r.system, turns: r.turns)
+                let size = Self.batchItemBytes(item)
+                if !group.isEmpty, bytes + size > Self.batchMaxBytes {
+                    self.submitGroup(group, key: key, model: model)
+                    group = []
+                    bytes = 0
+                }
+                group.append(item)
+                bytes += size
+                await Task.yield()
+            }
+            guard let self, generation == self.waveGeneration, !group.isEmpty else { return }
+            self.submitGroup(group, key: key, model: model)
         }
     }
 
@@ -365,7 +415,9 @@ public final class CardsModel {
                 let still = ids.filter { self.submissions[$0] == token }
                 for id in still { self.mutate(id) { $0.batchJob = name } }
                 // Every page was taken out (translated now, or closed) while the job was being made.
-                if still.isEmpty { self.abandonUnwaited([name]) }
+                // Nobody waits for it: removed with the key it was made with (the key in settings may
+                // have changed meanwhile, audit K-3).
+                if still.isEmpty { await batcher.abandon(apiKey: key, name: name) }
             } catch let error as AIError where error.kind == .key {
                 guard let self else { return }
                 for id in ids where self.submissions[id] == token { self.failTranslation(id, "key") }
@@ -377,6 +429,38 @@ public final class CardsModel {
                 for id in ids where self.submissions[id] == token { self.failTranslation(id, "batch") }
             }
         }
+    }
+
+    /// Page translations stop waiting on their batch jobs and say `code`; returns the jobs, for the
+    /// caller to cancel and remove with the key that made them (the Gemini key changed, audit K-3).
+    @discardableResult
+    public func forgetBatchJobs(code: String) -> Set<String> {
+        var jobs = Set<String>()
+        for card in cards where card.translatedPage != nil && card.messages.last?.state == .streaming {
+            // Waiting on a job, or on its name (a submission still on its way).
+            guard card.batchJob != nil || submissions[card.id] != nil else { continue }
+            if let job = card.batchJob { jobs.insert(job) }
+            submissions[card.id] = nil
+            failTranslation(card.id, code)
+        }
+        return jobs
+    }
+
+    /// The same for a book that is not open (its cards as stored).
+    nonisolated public static func forgettingBatchJobs(_ cards: [YarnCard], code: String) -> (cards: [YarnCard], jobs: Set<String>) {
+        var jobs = Set<String>()
+        let out = cards.map { card -> YarnCard in
+            guard let job = card.batchJob, card.messages.last?.state == .streaming else { return card }
+            jobs.insert(job)
+            var c = card
+            c.batchJob = nil
+            if let i = c.messages.lastIndex(where: { $0.role == .assistant }) {
+                c.messages[i].state = .error
+                c.messages[i].content = code
+            }
+            return c
+        }
+        return (out, jobs)
     }
 
     private func failTranslation(_ cardId: String, _ code: String) {
@@ -508,7 +592,13 @@ public final class CardsModel {
             return
         }
         if card.translatedPage != nil {
-            stream(cardId, answer, translationRequest(card, provider: provider))
+            stream(cardId, answer) { [weak self] in
+                guard let self else { return nil }
+                let image = await self.picture(for: card)
+                // A scanned page whose picture cannot be drawn is not sent as an empty page.
+                if card.anchors.first?.sourceType == .pdfArea, image == nil { return nil }
+                return self.translationRequest(card, provider: provider, image: image)
+            }
             return
         }
         let pages = card.anchors.filter { $0.sourceType != .card }.map(\.pageNumber)
@@ -527,11 +617,22 @@ public final class CardsModel {
     }
 
     private func stream(_ cardId: String, _ answer: YarnMessage, _ request: AIRequest) {
-        let provider = request.provider
+        stream(cardId, answer) { request }
+    }
+
+    /// Streams the answer to a request made when the task starts (a scanned page's picture is drawn
+    /// then); a request that cannot be made ends as an error.
+    private func stream(_ cardId: String, _ answer: YarnMessage, _ makeRequest: @escaping @MainActor () async -> AIRequest?) {
         tasks[cardId]?.cancel()
         tasks[cardId] = Task { [weak self] in
             var text = ""
             var lastSave = Date()
+            guard let request = await makeRequest() else {
+                self?.setAnswer(cardId, answer.id, content: "unknown", state: .error)
+                self?.tasks[cardId] = nil
+                return
+            }
+            let provider = request.provider
             do {
                 for try await piece in self?.streamer.stream(request) ?? AsyncThrowingStream { $0.finish() } {
                     if Task.isCancelled { throw AIError(.aborted) }

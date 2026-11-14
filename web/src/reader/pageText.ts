@@ -125,7 +125,11 @@ export async function renderPageJpeg(page: PDFPageProxy, scale: number, quality:
   ctx.fillStyle = '#FFFFFF'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   await page.render({ canvas, canvasContext: ctx, viewport }).promise
-  return canvas.toDataURL('image/jpeg', quality)
+  const url = canvas.toDataURL('image/jpeg', quality)
+  // The canvas's pixels are let go at once: a long range renders one page after another.
+  canvas.width = 0
+  canvas.height = 0
+  return url
 }
 
 /**

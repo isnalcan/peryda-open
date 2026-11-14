@@ -57,6 +57,8 @@ describe('Gemini', () => {
     expect(url).toContain('/models/gemini-x:streamGenerateContent?alt=sse')
     expect(url).not.toContain(base.apiKey)
     expect((init!.headers as Record<string, string>)['x-goog-api-key']).toBe(base.apiKey)
+    // A redirect would carry the key header to another address: refused, and nothing is cached (K-1).
+    expect(init).toMatchObject({ redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' })
     const sent = JSON.parse(String(init!.body))
     expect(sent.systemInstruction.parts[0].text).toBe('Be brief.')
     expect(sent.contents[0].parts[1]).toEqual({ inlineData: { mimeType: 'image/png', data: 'AAAA' } })

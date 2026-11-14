@@ -33,6 +33,7 @@
 		64061C7EA1862F097E078444 /* WorldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB22B87F418E361EC2A11EA /* WorldView.swift */; };
 		6D401CA9D05EE5B34FE9FBE2 /* WorldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB22B87F418E361EC2A11EA /* WorldView.swift */; };
 		7080F8AB5F6307E550C75C98 /* PerydaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 936F64EFADCBF0C06AAEA8E8 /* PerydaKit */; };
+		7093121449E53F0C6C20B227 /* KeyChangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882D632BA87425817290FA57 /* KeyChangeTests.swift */; };
 		71F82404B11F06E4B1441C73 /* LibraryArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AECDD2CC2A0D792C0C8FB22 /* LibraryArt.swift */; };
 		721FE6F6A89583199D4DBBBF /* NestedThreadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DBB1A9A3C29FF1913D08577 /* NestedThreadsTests.swift */; };
 		7AB4649CBC91227190DADE19 /* YarnRope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BD124CD54D77A918F7C7369 /* YarnRope.swift */; };
@@ -65,6 +66,7 @@
 		D8F3FDDD26AD5E345F610C50 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AE0A13E3700E354A513DCAAA /* Assets.xcassets */; };
 		DAA001A7119708EC7D49ED24 /* ReaderSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82D53464096D1CA0FFFF1C8E /* ReaderSurfaceTests.swift */; };
 		DCB70688F03649BFA6BC6D02 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7CE9D3516CA5719AE76BA68 /* LibraryView.swift */; };
+		DF12AE55C4A3CCD06FD7FCCE /* HiddenControlRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE332840F53722FA49510DE3 /* HiddenControlRoutingTests.swift */; };
 		E43BD20AE26380A0217B5345 /* ExtractedTextSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C43E0145F027F2D53F4F540 /* ExtractedTextSheet.swift */; };
 		E4B68A244551AF6DE74B40E5 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832128AA11B18D26E8CA5C09 /* ReaderView.swift */; };
 		EE213B9A87FA89A6D91651D5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1E8BBDC331EBE4EA1D0F97 /* SettingsView.swift */; };
@@ -98,6 +100,7 @@
 		8351C05C06C517B963564756 /* PageText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageText.swift; sourceTree = "<group>"; };
 		85AAC792D2A509C8D072C23D /* SecurityFixesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityFixesTests.swift; sourceTree = "<group>"; };
 		86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryAndJournalTests.swift; sourceTree = "<group>"; };
+		882D632BA87425817290FA57 /* KeyChangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyChangeTests.swift; sourceTree = "<group>"; };
 		89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevFakeAI.swift; sourceTree = "<group>"; };
 		8AECDD2CC2A0D792C0C8FB22 /* LibraryArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryArt.swift; sourceTree = "<group>"; };
 		8B2301F31954CB84F9730137 /* MarkdownRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRenderingTests.swift; sourceTree = "<group>"; };
@@ -116,6 +119,7 @@
 		E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomedHostingView.swift; sourceTree = "<group>"; };
 		EC7A60F72E4AAFFB8BB43C46 /* CenteringClipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CenteringClipView.swift; sourceTree = "<group>"; };
 		ECC5AE78686901E8308F3372 /* PerydaMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PerydaMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE332840F53722FA49510DE3 /* HiddenControlRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiddenControlRoutingTests.swift; sourceTree = "<group>"; };
 		F5ABA3BE1F8F112F3C2E40F0 /* ReaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderModel.swift; sourceTree = "<group>"; };
 		F9D43B5DB46C00E60B242F8C /* Updates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Updates.swift; sourceTree = "<group>"; };
 		FB6349BF5B675DE49481D564 /* TranslatedPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslatedPageView.swift; sourceTree = "<group>"; };
@@ -188,7 +192,9 @@
 			children = (
 				0539C82F1607F8355034EDC2 /* CardButtonTests.swift */,
 				FB876352ABDD3CBA19CE9C79 /* EpubReaderTests.swift */,
+				EE332840F53722FA49510DE3 /* HiddenControlRoutingTests.swift */,
 				284F501E0821B5F4803B6689 /* JournalTests.swift */,
+				882D632BA87425817290FA57 /* KeyChangeTests.swift */,
 				4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */,
 				86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */,
 				7D1E170DBE15A62FDAEE2579 /* ManyThreadsTests.swift */,
@@ -416,9 +422,11 @@
 				5E3AD583CF0864EFA27CE61D /* EpubReaderTests.swift in Sources */,
 				44535B1EF874E4C1F33ECD35 /* EpubReaderView.swift in Sources */,
 				52AF5DF75ED8735E44A4EB2E /* ExtractedTextSheet.swift in Sources */,
+				DF12AE55C4A3CCD06FD7FCCE /* HiddenControlRoutingTests.swift in Sources */,
 				F3E1B251045C8F406F454425 /* Importing.swift in Sources */,
 				ACB3E73DBEA890E4D9B7B8F2 /* JournalPanel.swift in Sources */,
 				7C330164536E464518A442F0 /* JournalTests.swift in Sources */,
+				7093121449E53F0C6C20B227 /* KeyChangeTests.swift in Sources */,
 				81719565CDA08B0CB6392576 /* LayoutAndPagingTests.swift in Sources */,
 				BF2A6EF6A3FDC0C7BDB18B1B /* LibraryAndJournalTests.swift in Sources */,
 				A2B404AE95BD44CA013CA7A5 /* LibraryArt.swift in Sources */,
@@ -475,6 +483,7 @@
 				MARKETING_VERSION = 0.1.0;
 				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
 				PERYDA_UPDATE_PUBLIC_KEY = "Q+rvhmfx5+vfeL6D7XS+sQaQC0NT5cdop49CyYa6v80=";
+				PERYDA_UPDATE_REHEARSAL = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
 				PRODUCT_NAME = Peryda;
 				SDKROOT = macosx;
@@ -498,6 +507,7 @@
 					"@loader_path/../Frameworks",
 				);
 				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
+				PERYDA_UPDATE_REHEARSAL = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac.tests;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
@@ -529,6 +539,7 @@
 				MARKETING_VERSION = 0.1.0;
 				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
 				PERYDA_UPDATE_PUBLIC_KEY = "Q+rvhmfx5+vfeL6D7XS+sQaQC0NT5cdop49CyYa6v80=";
+				PERYDA_UPDATE_REHEARSAL = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac;
 				PRODUCT_NAME = Peryda;
 				SDKROOT = macosx;
@@ -608,6 +619,7 @@
 					"@loader_path/../Frameworks",
 				);
 				PERYDA_UPDATE_FEED_URL = "https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml";
+				PERYDA_UPDATE_REHEARSAL = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = com.isnalcan.peryda.mac.tests;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;

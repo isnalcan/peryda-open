@@ -45,9 +45,12 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
             }
             // SwiftUI may host a control in a container smaller than the control itself (the page
             // translation's Close and Retranslate sat outside their 22-point containers), so other
-            // containers are searched even when the point is outside them. Scrolling regions clip
-            // what they hold, so those are searched only where the point falls inside.
-            if !inside, sub is NSClipView || sub is NSScrollView { continue }
+            // containers are searched even when the point is outside them. A container that clips
+            // what it holds (a scrolling region, or SwiftUI's `.clipped()`, which masks its layer) is
+            // searched only where the point falls inside: what it cuts off cannot be clicked (audit
+            // MA-9, 15 Nov). SwiftUI draws views that merely cover a control without a view of their
+            // own, so a covered control is not detected here; no card or page puts one there.
+            if !inside, sub is NSClipView || sub is NSScrollView || sub.clipsToBounds || sub.layer?.masksToBounds == true || sub.layer?.mask != nil { continue }
             if let inner = control(in: sub, at: p) { return inner }
         }
         return nil

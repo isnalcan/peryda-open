@@ -126,6 +126,7 @@ struct TranslatedPageView: View {
         case "no-key": t["noKeyBody"]
         case "expired": t["batchExpired"]
         case "batch": t["batchFailed"]
+        case "key-changed": t["batchKeyChanged"]
         case "network": t["errorNetwork"]
         case "key": t["errorKey"]
         case "quota": t["errorQuota"]

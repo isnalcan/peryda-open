@@ -83,6 +83,12 @@
     "de": "Deine Bücher, Fäden und dein Journal werden auf diesem Gerät gespeichert. Exportiere sie in eine Datei, um sie umzuziehen oder zu sichern. Schlüssel sind nie enthalten. Die Sicherungsdatei ist nicht verschlüsselt; bewahre sie an einem vertrauenswürdigen Ort auf.",
     "es": "Tus libros, hilos y diario se guardan en este dispositivo. Expórtalos a un archivo para moverlos o protegerlos. Las claves nunca se incluyen. El archivo de copia no está cifrado; guárdalo en un lugar de confianza."
   },
+  "backupTooLarge": {
+    "tr": "Yedek geri yüklenemeyecek kadar büyük olurdu; yazılmadı. Resimli alan ilmeklerin çoksa bazılarını silip yeniden dene.",
+    "en": "The backup would be too large to restore, so it was not written. If you have many picture threads, remove some and try again.",
+    "de": "Die Sicherung wäre zu groß zum Wiederherstellen und wurde nicht geschrieben. Hast du viele Bereichsfäden mit Bildern, lösche einige und versuche es erneut.",
+    "es": "La copia sería demasiado grande para restaurarse, así que no se escribió. Si tienes muchos hilos con imágenes, elimina algunos y vuelve a intentarlo."
+  },
   "batchExpired": {
     "tr": "Bu toplu iş Google tarafında artık yok. Yeniden çevirebilirsin.",
     "en": "Google no longer has this batch job. You can translate the page again.",
@@ -94,6 +100,12 @@
     "en": "The batch translation could not start. If you try again, this page is translated directly (at full price).",
     "de": "Die Stapelübersetzung konnte nicht starten. Wenn du es erneut versuchst, wird diese Seite direkt (zum vollen Preis) übersetzt.",
     "es": "No se pudo iniciar la traducción por lotes. Si lo intentas de nuevo, esta página se traduce directamente (a precio completo)."
+  },
+  "batchKeyChanged": {
+    "tr": "Gemini anahtarın değiştiği için bu toplu iş durduruldu. Yeniden dene.",
+    "en": "This batch job was stopped because your Gemini key changed. Try again.",
+    "de": "Dieser Batch-Auftrag wurde angehalten, weil dein Gemini-Schlüssel geändert wurde. Versuche es erneut.",
+    "es": "Este trabajo por lotes se detuvo porque cambió tu clave de Gemini. Vuelve a intentarlo."
   },
   "batchWaiting": {
     "tr": "Sırada (toplu iş)",
@@ -262,6 +274,12 @@
     "en": "Delete entry",
     "de": "Eintrag löschen",
     "es": "Eliminar entrada"
+  },
+  "deleteEntryConfirm": {
+    "tr": "Bu kayıt Kitap Günlüğü'nden silinsin mi? Geri alınamaz.",
+    "en": "Delete this entry from the Book Journal? This cannot be undone.",
+    "de": "Diesen Eintrag aus dem Buchjournal löschen? Das lässt sich nicht rückgängig machen.",
+    "es": "¿Eliminar esta entrada del Diario del libro? No se puede deshacer."
   },
   "dropHere": {
     "tr": "Dosyayı bırak",
@@ -461,11 +479,17 @@
     "de": "Dauerhaft verbinden",
     "es": "Enlazar"
   },
+  "keychainFailed": {
+    "tr": "Anahtar Zinciri'ne yazılamadı; değişiklik bu Mac'te kalıcı olmadı. Mac'in kilidini açıp yeniden dene.",
+    "en": "Could not write to the Keychain; the change was not kept on this Mac. Unlock your Mac and try again.",
+    "de": "Der Schlüsselbund konnte nicht geändert werden; die Änderung wurde auf diesem Mac nicht gespeichert. Entsperre den Mac und versuche es erneut.",
+    "es": "No se pudo escribir en el llavero; el cambio no se guardó en este Mac. Desbloquea el Mac y vuelve a intentarlo."
+  },
   "keysStoredLocal": {
-    "tr": "Anahtarların bu cihazda şifrelenmiş olarak saklanır; yedeklere ve dışa aktarılan dosyalara hiç girmez.",
-    "en": "Your keys are kept on this device, encrypted; they never go into backups or exported files.",
-    "de": "Deine Schlüssel werden verschlüsselt auf diesem Gerät gespeichert; sie gelangen nie in Sicherungen oder exportierte Dateien.",
-    "es": "Tus claves se guardan cifradas en este dispositivo; nunca entran en las copias de seguridad ni en los archivos exportados."
+    "tr": "Anahtarların bu cihazda şifrelenmiş olarak saklanır; yedeklere ve dışa aktarılan dosyalara hiç girmez. Bu şifreleme cihaza erişebilen birine karşı tam koruma değildir: ortak bir bilgisayardaysan \"Anahtarları bu cihazda hatırla\" seçeneğini kapat.",
+    "en": "Your keys are kept on this device, encrypted; they never go into backups or exported files. The encryption does not fully protect them from someone who can use this device: on a shared computer, turn off \"Remember keys on this device\".",
+    "de": "Deine Schlüssel werden verschlüsselt auf diesem Gerät gespeichert; sie gelangen nie in Sicherungen oder exportierte Dateien. Vor jemandem, der dieses Gerät benutzen kann, schützt die Verschlüsselung sie nicht ganz: Schalte auf einem geteilten Computer „Schlüssel auf diesem Gerät merken“ aus.",
+    "es": "Tus claves se guardan cifradas en este dispositivo; nunca entran en las copias de seguridad ni en los archivos exportados. El cifrado no las protege del todo de alguien que pueda usar este dispositivo: en un ordenador compartido, desactiva «Recordar las claves en este dispositivo»."
   },
   "keysStoredMac": {
     "tr": "Anahtarların macOS Anahtar Zinciri'nde saklanır; kitaplığa, yedeklere ve dışa aktarılan dosyalara hiç girmez.",
@@ -845,6 +869,12 @@
     "de": "Alle ausgelesenen Seiten sichern…",
     "es": "Guardar todas las páginas extraídas…"
   },
+  "saveFailed": {
+    "tr": "Metin kaydedilemedi.",
+    "en": "The text could not be saved.",
+    "de": "Der Text konnte nicht gesichert werden.",
+    "es": "No se pudo guardar el texto."
+  },
   "saveToJournal": {
     "tr": "Günlüğe kaydet",
     "en": "Save to journal",
@@ -1090,6 +1120,12 @@
     "en": "Stopped translating {n} pages. Pages already translated stay.",
     "de": "Übersetzung von {n} Seiten beendet. Bereits übersetzte Seiten bleiben.",
     "es": "Se detuvo la traducción de {n} páginas. Las páginas ya traducidas se quedan."
+  },
+  "unreadableFiles": {
+    "tr": "Kütüphanendeki bazı kayıtlar okunamadı. Okunabilenler açıldı; dosyanın asıl hâli silinmeden yanına kopyalandı.",
+    "en": "Some records in your library could not be read. Everything readable is open; the original file was kept, copied next to it.",
+    "de": "Einige Einträge deiner Bibliothek konnten nicht gelesen werden. Alles Lesbare ist geöffnet; die ursprüngliche Datei wurde daneben aufbewahrt.",
+    "es": "No se pudieron leer algunos registros de tu biblioteca. Todo lo legible está abierto; el archivo original se conservó, copiado a su lado."
   },
   "unsupportedFile": {
     "tr": "Yalnız PDF ve EPUB dosyaları eklenebilir.",

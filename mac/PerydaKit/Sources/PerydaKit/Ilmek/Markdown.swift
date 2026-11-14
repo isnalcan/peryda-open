@@ -35,7 +35,9 @@ public enum Markdown {
 
     private static let setext = regex(#"^\s*(?:={2,}|-{2,})\s*$"#)
     private static let rule = regex(#"^\s*([-*_])(?:\s*\1){2,}\s*$"#)
-    private static let heading = regex(#"^\s*#{1,6}\s+(.+?)(?:\s+#+)?\s*$"#)
+    // The heading's text is taken whole; closing hashes are trimmed by hand (a lazy group followed by
+    // optional spaces took quadratic time on a long line of spaces, audit WW-1).
+    private static let heading = regex(#"^\s*#{1,6}\s+(\S.*)$"#)
     private static let bullet = regex(#"^\s*[-*•+]\s+(.*)$"#)
     private static let number = regex(#"^\s*\d+[.)]\s+(.*)$"#)
     private static let quote = regex(#"^\s*>\s?(.*)$"#)
@@ -50,6 +52,28 @@ public enum Markdown {
 
     private enum LineKind { case blank, paragraph, item, quote, other }
 
+    /// Text longer than this is shown as plain paragraphs, without looking for marks: a crafted backup
+    /// or answer cannot then make one card slow to draw (audit WW-1, 15 Nov). Same limit as the web.
+    public static let plainAbove = 200_000
+
+    /// A line without its trailing spaces and tabs (by hand: `\s+$` searched every position of a long
+    /// run of spaces).
+    static func trimmingTrailingSpace(_ line: String) -> String {
+        var end = line.endIndex
+        while end > line.startIndex, line[line.index(before: end)].isWhitespace { end = line.index(before: end) }
+        return String(line[..<end])
+    }
+
+    /// A heading's text without its closing hashes ("## Title ##" → "Title").
+    static func headingText(_ raw: String) -> String {
+        let text = trimmingTrailingSpace(raw)
+        var end = text.endIndex
+        while end > text.startIndex, text[text.index(before: end)] == "#" { end = text.index(before: end) }
+        guard end < text.endIndex, end > text.startIndex, text[text.index(before: end)].isWhitespace else { return text }
+        let rest = trimmingTrailingSpace(String(text[..<end]))
+        return rest.isEmpty ? text : rest
+    }
+
     public static func blocks(_ text: String) -> [Block] {
         var blocks: [Block] = []
         var paragraph: [String] = []
@@ -59,8 +83,11 @@ public enum Markdown {
             paragraph = []
         }
         let lines = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n")
+        if text.utf16.count > plainAbove {
+            return lines.split { $0.trimmingCharacters(in: .whitespaces).isEmpty }.map { .paragraph($0.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")) }
+        }
         for raw in lines {
-            let line = raw.replacingOccurrences(of: #"\s+$"#, with: "", options: .regularExpression)
+            let line = trimmingTrailingSpace(raw)
             if line.trimmingCharacters(in: .whitespaces).isEmpty {
                 flush()
                 previous = .blank
@@ -74,7 +101,7 @@ public enum Markdown {
                 previous = .other
             } else if let text = match(heading, line), let text {
                 flush()
-                blocks.append(.heading(text))
+                blocks.append(.heading(headingText(text)))
                 previous = .other
             } else if let item = match(bullet, line) ?? match(number, line), let item {
                 flush()
@@ -113,10 +140,11 @@ public enum Markdown {
     /// Bold italic, bold, italic, code, and links or images (their words only). A closing mark must
     /// follow a letter, not a space, and an underscore inside a word is just an underscore.
     private static let inline = regex(
-        #"(\*\*\*[^*\s](?:[^*]*[^*\s])?\*\*\*|\*\*[^*\s](?:[^*]*[^*\s])?\*\*|__[^_\s](?:[^_]*[^_\s])?__|\*[^*\s](?:[^*]*[^*\s])?\*|(?<![\p{L}\p{N}])_[^_\s](?:[^_]*[^_\s])?_(?![\p{L}\p{N}])|`[^`]+`|!?\[[^\]]+\]\([^)\s]*\))"#
+        #"(\*\*\*[^*\s](?:[^*]*[^*\s])?\*\*\*|\*\*[^*\s](?:[^*]*[^*\s])?\*\*|__[^_\s](?:[^_]*[^_\s])?__|\*[^*\s](?:[^*]*[^*\s])?\*|(?<![\p{L}\p{N}])_[^_\s](?:[^_]*[^_\s])?_(?![\p{L}\p{N}])|`[^`]+`|!?\[[^\]\n]{1,200}+\]\([^)\s]{0,500}+\))"#
     )
 
     public static func spans(_ text: String) -> [Span] {
+        guard text.utf16.count <= plainAbove else { return [Span(text: text)] }
         let ns = text as NSString
         var out: [Span] = []
         func add(_ span: Span) {

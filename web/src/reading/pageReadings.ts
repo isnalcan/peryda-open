@@ -3,9 +3,9 @@ import { fakeStream } from '../ai/fake'
 import { JobGone, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type PageBatching } from '../ai/batch'
 import { pageTranscriptionSystem, pageTranscriptionTurns } from '../ai/compose'
 import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
-import { getPref, setPref } from '../data/db'
+import { db, getPref } from '../data/db'
 import type { Lang } from '../i18n/strings'
-import { DIRECT_LIMIT, RANGE_LIMIT, WAVE_SIZE, batchItemBytes, splitBatch } from '../ilmek/cardsStore'
+import { BATCH_MAX_BYTES, DIRECT_LIMIT, RANGE_LIMIT, WAVE_SIZE, batchItemBytes } from '../ilmek/cardsStore'
 
 /** One page read with Pery: its text as the reader's AI wrote it out from the page's picture. */
 export interface PageReading {
@@ -80,8 +80,21 @@ export class PageReadingsStore {
     this.ensurePolling()
   }
 
+  /**
+   * A new or removed Gemini key cannot ask about jobs made with the old one: those jobs are cancelled and
+   * removed at Google with the old key, and their pages can be read again (audit 15 Nov, K-3).
+   */
   set settings(settings: ByokSettings) {
+    const before = keyFor(this.options.settings, 'gemini')
     this.options = { ...this.options, settings }
+    if (!before || before === keyFor(settings, 'gemini')) return
+    const waiting = [...this.readings.values()].filter((r) => r.job)
+    if (!waiting.length) return
+    const batcher = this.options.batcher ?? geminiBatch
+    for (const job of new Set(waiting.map((r) => r.job!))) void abandonBatchJob(before, job, batcher).catch(() => undefined)
+    for (const r of waiting) this.fail(r.page, 'expired')
+    this.emit()
+    this.save()
   }
 
   subscribe = (listener: () => void) => {
@@ -96,8 +109,41 @@ export class PageReadingsStore {
     for (const l of this.listeners) l()
   }
 
+  /**
+   * Writes the readings, merged with what is stored: another window on the same book may have collected a
+   * finished (paid) result, which an older wait or failure here never replaces. Nothing is written once
+   * the book is gone, so a deleted book leaves no readings behind (audit 15 Nov, WW-4).
+   */
   private save() {
-    void setPref(readingsKey(this.options.bookId), [...this.readings.values()].sort((a, b) => a.page - b.page))
+    const bookId = this.options.bookId
+    const key = readingsKey(bookId)
+    void db
+      .transaction('rw', [db.books, db.prefs], async () => {
+        if (!(await db.books.get(bookId))) {
+          await db.prefs.delete(key)
+          return false
+        }
+        const stored = (await db.prefs.get(key))?.value
+        let merged = false
+        if (Array.isArray(stored)) {
+          for (const s of stored as PageReading[]) {
+            if (!s || typeof s.page !== 'number') continue
+            const mine = this.readings.get(s.page)
+            // Kept when this window has nothing for the page (stopped here), or only an older wait or failure.
+            const older = !mine || ((mine.state === 'waiting' || mine.state === 'failed') && mine.createdAt <= s.createdAt)
+            if (s?.state === 'done' && typeof s.text === 'string' && s.page >= 1 && s.page <= this.options.pageCount && older) {
+              this.readings.set(s.page, { ...s, job: undefined })
+              merged = true
+            }
+          }
+        }
+        await db.prefs.put({ key, value: [...this.readings.values()].sort((a, b) => a.page - b.page) })
+        return merged
+      })
+      .then((merged) => {
+        if (merged) this.emit()
+      })
+      .catch(() => undefined)
   }
 
   reading(page: number): PageReading | undefined {
@@ -247,12 +293,24 @@ export class PageReadingsStore {
     if (!this.closed) this.save()
   }
 
+  /**
+   * Pictures are made and sent one job at a time, each job kept under Google's size limit, so a long
+   * scanned range never holds every page's picture in memory at once (audit 15 Nov, WW-5).
+   */
   private async submitBatch(pages: number[], lang: Lang) {
     const generation = this.generation
     const { settings } = this.options
     const key = keyFor(settings, 'gemini')
     const model = modelFor(settings, 'gemini', 'translation')
-    const items: BatchItem[] = []
+    let group: BatchItem[] = []
+    let bytes = 0
+    const send = async () => {
+      if (!group.length) return
+      const items = group
+      group = []
+      bytes = 0
+      await this.submitGroup(items, key, model, generation)
+    }
     for (const p of pages) {
       if (generation !== this.generation) return
       const image = await this.options.picture(p).catch(() => null)
@@ -261,12 +319,15 @@ export class PageReadingsStore {
         continue
       }
       const r = this.request(p, image, 'gemini', lang)
-      items.push({ key: String(p), system: r.system, turns: r.turns })
+      const item: BatchItem = { key: String(p), system: r.system, turns: r.turns }
+      const size = batchItemBytes(item)
+      if (group.length && bytes + size > BATCH_MAX_BYTES) await send()
+      group.push(item)
+      bytes += size
     }
+    await send()
     this.emit()
     this.save()
-    // One job per group that fits Google's size limit (scanned pages travel as pictures).
-    await Promise.all(splitBatch(items, batchItemBytes).map((group) => this.submitGroup(group, key, model, generation)))
   }
 
   private async submitGroup(items: BatchItem[], key: string, model: string, generation: number) {
@@ -313,27 +374,31 @@ export class PageReadingsStore {
     const now = Date.now()
     for (const job of new Set(this.snapshot.map((r) => r.job).filter((j): j is string => !!j))) {
       const waiting = this.snapshot.filter((r) => r.job === job && r.state === 'waiting').map((r) => r.page)
+      // A page read again meanwhile waits on another job: only pages still on this one are touched.
+      const failAll = (code: string) => {
+        for (const p of waiting) if (this.readings.get(p)?.job === job) this.fail(p, code)
+      }
       if (!isBatchName(job)) {
-        for (const p of waiting) this.fail(p, 'expired')
+        failAll('expired')
         continue
       }
       let status
       try {
         status = await batcher.status(key, job)
       } catch (e) {
-        if (e instanceof AiError && e.kind === 'key') for (const p of waiting) this.fail(p, 'key')
-        else if (e instanceof JobGone) for (const p of waiting) this.fail(p, 'expired')
+        if (e instanceof AiError && e.kind === 'key') failAll('key')
+        else if (e instanceof JobGone) failAll('expired')
         else {
           // A network hiccup: ask again next time, unless Google's 48-hour limit has passed.
           const oldest = Math.min(...waiting.map((p) => this.readings.get(p)?.createdAt ?? now))
-          if (now - oldest > 48 * 3600 * 1000) for (const p of waiting) this.fail(p, 'expired')
+          if (now - oldest > 48 * 3600 * 1000) failAll('expired')
         }
         continue
       }
       if (this.closed) return
       if (status.state === 'waiting') continue
       if (status.state === 'failed') {
-        for (const p of waiting) this.fail(p, status.code)
+        failAll(status.code)
       } else {
         for (const p of waiting) {
           if (this.readings.get(p)?.job !== job) continue

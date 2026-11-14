@@ -99,13 +99,18 @@ export class HttpFailure extends Error {
 
 export async function fetchOrFail(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, { ...init, mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' })
+    // A redirect is refused rather than followed: a key header must never go on to another address, and
+    // nothing a provider sends back is kept in the browser's cache (audit 15 Nov, K-1).
+    return await fetch(url, { ...init, ...REQUEST_RULES })
   } catch (error) {
     if ((error as Error)?.name === 'AbortError') throw new AiError('aborted', 'aborted')
     // A browser that blocks the request for CORS reasons reports it as a plain network failure.
     throw new AiError(typeof navigator !== 'undefined' && navigator.onLine === false ? 'network' : 'browser', 'request failed')
   }
 }
+
+/** How every request to a provider is made (exported for tests). */
+export const REQUEST_RULES = { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error', cache: 'no-store' } as const satisfies RequestInit
 
 async function bodyText(res: Response): Promise<string> {
   try {

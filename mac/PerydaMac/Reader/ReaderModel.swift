@@ -115,10 +115,10 @@ final class ReaderModel {
     /// Pages read with Pery in "Extract page text" (PDFs only).
     private(set) var readings: PageReadings?
 
-    /// A page's picture for Pery to read (JPEG at 2×).
-    func pagePicture(_ number: Int) -> String? {
+    /// A page's picture for Pery to read (JPEG at 2×), or for translating a scanned page (1.6×).
+    func pagePicture(_ number: Int, scale: CGFloat = 2, quality: CGFloat = 0.88) -> String? {
         guard number >= 1, number <= pages.count, let page = document?.page(at: number - 1) else { return nil }
-        return PageGeometry(page: page).jpegDataURL(scale: 2, quality: 0.88)
+        return PageGeometry(page: page).jpegDataURL(scale: scale, quality: quality)
     }
 
     /// Asking which pages to translate.
@@ -148,6 +148,7 @@ final class ReaderModel {
     convenience init?(book: BookRecord, app: AppModel) {
         self.init(book: book, store: app.store, lang: app.lang, settings: app.settings, streamer: app.streamer, batcher: app.batcher)
         cards.explainTerms = app.explainTerms
+        app.register(self)
     }
 
     init?(book: BookRecord, store: LibraryStore, lang: Lang, settings: ByokSettings, streamer: AnswerStreaming, batcher: PageBatching = GeminiBatch()) {
@@ -170,6 +171,8 @@ final class ReaderModel {
         self.readings = PageReadings(bookId: book.id, bookTitle: book.title, pageCount: doc.pageCount, settings: settings, store: store, streamer: streamer, batcher: batcher) { [weak self] page in
             self?.pagePicture(page)
         }
+        cards.pagePicture = { [weak self] page in self?.pagePicture(page, scale: 1.6, quality: 0.86) }
+        cards.dropStoredPagePictures()
         store.markOpened(book.id)
         ensurePolling()
         reloadJournal()
@@ -234,13 +237,14 @@ final class ReaderModel {
     /// at 1.6× (JPEG, quality 0.86) for the model to read and translate.
     func pageSource(_ number: Int) -> CardsModel.PageSource? {
         guard number >= 1, number <= pages.count, let page = document?.page(at: number - 1) else { return nil }
-        let geometry = PageGeometry(page: page)
         let box = pages[number - 1]
         let raw = page.readingText
         if Self.hasTextLayer(raw) {
             return CardsModel.PageSource(page: number, text: raw, width: box.width, height: box.height)
         }
-        return CardsModel.PageSource(page: number, text: "", imageDataURL: geometry.jpegDataURL(scale: 1.6, quality: 0.86), width: box.width, height: box.height)
+        // A scanned page: its picture is drawn when the translation is asked for (cards.pagePicture),
+        // not now and not into the threads file.
+        return CardsModel.PageSource(page: number, text: "", scanned: true, width: box.width, height: box.height)
     }
 
     /// "Translate this page": only this page. Nothing is translated without the reader asking: more
@@ -282,6 +286,14 @@ final class ReaderModel {
             self.cards.translatePages(sources, target: target)
             self.ensurePolling()
         }
+    }
+
+    /// Page translations and readings stop waiting on Gemini batch jobs (they say `code`); returns
+    /// the jobs, for the caller to cancel and remove with the key that made them.
+    func forgetBatchJobs(code: String) -> Set<String> {
+        var jobs = cards.forgetBatchJobs(code: code)
+        if let readings { jobs.formUnion(readings.forgetBatchJobs(code: code)) }
+        return jobs
     }
 
     /// Text that surrounds a selection on a page: the start of the page's text.

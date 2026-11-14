@@ -54,6 +54,32 @@ describe('backup', () => {
     expect(await importBackup(blob)).toEqual({ books: 0 })
   })
 
+  // Audit 15 Nov (WW-11): only what a restore accepts is written, and the pages Pery read come back.
+  it('writes only restorable preferences, and brings back finished page readings without job names', async () => {
+    await seed()
+    await db.prefs.put({ key: 'launches', value: 7 })
+    await db.prefs.put({ key: 'rememberKeys', value: true })
+    await db.prefs.put({ key: `cardTextScale:${book.id}`, value: 1.3 })
+    await db.prefs.put({
+      key: `readings:${book.id}`,
+      value: [
+        { page: 1, text: 'Bir', state: 'done', createdAt: 5 },
+        { page: 2, text: '', state: 'waiting', job: 'batches/abc', createdAt: 6 },
+      ],
+    })
+    const blob = await exportBackup()
+    const manifest = await (await JSZip.loadAsync(await blob.arrayBuffer())).file('peryda.json')!.async('string')
+    expect(manifest).not.toContain('launches')
+    expect(manifest).not.toContain('rememberKeys')
+    expect(manifest).not.toContain('batches/abc')
+    await db.delete()
+    await db.open()
+    await importBackup(blob)
+    expect((await db.prefs.get(`readings:${book.id}`))?.value).toEqual([{ page: 1, text: 'Bir', state: 'done', createdAt: 5 }])
+    expect((await db.prefs.get(`cardTextScale:${book.id}`))?.value).toBe(1.3)
+    expect(await db.prefs.get('launches')).toBeUndefined()
+  })
+
   it('refuses files that are not Peryda backups', async () => {
     await expect(importBackup(new Blob(['nope']))).rejects.toThrow()
   })

@@ -92,6 +92,64 @@ struct PageTranslationTests {
         await m.waitForIdle()
     }
 
+    /// With `pagePicture`, a scanned page's picture is drawn when its request is made and is never
+    /// stored in the card (audit MA-2: pictures made a library's own backup too large to restore).
+    @Test func scannedPagesAreDrawnWhenAskedAndNotStored() async throws {
+        let streamer = RecordingStreamer()
+        let batcher = FakeBatcher()
+        let m = model(streamer: streamer, batcher: batcher)
+        var drawn: [Int] = []
+        m.pagePicture = { page in
+            drawn.append(page)
+            return "data:image/jpeg;base64," + String(repeating: "B", count: 4_000_000)
+        }
+        let scanned = (1...7).map { CardsModel.PageSource(page: $0, text: "", scanned: true, width: 760, height: 983) }
+        // One page directly: drawn for the request, not kept.
+        m.translatePages([scanned[0]], target: .tr)
+        for _ in 0..<300 where m.pageTranslation(page: 1, target: .tr)?.messages.last?.state != nil || streamer.requests.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        let first = try #require(m.pageTranslation(page: 1, target: .tr))
+        #expect(first.anchors.first?.sourceType == .pdfArea)
+        #expect(first.anchors.first?.croppedImage == nil)
+        guard case .image = try #require(streamer.requests.last).turns[0].parts[0] else { Issue.record("the picture goes with the request"); return }
+        // A range: drawn job by job, three 4 MB pictures per 15 MB job.
+        m.translatePages(Array(scanned[1...6]), target: .tr)
+        for _ in 0..<300 where m.waitingTranslations.count < 6 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(await batcher.created.map(\.items.count) == [3, 3])
+        #expect(drawn == Array(1...7))
+        #expect(m.cards.allSatisfy { $0.anchors.allSatisfy { $0.croppedImage == nil } })
+        await m.waitForIdle()
+    }
+
+    /// A page whose picture cannot be drawn fails instead of going as an empty page.
+    @Test func aScannedPageWithoutAPictureFails() async throws {
+        let streamer = RecordingStreamer()
+        let m = model(streamer: streamer)
+        m.pagePicture = { _ in nil }
+        m.translatePages([CardsModel.PageSource(page: 3, text: "", scanned: true, width: 760, height: 983)], target: .tr)
+        for _ in 0..<300 where m.pageTranslation(page: 3, target: .tr)?.messages.last?.role != .assistant || m.pageTranslation(page: 3, target: .tr)?.messages.last?.state == .streaming { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(m.pageTranslation(page: 3, target: .tr)?.messages.last?.state == .error)
+        #expect(streamer.requests.isEmpty)
+    }
+
+    /// The Gemini key changed: pages stop waiting on jobs made with the old key and say so; the jobs
+    /// are handed back to be removed with that key (audit K-3).
+    @Test func forgettingJobsWhenTheKeyChanges() async throws {
+        let batcher = FakeBatcher()
+        let m = model(batcher: batcher)
+        m.translatePages((1...4).map { page($0) }, target: .tr)
+        for _ in 0..<200 where m.waitingTranslations.count < 4 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(m.forgetBatchJobs(code: "key-changed") == ["batches/job-1"])
+        #expect(m.waitingTranslations.isEmpty)
+        #expect(m.pageTranslation(page: 2, target: .tr)?.messages.last?.content == "key-changed")
+        // The same for a book that is not open.
+        var stored = m.cards
+        stored[0].batchJob = "batches/job-9"
+        stored[0].messages[stored[0].messages.count - 1].state = .streaming
+        let (cards, jobs) = CardsModel.forgettingBatchJobs(stored, code: "key-changed")
+        #expect(jobs == ["batches/job-9"])
+        #expect(cards[0].batchJob == nil && cards[0].messages.last?.state == .error)
+    }
+
     /// "Stop translating": batch jobs are cancelled and removed at Google, waiting pages go, finished ones stay.
     @Test func stoppingCancelsJobsAndKeepsFinishedPages() async throws {
         let batcher = FakeBatcher()

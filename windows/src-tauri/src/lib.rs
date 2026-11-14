@@ -5,6 +5,7 @@
 
 use std::sync::Mutex;
 
+use tauri::http::HeaderValue;
 use tauri::{webview::DownloadEvent, AppHandle, State, Url, WebviewWindowBuilder};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -21,6 +22,12 @@ fn is_app_url(url: &Url) -> bool {
         _ => false,
     }
 }
+
+/// The app's Content Security Policy, sent as a header with every file the window loads. The page also
+/// carries it in a <meta> tag, but a worker (pdf.js, which parses untrusted PDFs) takes its policy only
+/// from its own response, and Tauri adds a policy header to HTML files only (audit 15 Nov, WW-2/K-2).
+/// The same policy as the Windows build's meta tag; web/src/test/csp.test.ts checks they match.
+const CONTENT_SECURITY_POLICY: &str = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com https://api.deepseek.com https://api.anthropic.com ipc: http://ipc.localhost; worker-src 'self' blob:; frame-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'";
 
 /// The update check. Unavailable in builds made without the update key (plugins.updater.pubkey).
 struct Updates {
@@ -89,6 +96,12 @@ pub fn run() {
                 .expect("main window config");
             WebviewWindowBuilder::from_config(app.handle(), &config)?
                 .on_navigation(|url| is_app_url(url))
+                // Every file the app serves carries the policy, so workers are bound by it too.
+                .on_web_resource_request(|_request, response| {
+                    let headers = response.headers_mut();
+                    headers.insert("Content-Security-Policy", HeaderValue::from_static(CONTENT_SECURITY_POLICY));
+                    headers.insert("X-Content-Type-Options", HeaderValue::from_static("nosniff"));
+                })
                 // Only the backup export (a blob: download made by the app) may save a file.
                 .on_download(|_, event| match event {
                     DownloadEvent::Requested { url, .. } => url.scheme() == "blob",

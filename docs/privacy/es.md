@@ -2,7 +2,7 @@
 
 # Privacidad
 
-*Peryda para Mac, Windows y la web · Última actualización: 13 de noviembre de 2026*
+*Peryda para Mac, Windows y la web · Última actualización: 15 de noviembre de 2026*
 
 [English](../../PRIVACY.md) · [Türkçe](../../docs/privacy/tr.md) · [Deutsch](../../docs/privacy/de.md)
 
@@ -17,9 +17,9 @@ Este texto cubre Peryda para Mac, Windows y la web. Las apps de Peryda para iPho
 
 ## Lo que se queda en tu dispositivo
 
-- Los archivos PDF y EPUB que añades, tus posiciones de lectura, los hilos y sus tarjetas, las traducciones, las notas, el Diario del libro y tus ajustes. En el Mac se guardan en la carpeta aislada propia de Peryda; en Windows, en la carpeta de datos de Peryda de tu cuenta de Windows, y en la web, en el almacenamiento de este navegador para el sitio. Quitar la app o borrar los datos del sitio los elimina.
-- Una copia de seguridad que exportas es un archivo que guardas tú. Nunca contiene tus claves y no está cifrada.
-- En el Mac, el texto de una página escaneada se lee en el propio Mac, con el reconocimiento de texto integrado de Apple.
+- Los archivos PDF y EPUB que añades, tus posiciones de lectura, los hilos y sus tarjetas, las traducciones, las notas, el Diario del libro y tus ajustes. En el Mac se guardan en la carpeta aislada propia de Peryda; en Windows, en la carpeta de datos de Peryda de tu cuenta de Windows, y en la web, en el almacenamiento de este navegador para el sitio. En la web, borrar los datos del sitio los elimina. Quitar la app no basta: para eliminarlo todo, borra primero tus claves en los Ajustes de Peryda y luego quita la app; en el Mac borra además la carpeta Library/Containers/com.isnalcan.peryda.mac de tu carpeta de inicio, y en Windows marca al desinstalar la casilla que borra los datos de la aplicación.
+- Una copia de seguridad que exportas es un archivo que guardas tú. Contiene tus libros y todo lo que escribiste u obtuviste en Peryda (hilos, traducciones, páginas extraídas, el diario), pero nunca tus claves, y no está cifrada.
+- En el Mac, el texto de una página escaneada se lee en el propio Mac, con el reconocimiento de texto integrado de Apple, salvo que elijas «Extraer con Pery», que envía una imagen de la página a tu proveedor.
 - Un libro no puede acceder a internet: Peryda no carga imágenes, fuentes, estilos ni scripts de la web dentro de un libro.
 
 ## Cómo se protegen tus claves
@@ -41,12 +41,12 @@ Solo cuando pides algo (una pregunta en un hilo, la traducción de una página, 
 - tu petición y los mensajes anteriores de ese hilo;
 - el texto que seleccionaste con un breve pasaje alrededor, o una imagen de la parte de la página que seleccionaste;
 - el título del libro y el número de página;
-- para traducir una página, su texto; en Windows y en la web, una imagen de la página cuando no tiene texto propio (también cuando pides el texto de una página);
+- para traducir una página, su texto, o una imagen de la página cuando no tiene texto propio; cuando eliges «Extraer con Pery», una imagen de cada página que elegiste;
 - para un resumen del diario, las entradas del diario de ese libro.
 
-Nunca se envía el libro entero. Las peticiones viajan por una conexión cifrada (HTTPS) directamente al proveedor; no hay ningún servidor de Peryda en medio.
+Solo se envían las páginas que pides, y nada se envía por sí solo; un rango de páginas (como máximo 200 a la vez) envía cada una de sus páginas. Las peticiones viajan por una conexión cifrada (HTTPS) directamente al proveedor; no hay ningún servidor de Peryda en medio.
 
-Cuando traduces muchas páginas a la vez con Gemini, van como un trabajo por lotes a mitad de precio. Google guarda el trabajo hasta que termina, como máximo 48 horas; Peryda lo borra en cuanto llegan las traducciones o cuando detienes la traducción.
+Cuando traduces o extraes más de dos páginas a la vez con Gemini, van como un trabajo por lotes a mitad de precio. Google ejecuta un trabajo durante 48 horas como máximo. Peryda borra el trabajo en Google cuando llegan los resultados (mientras ese libro está abierto en Peryda), cuando lo detienes o cuando cambias tu clave de Gemini. Google no dice cuánto tiempo guarda un trabajo terminado que no se ha borrado.
 
 ## Los términos de tu proveedor
 

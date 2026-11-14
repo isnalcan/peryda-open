@@ -40,5 +40,13 @@ describe('Content Security Policy in index.html', () => {
     expect(web).not.toContain('ipc')
     expect(windows.replace(' ipc: http://ipc.localhost', '')).toBe(web)
   })
+
+  it('is the same policy the Windows shell sends as a header with every file, workers included (WW-2)', () => {
+    const shell = readFileSync(new URL('../../../windows/src-tauri/src/lib.rs', import.meta.url), 'utf8')
+    const header = /const CONTENT_SECURITY_POLICY: &str = "([^"]+)";/.exec(shell)?.[1]
+    expect(header).toBe(policyOf(transformFor('tauri')(HEAD)))
+    expect(shell).toContain('.on_web_resource_request(')
+    expect(shell).toContain('"X-Content-Type-Options", HeaderValue::from_static("nosniff")')
+  })
 })
 

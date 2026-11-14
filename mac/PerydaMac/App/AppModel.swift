@@ -49,7 +49,12 @@ final class AppModel {
     /// A book opened from Finder, for the library window to open in a reader window.
     var pendingOpen: String?
 
-    private let keychain = KeychainVault()
+    private let keychain: KeyVault
+
+    /// PDF readers open now (weakly held), so a change of Gemini key or a deletion reaches their work.
+    @ObservationIgnored private let openReaders = NSHashTable<ReaderModel>.weakObjects()
+
+    func register(_ reader: ReaderModel) { openReaders.add(reader) }
 
     var t: UIText { UIText(lang) }
 
@@ -76,8 +81,12 @@ final class AppModel {
         lang = Lang(rawValue: defaults.string(forKey: "lang") ?? "") ?? Lang.preferred()
         theme = ThemePreference(rawValue: defaults.string(forKey: "theme") ?? "") ?? .system
         showWelcome = !defaults.bool(forKey: "welcomed")
-        settings = (defaults.object(forKey: "rememberKeys") as? Bool ?? true) ? KeychainVault().load() : ByokSettings()
+        keychain = KeychainVault()
+        settings = (defaults.object(forKey: "rememberKeys") as? Bool ?? true) ? keychain.load() : ByokSettings()
         books = store.books()
+        // A library file a newer version wrote (or a damaged one) was read record by record; the
+        // original is kept beside it (audit MA-4).
+        if !store.unreadableFiles().isEmpty { lastError = UIText(lang)["unreadableFiles"] }
         #if DEBUG
         if DevFlags.fakeAI, settings.resolvedProvider == nil {
             // A placeholder so the interface behaves as if a key were set; it is never sent anywhere.
@@ -88,9 +97,10 @@ final class AppModel {
     }
 
     /// For off-screen tests: a given library, no Keychain or saved preferences.
-    init(store: LibraryStore, settings: ByokSettings, lang: Lang, batcher: PageBatching = GeminiBatch()) {
+    init(store: LibraryStore, settings: ByokSettings, lang: Lang, batcher: PageBatching = GeminiBatch(), keychain: KeyVault = MemoryVault()) {
         self.store = store
         self.batcher = batcher
+        self.keychain = keychain
         self.settings = settings
         self.lang = lang
         rememberKeys = false
@@ -112,14 +122,44 @@ final class AppModel {
         UserDefaults.standard.set(true, forKey: "welcomed")
     }
 
-    func saveSettings(_ next: ByokSettings, remember: Bool) {
+    /// Saves the keys (in the Keychain, or only for this run). Returns false, with the reason in
+    /// `keychainError`, when the Keychain refused: the screen must not say "Saved" then (audit K-4).
+    /// The keys still apply for this run; "remember" keeps its old value.
+    @discardableResult
+    func saveSettings(_ next: ByokSettings, remember: Bool) -> Bool {
+        let oldGemini = settings.key(for: .gemini)
         settings = next
-        rememberKeys = remember
-        if remember {
-            try? keychain.save(next)
-        } else {
-            try? keychain.clear()
+        if next.key(for: .gemini) != oldGemini, ByokSettings.hasUsableKey(oldGemini) { abandonGeminiJobs(madeWith: oldGemini) }
+        do {
+            if remember { try keychain.save(next) } else { try keychain.clear() }
+        } catch {
+            keychainError = t["keychainFailed"]
+            return false
         }
+        keychainError = nil
+        rememberKeys = remember
+        return true
+    }
+
+    /// Why the last save did not reach the Keychain.
+    var keychainError: String?
+
+    /// The Gemini key changed or was removed: batch jobs made with the old key can no longer be asked
+    /// about, cancelled or deleted with the new one, so they are stopped and removed at Google now,
+    /// with the old key, and their pages say so and can be translated or read again (audit K-3).
+    private func abandonGeminiJobs(madeWith oldKey: String) {
+        var jobs = Set<String>()
+        var open = Set<String>()
+        for reader in openReaders.allObjects {
+            open.insert(reader.book.id)
+            jobs.formUnion(reader.forgetBatchJobs(code: "key-changed"))
+        }
+        for book in store.books() where !open.contains(book.id) {
+            jobs.formUnion(store.forgetBatchJobs(bookId: book.id, code: "key-changed"))
+        }
+        guard !jobs.isEmpty else { return }
+        let batcher = batcher
+        pendingWork.append(Task { for job in jobs { await batcher.abandon(apiKey: oldKey, name: job) } })
     }
 
     func reloadBooks() {
@@ -201,8 +241,13 @@ final class AppModel {
     /// Deletes a book and everything kept about it: its file, threads, journal and position, its
     /// unpacked EPUB, its cover, its preferences, and any batch job its pages were waiting on.
     func delete(_ book: BookRecord) {
+        // An open reader of this book stops first, so nothing it is doing writes the book back
+        // (audit MA-8); its jobs are cancelled and removed with the rest below.
+        var readingJobs = PageReadings.jobs(in: store.readings(for: book.id))
+        for reader in openReaders.allObjects where reader.book.id == book.id {
+            readingJobs.formUnion(reader.forgetBatchJobs(code: "batch"))
+        }
         let jobs = store.cards(for: book.id).filter { $0.batchJob != nil }
-        let readingJobs = PageReadings.jobs(in: store.readings(for: book.id))
         try? store.deleteBook(book.id)
         if let cache = Self.epubCache { try? EPUBBook.removeCache(parent: cache, id: book.id) }
         Covers.remove(book)

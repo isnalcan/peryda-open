@@ -45,8 +45,11 @@ cat <<'TXT'
 Done. The public halves are now in mac/project.yml and windows/src-tauri/tauri.conf.json.
 
 Keep a backup of the two private keys somewhere only you can open (a password manager, or an
-encrypted USB stick), not in iCloud Drive or the repository:
-  Mac:      mac/build/dd/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys -x ~/Desktop/peryda-mac-update.key
-            (then move that file to the safe place and delete it from the Desktop)
+encrypted USB stick), never in iCloud Drive or the repository. Do not export to the Desktop or
+Documents: on a Mac with "Desktop & Documents Folders" in iCloud they are uploaded at once.
+  Mac:      mkdir -p ~/tmp && d=$(mktemp -d ~/tmp/peryda-key.XXXXXX) && chmod 700 "$d" &&
+            mac/build/dd/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys -x "$d/peryda-mac-update.key"
+            then put that file straight into the password manager and remove it:
+            rm "$d/peryda-mac-update.key" && rmdir "$d"
   Windows:  ~/.tauri/peryda-update.key (and its password)
 TXT

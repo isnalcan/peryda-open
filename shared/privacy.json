@@ -1,7 +1,7 @@
 {
   "tr": {
     "title": "Gizlilik",
-    "updated": "Peryda Mac, Windows ve web · Son güncelleme: 13 Kasım 2026",
+    "updated": "Peryda Mac, Windows ve web · Son güncelleme: 15 Kasım 2026",
     "sections": [
       {
         "heading": "Kısaca",
@@ -24,9 +24,9 @@
         "blocks": [
           {
             "ul": [
-              "Eklediğin PDF ve EPUB dosyaları, okuma yerlerin, ilmekler ve kartları, çeviriler, notlar, Kitap Günlüğü ve ayarların. Mac'te Peryda'nın kendine ayrılmış korumalı klasöründe, Windows'ta Windows hesabına ait Peryda uygulama verisi klasöründe, web'de bu tarayıcının bu site için ayırdığı alanda durur. Uygulamayı kaldırmak ya da sitenin verilerini temizlemek hepsini siler.",
-              "Dışa aktardığın yedek, senin sakladığın bir dosyadır. Anahtarlarını asla içermez ve şifreli değildir.",
-              "Mac'te taranmış bir sayfanın metni, Apple'ın yerleşik metin tanımasıyla Mac'in kendisinde okunur.",
+              "Eklediğin PDF ve EPUB dosyaları, okuma yerlerin, ilmekler ve kartları, çeviriler, notlar, Kitap Günlüğü ve ayarların. Mac'te Peryda'nın kendine ayrılmış korumalı klasöründe, Windows'ta Windows hesabına ait Peryda uygulama verisi klasöründe, web'de bu tarayıcının bu site için ayırdığı alanda durur. Web'de sitenin verilerini temizlemek hepsini siler. Uygulamayı kaldırmak tek başına silmez: her şeyi silmek için önce Peryda'nın Ayarlar'ından anahtarlarını sil, sonra uygulamayı kaldır; Mac'te ayrıca ana klasöründeki Library/Containers/com.isnalcan.peryda.mac klasörünü sil, Windows'ta kaldırırken uygulama verilerini silen kutuyu işaretle.",
+              "Dışa aktardığın yedek, senin sakladığın bir dosyadır. Kitaplarını ve Peryda'da yazdığın ya da aldığın her şeyi (ilmekler, çeviriler, çıkarılan sayfalar, günlük) içerir, ama anahtarlarını asla içermez ve şifreli değildir.",
+              "Mac'te taranmış bir sayfanın metni, Apple'ın yerleşik metin tanımasıyla Mac'in kendisinde okunur; “Pery ile çıkar”ı seçersen sayfanın resmi sağlayıcına gider.",
               "Bir kitap internete erişemez: Peryda kitabın içinden internetteki resim, yazı tipi, stil ya da betik yüklemez."
             ]
           }
@@ -62,15 +62,15 @@
               "isteğin ve o ilmekteki önceki mesajlar;",
               "seçtiğin metin ve çevresinden kısa bir bölüm, ya da sayfada seçtiğin alanın resmi;",
               "kitabın adı ve sayfa numarası;",
-              "sayfa çevirisi için sayfanın metni; Windows'ta ve web'de sayfanın kendi metni yoksa sayfanın resmi (sayfanın metnini istediğinde de);",
+              "sayfa çevirisi için sayfanın metni, sayfanın kendi metni yoksa sayfanın resmi; “Pery ile çıkar”ı seçtiğinde seçtiğin her sayfanın resmi;",
               "günlük özeti için o kitabın günlük kayıtları."
             ]
           },
           {
-            "p": "Kitabın tamamı asla gönderilmez. İstekler şifreli bağlantıyla (HTTPS) doğrudan sağlayıcıya gider; arada Peryda sunucusu yoktur."
+            "p": "Yalnız istediğin sayfalar gönderilir, kendiliğinden hiçbir şey gönderilmez; bir sayfa aralığı (bir seferde en fazla 200 sayfa) aralıktaki her sayfayı gönderir. İstekler şifreli bağlantıyla (HTTPS) doğrudan sağlayıcıya gider; arada Peryda sunucusu yoktur."
           },
           {
-            "p": "Gemini ile birçok sayfayı birden çevirdiğinde sayfalar yarı fiyatına toplu iş olarak gider. Google işi bitene kadar, en fazla 48 saat tutar; Peryda çeviriler gelir gelmez ya da sen çeviriyi durdurduğunda işi siler."
+            "p": "Gemini ile ikiden fazla sayfayı birden çevirdiğinde ya da metnini çıkardığında sayfalar yarı fiyatına toplu iş olarak gider. Google bir işi en fazla 48 saat çalıştırır. Peryda sonuçlar gelince (o kitap Peryda'da açıkken), sen durdurduğunda ya da Gemini anahtarını değiştirdiğinde işi Google'dan siler. Google, silinmemiş bitmiş bir işi ne kadar tuttuğunu söylemiyor."
           }
         ]
       },
@@ -124,7 +124,7 @@
   },
   "en": {
     "title": "Privacy",
-    "updated": "Peryda for Mac, Windows and the web · Last updated 13 November 2026",
+    "updated": "Peryda for Mac, Windows and the web · Last updated 15 November 2026",
     "sections": [
       {
         "heading": "In short",
@@ -147,9 +147,9 @@
         "blocks": [
           {
             "ul": [
-              "The PDF and EPUB files you add, your reading positions, threads and their cards, translations, notes, the Book Journal and your settings. On a Mac they are kept in Peryda's own sandboxed folder, on Windows in Peryda's app data folder for your Windows account, and on the web in this browser's storage for the site. Removing the app or clearing the site's data deletes them.",
-              "A backup you export is a file you keep. It never contains your keys and is not encrypted.",
-              "On a Mac, the text of a scanned page is read on the Mac itself, with Apple's built-in text recognition.",
+              "The PDF and EPUB files you add, your reading positions, threads and their cards, translations, notes, the Book Journal and your settings. On a Mac they are kept in Peryda's own sandboxed folder, on Windows in Peryda's app data folder for your Windows account, and on the web in this browser's storage for the site. On the web, clearing the site's data deletes them. Removing the app alone does not: to remove everything, first delete your keys in Peryda's Settings, then remove the app; on a Mac also delete the folder Library/Containers/com.isnalcan.peryda.mac in your home folder, and on Windows tick the box that deletes the application data when you uninstall.",
+              "A backup you export is a file you keep. It holds your books and everything you wrote or got in Peryda (threads, translations, extracted pages, the journal), but never your keys, and it is not encrypted.",
+              "On a Mac, the text of a scanned page is read on the Mac itself, with Apple's built-in text recognition, unless you choose “Extract with Pery”, which sends a picture of the page to your provider.",
               "A book cannot reach the internet: Peryda loads no images, fonts, styles or scripts from the web inside a book."
             ]
           }
@@ -185,15 +185,15 @@
               "your request and the earlier messages of that thread;",
               "the text you selected with a short passage around it, or a picture of the part of the page you selected;",
               "the book's title and the page number;",
-              "for a page translation, the page's text; on Windows and the web, a picture of the page when it has no text of its own (also when you ask for a page's text);",
+              "for a page translation, the page's text, or a picture of the page when it has no text of its own; when you choose “Extract with Pery”, a picture of each page you picked;",
               "for a journal summary, that book's journal entries."
             ]
           },
           {
-            "p": "Your whole book is never sent. Requests travel over an encrypted connection (HTTPS) straight to the provider; there is no Peryda server in between."
+            "p": "Only the pages you ask for are sent, and nothing is sent on its own; a page range (at most 200 pages at a time) sends each of its pages. Requests travel over an encrypted connection (HTTPS) straight to the provider; there is no Peryda server in between."
           },
           {
-            "p": "When you translate many pages at once with Gemini, they go as a batch job at half the price. Google keeps the job until it is done, for at most 48 hours; Peryda deletes it as soon as the translations are back, or when you stop translating."
+            "p": "When you translate or extract more than two pages at once with Gemini, they go as a batch job at half the price. Google runs a job for at most 48 hours. Peryda deletes the job at Google once the results are back (while that book is open in Peryda), when you stop, or when you change your Gemini key. Google does not say how long it keeps a finished job that has not been deleted."
           }
         ]
       },
@@ -247,7 +247,7 @@
   },
   "de": {
     "title": "Datenschutz",
-    "updated": "Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 13. November 2026",
+    "updated": "Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 15. November 2026",
     "sections": [
       {
         "heading": "Kurz gesagt",
@@ -270,9 +270,9 @@
         "blocks": [
           {
             "ul": [
-              "Die PDF- und EPUB-Dateien, die du hinzufügst, deine Lesepositionen, Fäden und ihre Karten, Übersetzungen, Notizen, das Buchjournal und deine Einstellungen. Auf dem Mac liegen sie in Perydas eigenem, abgeschirmtem Ordner, unter Windows im App-Datenordner von Peryda für dein Windows-Konto und im Web im Speicher dieses Browsers für die Website. Wenn du die App entfernst oder die Websitedaten löschst, werden sie gelöscht.",
-              "Eine Sicherung, die du exportierst, ist eine Datei, die du aufbewahrst. Sie enthält nie deine Schlüssel und ist nicht verschlüsselt.",
-              "Auf dem Mac wird der Text einer gescannten Seite auf dem Mac selbst gelesen, mit Apples eingebauter Texterkennung.",
+              "Die PDF- und EPUB-Dateien, die du hinzufügst, deine Lesepositionen, Fäden und ihre Karten, Übersetzungen, Notizen, das Buchjournal und deine Einstellungen. Auf dem Mac liegen sie in Perydas eigenem, abgeschirmtem Ordner, unter Windows im App-Datenordner von Peryda für dein Windows-Konto und im Web im Speicher dieses Browsers für die Website. Im Web werden sie gelöscht, wenn du die Websitedaten löschst. Das Entfernen der App allein löscht sie nicht: Um alles zu entfernen, lösche zuerst deine Schlüssel in Perydas Einstellungen und entferne dann die App; lösche auf dem Mac außerdem den Ordner Library/Containers/com.isnalcan.peryda.mac in deinem Benutzerordner, und setze unter Windows beim Deinstallieren das Häkchen, das die App-Daten löscht.",
+              "Eine Sicherung, die du exportierst, ist eine Datei, die du aufbewahrst. Sie enthält deine Bücher und alles, was du in Peryda geschrieben oder bekommen hast (Fäden, Übersetzungen, ausgelesene Seiten, das Journal), aber nie deine Schlüssel, und sie ist nicht verschlüsselt.",
+              "Auf dem Mac wird der Text einer gescannten Seite auf dem Mac selbst gelesen, mit Apples eingebauter Texterkennung, außer du wählst „Mit Pery auslesen“: Dann geht ein Bild der Seite an deinen Anbieter.",
               "Ein Buch kann nicht ins Internet: Peryda lädt in einem Buch keine Bilder, Schriften, Stile oder Skripte aus dem Web."
             ]
           }
@@ -308,15 +308,15 @@
               "deine Anfrage und die früheren Nachrichten dieses Fadens;",
               "den markierten Text mit einem kurzen Abschnitt darum herum oder ein Bild des Seitenbereichs, den du ausgewählt hast;",
               "den Titel des Buches und die Seitenzahl;",
-              "für eine Seitenübersetzung den Text der Seite; unter Windows und im Web ein Bild der Seite, wenn sie keinen eigenen Text hat (auch wenn du den Text einer Seite anforderst);",
+              "für eine Seitenübersetzung den Text der Seite oder ein Bild der Seite, wenn sie keinen eigenen Text hat; wenn du „Mit Pery auslesen“ wählst, ein Bild jeder gewählten Seite;",
               "für eine Journal-Zusammenfassung die Journaleinträge dieses Buches."
             ]
           },
           {
-            "p": "Dein ganzes Buch wird nie gesendet. Anfragen gehen über eine verschlüsselte Verbindung (HTTPS) direkt an den Anbieter; dazwischen gibt es keinen Peryda-Server."
+            "p": "Gesendet werden nur die Seiten, die du anforderst, und nichts von selbst; ein Seitenbereich (höchstens 200 Seiten auf einmal) sendet jede seiner Seiten. Anfragen gehen über eine verschlüsselte Verbindung (HTTPS) direkt an den Anbieter; dazwischen gibt es keinen Peryda-Server."
           },
           {
-            "p": "Wenn du mit Gemini viele Seiten auf einmal übersetzt, gehen sie als Batch-Auftrag zum halben Preis. Google behält den Auftrag, bis er fertig ist, höchstens 48 Stunden; Peryda löscht ihn, sobald die Übersetzungen zurück sind oder wenn du das Übersetzen stoppst."
+            "p": "Wenn du mit Gemini mehr als zwei Seiten auf einmal übersetzt oder ausliest, gehen sie als Batch-Auftrag zum halben Preis. Google bearbeitet einen Auftrag höchstens 48 Stunden. Peryda löscht den Auftrag bei Google, sobald die Ergebnisse zurück sind (während das Buch in Peryda geöffnet ist), wenn du stoppst oder wenn du deinen Gemini-Schlüssel änderst. Google sagt nicht, wie lange es einen fertigen, nicht gelöschten Auftrag aufbewahrt."
           }
         ]
       },
@@ -370,7 +370,7 @@
   },
   "es": {
     "title": "Privacidad",
-    "updated": "Peryda para Mac, Windows y la web · Última actualización: 13 de noviembre de 2026",
+    "updated": "Peryda para Mac, Windows y la web · Última actualización: 15 de noviembre de 2026",
     "sections": [
       {
         "heading": "En resumen",
@@ -393,9 +393,9 @@
         "blocks": [
           {
             "ul": [
-              "Los archivos PDF y EPUB que añades, tus posiciones de lectura, los hilos y sus tarjetas, las traducciones, las notas, el Diario del libro y tus ajustes. En el Mac se guardan en la carpeta aislada propia de Peryda; en Windows, en la carpeta de datos de Peryda de tu cuenta de Windows, y en la web, en el almacenamiento de este navegador para el sitio. Quitar la app o borrar los datos del sitio los elimina.",
-              "Una copia de seguridad que exportas es un archivo que guardas tú. Nunca contiene tus claves y no está cifrada.",
-              "En el Mac, el texto de una página escaneada se lee en el propio Mac, con el reconocimiento de texto integrado de Apple.",
+              "Los archivos PDF y EPUB que añades, tus posiciones de lectura, los hilos y sus tarjetas, las traducciones, las notas, el Diario del libro y tus ajustes. En el Mac se guardan en la carpeta aislada propia de Peryda; en Windows, en la carpeta de datos de Peryda de tu cuenta de Windows, y en la web, en el almacenamiento de este navegador para el sitio. En la web, borrar los datos del sitio los elimina. Quitar la app no basta: para eliminarlo todo, borra primero tus claves en los Ajustes de Peryda y luego quita la app; en el Mac borra además la carpeta Library/Containers/com.isnalcan.peryda.mac de tu carpeta de inicio, y en Windows marca al desinstalar la casilla que borra los datos de la aplicación.",
+              "Una copia de seguridad que exportas es un archivo que guardas tú. Contiene tus libros y todo lo que escribiste u obtuviste en Peryda (hilos, traducciones, páginas extraídas, el diario), pero nunca tus claves, y no está cifrada.",
+              "En el Mac, el texto de una página escaneada se lee en el propio Mac, con el reconocimiento de texto integrado de Apple, salvo que elijas «Extraer con Pery», que envía una imagen de la página a tu proveedor.",
               "Un libro no puede acceder a internet: Peryda no carga imágenes, fuentes, estilos ni scripts de la web dentro de un libro."
             ]
           }
@@ -431,15 +431,15 @@
               "tu petición y los mensajes anteriores de ese hilo;",
               "el texto que seleccionaste con un breve pasaje alrededor, o una imagen de la parte de la página que seleccionaste;",
               "el título del libro y el número de página;",
-              "para traducir una página, su texto; en Windows y en la web, una imagen de la página cuando no tiene texto propio (también cuando pides el texto de una página);",
+              "para traducir una página, su texto, o una imagen de la página cuando no tiene texto propio; cuando eliges «Extraer con Pery», una imagen de cada página que elegiste;",
               "para un resumen del diario, las entradas del diario de ese libro."
             ]
           },
           {
-            "p": "Nunca se envía el libro entero. Las peticiones viajan por una conexión cifrada (HTTPS) directamente al proveedor; no hay ningún servidor de Peryda en medio."
+            "p": "Solo se envían las páginas que pides, y nada se envía por sí solo; un rango de páginas (como máximo 200 a la vez) envía cada una de sus páginas. Las peticiones viajan por una conexión cifrada (HTTPS) directamente al proveedor; no hay ningún servidor de Peryda en medio."
           },
           {
-            "p": "Cuando traduces muchas páginas a la vez con Gemini, van como un trabajo por lotes a mitad de precio. Google guarda el trabajo hasta que termina, como máximo 48 horas; Peryda lo borra en cuanto llegan las traducciones o cuando detienes la traducción."
+            "p": "Cuando traduces o extraes más de dos páginas a la vez con Gemini, van como un trabajo por lotes a mitad de precio. Google ejecuta un trabajo durante 48 horas como máximo. Peryda borra el trabajo en Google cuando llegan los resultados (mientras ese libro está abierto en Peryda), cuando lo detienes o cuando cambias tu clave de Gemini. Google no dice cuánto tiempo guarda un trabajo terminado que no se ha borrado."
           }
         ]
       },

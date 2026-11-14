@@ -7,6 +7,9 @@ struct JournalPanel: View {
     let lang: Lang
     let openSettings: () -> Void
     @State private var note = ""
+    /// The entry waiting for "Delete": a journal entry (often the reader's own note) cannot be brought
+    /// back, so it is not deleted on a single click (audit MA-9, 15 Nov).
+    @State private var confirmDelete: String?
 
     private var t: UIText { UIText(lang) }
 
@@ -82,7 +85,7 @@ struct JournalPanel: View {
                                 Text("·")
                                 Text(Date(timeIntervalSince1970: entry.createdAt / 1000), style: .date)
                                 Spacer()
-                                Button { reader.deleteJournal(entry.id) } label: { Image(systemName: "trash") }
+                                Button { confirmDelete = entry.id } label: { Image(systemName: "trash") }
                                     .buttonStyle(.borderless)
                                     .help(t["deleteEntry"])
                             }
@@ -108,5 +111,12 @@ struct JournalPanel: View {
         }
         .frame(minWidth: 300, idealWidth: 380)
         .background(Color.paper)
+        .confirmationDialog(t["deleteEntryConfirm"], isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
+            Button(t["deleteEntry"], role: .destructive) {
+                if let id = confirmDelete { reader.deleteJournal(id) }
+                confirmDelete = nil
+            }
+            Button(t["cancel"], role: .cancel) { confirmDelete = nil }
+        }
     }
 }

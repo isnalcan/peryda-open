@@ -17,8 +17,10 @@ public struct KeychainVault: KeyVault {
         self.service = service
     }
 
+    /// Never synced to iCloud Keychain: the item stays on this Mac (stated explicitly, audit K-8).
     private var baseQuery: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account,
+         kSecAttrSynchronizable as String: kCFBooleanFalse as Any]
     }
 
     public func load() -> ByokSettings {

@@ -46,3 +46,9 @@ ExportOptions*.plist
 # Copies made by iCloud sync ("name 2.ext", "folder 3").
 * [0-9]
 * [0-9].*
+
+# Firebase deploy cache and project alias; service-account files never belong here (audit 15 Nov, K-12)
+.firebase/
+.firebaserc
+*service-account*.json
+web/dist-*/

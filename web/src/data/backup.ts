@@ -24,8 +24,6 @@ interface BackupManifest {
   prefs: PrefRecord[]
 }
 
-/** Device state that never goes into a backup. */
-const PRIVATE_PREFS = new Set(['openBookId', 'openingBookId'])
 
 export async function exportBackup(): Promise<Blob> {
   const [books, cards, journal, positions, prefs, files] = await Promise.all([
@@ -36,6 +34,7 @@ export async function exportBackup(): Promise<Blob> {
     db.prefs.toArray(),
     db.files.toArray(),
   ])
+  const bookIds = new Set(books.map((b) => b.id))
   const manifest: BackupManifest = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -44,7 +43,13 @@ export async function exportBackup(): Promise<Blob> {
     cards,
     journal,
     positions,
-    prefs: prefs.filter((p) => !PRIVATE_PREFS.has(p.key)),
+    // Only what a restore accepts goes into the file (reading preferences, and per book the translation
+    // language, journal summary, card text size and the pages Pery read, without job names); device state
+    // such as the open book, update choices or launch counts stays on this device (audit 15 Nov, WW-11).
+    prefs: prefs.flatMap((p) => {
+      const kept = validPref(p, bookIds)
+      return kept ? [kept] : []
+    }),
   }
   const zip = new JSZip()
   zip.file('peryda.json', JSON.stringify(manifest))

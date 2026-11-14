@@ -94,7 +94,8 @@ public struct GeminiBatch: PageBatching {
     }
 
     func request(_ url: String, method: String, apiKey: String, body: [String: Any]? = nil) throws -> URLRequest {
-        var r = URLRequest(url: URL(string: url)!)
+        guard let target = URL(string: url) else { throw AIError(.unknown) }
+        var r = URLRequest(url: target)
         r.httpMethod = method
         r.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         if let body {
@@ -123,7 +124,7 @@ public struct GeminiBatch: PageBatching {
     }
 
     public func create(apiKey: String, model: String, items: [Item]) async throws -> String {
-        let path = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? model
+        guard let path = AIClient.modelPath(model) else { throw Unavailable() }
         let r = try request("\(Self.base)/models/\(path):batchGenerateContent", method: "POST", apiKey: apiKey, body: Self.createBody(items, model: model))
         let json: [String: Any]
         do { json = try await send(r) } catch is JobGone { throw Unavailable() }

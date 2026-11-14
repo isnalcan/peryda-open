@@ -46,6 +46,9 @@ targets:
         # cannot offer an old (genuinely signed) version as a new one.
         SURequireSignedFeed: true
         SUVerifyUpdateBeforeExtraction: true
+        # YES only in update-rehearsal builds: then (and only then) the app accepts this Mac's own
+        # http://127.0.0.1 feed. A release build never does (audit MA-5).
+        PerydaUpdateRehearsal: $(PERYDA_UPDATE_REHEARSAL)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.isnalcan.peryda.mac
@@ -58,6 +61,8 @@ targets:
         # Where the app looks for updates. Only scripts/update-rehearsal.sh changes it (to this Mac's own
         # 127.0.0.1); release.sh refuses to ship any other feed.
         PERYDA_UPDATE_FEED_URL: https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml
+        # Set to YES by scripts/update-rehearsal.sh only.
+        PERYDA_UPDATE_REHEARSAL: NO
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Peryda
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.books
@@ -110,10 +115,14 @@ targets:
         # cannot offer an old (genuinely signed) version as a new one.
         SURequireSignedFeed: true
         SUVerifyUpdateBeforeExtraction: true
+        # YES only in update-rehearsal builds: then (and only then) the app accepts this Mac's own
+        # http://127.0.0.1 feed. A release build never does (audit MA-5).
+        PerydaUpdateRehearsal: $(PERYDA_UPDATE_REHEARSAL)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.isnalcan.peryda.mac.tests
         PERYDA_UPDATE_FEED_URL: https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml
+        PERYDA_UPDATE_REHEARSAL: NO
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"

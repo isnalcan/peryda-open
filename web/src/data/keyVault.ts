@@ -49,8 +49,13 @@ export async function loadSettings(): Promise<ByokSettings> {
   }
 }
 
+/**
+ * Forgets the keys: the encrypted keys and the device key that opened them both go (a new device key is
+ * made on the next save), so an old copy of the encrypted keys can no longer be opened with what is left
+ * (audit 15 Nov, K-6).
+ */
 export async function clearSettings(): Promise<void> {
-  await db.vault.delete(DATA_ID)
+  await db.vault.bulkDelete([DATA_ID, KEY_ID])
 }
 
 /** Shows the start and end of a key so the reader can recognise it without exposing it. */

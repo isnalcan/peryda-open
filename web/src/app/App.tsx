@@ -5,6 +5,7 @@ import { db, getPref, setPref, type BookRecord } from '../data/db'
 import { DEFAULT_SETTINGS, clearSettings, loadSettings, saveSettings } from '../data/keyVault'
 import { keyFor, type ByokSettings } from '../ai/provider'
 import { abandonBatchJobs } from '../ai/batch'
+import { releaseJobsOfOldKey } from '../ai/oldKeyJobs'
 import { Library } from '../library/Library'
 // Readers load only when a book opens, so the library appears quickly.
 const PdfReader = lazy(() => import('../reader/PdfReader').then((m) => ({ default: m.PdfReader })))
@@ -108,6 +109,9 @@ export function App() {
   const onBookDeleted = useCallback((jobs: string[]) => void abandonBatchJobs(keyFor(settings, 'gemini'), jobs), [settings])
 
   const onSave = async (next: ByokSettings, keep: boolean) => {
+    // Jobs made with a Gemini key that is changed or removed are let go with that key (K-3).
+    const oldGemini = keyFor(settings, 'gemini')
+    if (oldGemini && oldGemini !== keyFor(next, 'gemini')) void releaseJobsOfOldKey(oldGemini)
     setSettings(next)
     setRemember(keep)
     await setPref('rememberKeys', keep)

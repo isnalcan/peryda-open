@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The reading window. The web engine calls no native commands, so it is given none.",
+  "description": "The reading window. It may call only the window's three update-check commands (whether updates are available, check, install a signed newer version); nothing else, and no plugin commands.",
   "windows": ["main"],
-  "permissions": []
+  "permissions": ["allow-updater-state", "allow-updater-check", "allow-updater-install"]
 }

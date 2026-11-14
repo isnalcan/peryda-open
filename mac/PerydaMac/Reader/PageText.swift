@@ -109,8 +109,14 @@ enum PageText {
 }
 
 extension PageGeometry {
-    /// The whole page as a picture, `longSide` pixels on its longer side, on white.
-    func render(longSide: CGFloat) -> CGImage? {
+    /// The longest side of any page picture, in pixels: a page declared poster-sized (PDF allows
+    /// 14,400 points) would otherwise ask for a bitmap of several gigabytes (audit MA-10, 15 Nov).
+    static let maxPictureSide: CGFloat = 3000
+
+    /// The whole page as a picture, `longSide` pixels on its longer side (at most `maxPictureSide`),
+    /// on white.
+    func render(longSide requested: CGFloat) -> CGImage? {
+        let longSide = min(requested, Self.maxPictureSide)
         let bounds = page.bounds(for: box)
         let rotated = page.rotation % 180 != 0
         let size = rotated ? CGSize(width: bounds.height, height: bounds.width) : bounds.size

@@ -2,7 +2,7 @@
 
 # Privacy
 
-*Peryda for Mac, Windows and the web · Last updated 13 November 2026*
+*Peryda for Mac, Windows and the web · Last updated 15 November 2026*
 
 [Türkçe](docs/privacy/tr.md) · [Deutsch](docs/privacy/de.md) · [Español](docs/privacy/es.md)
 
@@ -17,9 +17,9 @@ This covers Peryda for Mac, Windows and the web. The Peryda iPhone and Android a
 
 ## What stays on your device
 
-- The PDF and EPUB files you add, your reading positions, threads and their cards, translations, notes, the Book Journal and your settings. On a Mac they are kept in Peryda's own sandboxed folder, on Windows in Peryda's app data folder for your Windows account, and on the web in this browser's storage for the site. Removing the app or clearing the site's data deletes them.
-- A backup you export is a file you keep. It never contains your keys and is not encrypted.
-- On a Mac, the text of a scanned page is read on the Mac itself, with Apple's built-in text recognition.
+- The PDF and EPUB files you add, your reading positions, threads and their cards, translations, notes, the Book Journal and your settings. On a Mac they are kept in Peryda's own sandboxed folder, on Windows in Peryda's app data folder for your Windows account, and on the web in this browser's storage for the site. On the web, clearing the site's data deletes them. Removing the app alone does not: to remove everything, first delete your keys in Peryda's Settings, then remove the app; on a Mac also delete the folder Library/Containers/com.isnalcan.peryda.mac in your home folder, and on Windows tick the box that deletes the application data when you uninstall.
+- A backup you export is a file you keep. It holds your books and everything you wrote or got in Peryda (threads, translations, extracted pages, the journal), but never your keys, and it is not encrypted.
+- On a Mac, the text of a scanned page is read on the Mac itself, with Apple's built-in text recognition, unless you choose “Extract with Pery”, which sends a picture of the page to your provider.
 - A book cannot reach the internet: Peryda loads no images, fonts, styles or scripts from the web inside a book.
 
 ## How your keys are protected
@@ -41,12 +41,12 @@ Only when you ask for something (a question in a thread, a page translation, a p
 - your request and the earlier messages of that thread;
 - the text you selected with a short passage around it, or a picture of the part of the page you selected;
 - the book's title and the page number;
-- for a page translation, the page's text; on Windows and the web, a picture of the page when it has no text of its own (also when you ask for a page's text);
+- for a page translation, the page's text, or a picture of the page when it has no text of its own; when you choose “Extract with Pery”, a picture of each page you picked;
 - for a journal summary, that book's journal entries.
 
-Your whole book is never sent. Requests travel over an encrypted connection (HTTPS) straight to the provider; there is no Peryda server in between.
+Only the pages you ask for are sent, and nothing is sent on its own; a page range (at most 200 pages at a time) sends each of its pages. Requests travel over an encrypted connection (HTTPS) straight to the provider; there is no Peryda server in between.
 
-When you translate many pages at once with Gemini, they go as a batch job at half the price. Google keeps the job until it is done, for at most 48 hours; Peryda deletes it as soon as the translations are back, or when you stop translating.
+When you translate or extract more than two pages at once with Gemini, they go as a batch job at half the price. Google runs a job for at most 48 hours. Peryda deletes the job at Google once the results are back (while that book is open in Peryda), when you stop, or when you change your Gemini key. Google does not say how long it keeps a finished job that has not been deleted.
 
 ## Your provider's terms
 

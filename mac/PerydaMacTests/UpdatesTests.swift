@@ -37,6 +37,20 @@ final class UpdatesTests: XCTestCase {
         XCTAssertEqual(Set(values), ["https://github.com/isnalcan/peryda-open/releases/latest/download/appcast.xml"])
     }
 
+    /// The plain-HTTP feed of this Mac's own 127.0.0.1 is accepted only by update-rehearsal builds: every
+    /// target builds with PERYDA_UPDATE_REHEARSAL = NO, and the app reads it from Info.plist (audit MA-5).
+    func testOnlyARehearsalBuildAcceptsALocalFeed() throws {
+        let info = try plist("PerydaMac/Info.plist")
+        XCTAssertEqual(info["PerydaUpdateRehearsal"] as? String, "$(PERYDA_UPDATE_REHEARSAL)")
+        let project = try String(contentsOf: macFolder.appendingPathComponent("PerydaMac.xcodeproj/project.pbxproj"), encoding: .utf8)
+        let values = project.matches(of: /PERYDA_UPDATE_REHEARSAL = "?([^";]+)"?;/).map { String($0.1) }
+        XCTAssertFalse(values.isEmpty)
+        XCTAssertEqual(Set(values), ["NO"])
+        let source = try String(contentsOf: macFolder.appendingPathComponent("PerydaMac/App/SparkleUpdates.swift"), encoding: .utf8)
+        XCTAssertTrue(source.contains("(rehearsal && feed.hasPrefix(\"http://127.0.0.1:\"))"))
+        XCTAssertTrue(source.contains("clearFeedURLFromUserDefaults()"), "a feed set in preferences is cleared")
+    }
+
     func testTheSandboxOpensOnlySparklesInstallerServices() throws {
         let entitlements = try plist("PerydaMac/PerydaMac.entitlements")
         XCTAssertEqual(entitlements["com.apple.security.app-sandbox"] as? Bool, true)

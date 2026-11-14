@@ -103,7 +103,7 @@ export class CardsStore {
   loaded = false
   bookTitle: string
   lang: Lang
-  settings: ByokSettings
+  private currentSettings: ByokSettings
   /** The book's page count, for the "page n of m" line sent with a page. */
   pageCount = 0
   /** Page translations explain hard terms in brackets (the reader's choice; pages already translated keep theirs). */
@@ -130,10 +130,29 @@ export class CardsStore {
     this.bookId = options.bookId
     this.bookTitle = options.bookTitle
     this.lang = options.lang
-    this.settings = options.settings
+    this.currentSettings = options.settings
     this.streamer = options.streamer ?? streamAnswer
     this.batcher = options.batcher ?? geminiBatch
     this.fake = options.fake ?? false
+  }
+
+  get settings(): ByokSettings {
+    return this.currentSettings
+  }
+
+  /**
+   * A new or removed Gemini key cannot ask about jobs made with the old one: those jobs are cancelled and
+   * removed at Google with the old key, and their pages say so and can be translated again (audit
+   * 15 Nov, K-3).
+   */
+  set settings(next: ByokSettings) {
+    const before = keyFor(this.currentSettings, 'gemini')
+    this.currentSettings = next
+    if (!before || before === keyFor(next, 'gemini')) return
+    const waiting = this.cards.filter((c) => c.batchJob)
+    if (!waiting.length) return
+    for (const job of new Set(waiting.map((c) => c.batchJob!))) this.track(abandonBatchJob(before, job, this.batcher).catch(() => undefined))
+    for (const c of waiting) this.failTranslation(c.id, 'expired')
   }
 
   // ---- Subscription (React) ----

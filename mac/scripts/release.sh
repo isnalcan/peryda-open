@@ -29,7 +29,7 @@ profile=${NOTARY_PROFILE:-peryda-notary}
 github_feed=$(sed -n 's/^ *PERYDA_UPDATE_FEED_URL: *\(https:[^ ]*\) *$/\1/p' "$here/project.yml" | head -1)
 version=${PERYDA_VERSION:-$(grep 'MARKETING_VERSION' "$here/project.yml" | head -1 | sed 's/.*: *//; s/"//g')}
 rehearsal=""
-if [ -n "${PERYDA_VERSION:-}${PERYDA_BUILD:-}${PERYDA_UPDATE_FEED_URL:-}" ]; then rehearsal=1; fi
+if [ -n "${PERYDA_VERSION:-}${PERYDA_BUILD:-}${PERYDA_UPDATE_FEED_URL:-}${PERYDA_UPDATE_PUBLIC_KEY:-}${PERYDA_UPDATE_REHEARSAL:-}" ]; then rehearsal=1; fi
 out="$here/build"
 mkdir -p "$out"
 
@@ -41,7 +41,12 @@ fail() {
 case "$mode" in release | --resume | --local | --sign-only) ;; *) fail "Unknown option: $mode" ;; esac
 [ -n "$github_feed" ] || fail "No PERYDA_UPDATE_FEED_URL in project.yml."
 if [ -n "$rehearsal" ] && { [ "$mode" = "release" ] || [ "$mode" = "--resume" ]; }; then
-  fail "PERYDA_VERSION, PERYDA_BUILD and PERYDA_UPDATE_FEED_URL are for the update rehearsal only (--sign-only or --local)."
+  fail "PERYDA_VERSION, PERYDA_BUILD, PERYDA_UPDATE_FEED_URL, PERYDA_UPDATE_PUBLIC_KEY and PERYDA_UPDATE_REHEARSAL are for the update rehearsal only (--sign-only or --local)."
+fi
+# A release is built from a committed tree, and says which commit (audit MA-15).
+if [ "$mode" = "release" ]; then
+  [ -z "$(git -C "$here/.." status --porcelain --untracked-files=no)" ] || fail "Commit or stash changes first: a release is built from a committed tree."
+  echo "› Commit $(git -C "$here/.." rev-parse HEAD)"
 fi
 
 # Work outside Documents (iCloud's extended attributes break code signing there). Local and sign-only
@@ -122,6 +127,9 @@ if [ -n "$rehearsal" ]; then
   rehearsal_settings="MARKETING_VERSION=$version"
   [ -z "${PERYDA_BUILD:-}" ] || rehearsal_settings="$rehearsal_settings CURRENT_PROJECT_VERSION=$PERYDA_BUILD"
   [ -z "${PERYDA_UPDATE_FEED_URL:-}" ] || rehearsal_settings="$rehearsal_settings PERYDA_UPDATE_FEED_URL=$PERYDA_UPDATE_FEED_URL"
+  # The rehearsal's own throw-away key and the flag that lets its build read a 127.0.0.1 feed (audit MA-5).
+  [ -z "${PERYDA_UPDATE_PUBLIC_KEY:-}" ] || rehearsal_settings="$rehearsal_settings PERYDA_UPDATE_PUBLIC_KEY=$PERYDA_UPDATE_PUBLIC_KEY"
+  [ "${PERYDA_UPDATE_REHEARSAL:-}" != "YES" ] || rehearsal_settings="$rehearsal_settings PERYDA_UPDATE_REHEARSAL=YES"
 fi
 
 cd "$here"
@@ -155,13 +163,15 @@ else
   [ -d "$sparkle/Versions/B" ] || fail "Sparkle.framework is missing from the app."
   codesign -d --entitlements - --xml "$app" > "$work/entitlements.plist" 2>/dev/null
   codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle/Versions/B/XPCServices/Installer.xpc"
-  codesign -f -s "$sign_id" -o runtime "$stamp" --preserve-metadata=entitlements "$sparkle/Versions/B/XPCServices/Downloader.xpc"
+  # Sparkle's downloader service is not used (the app downloads with its own network entitlement); it
+  # is removed rather than shipped (audit MA-12).
+  rm -rf "$sparkle/Versions/B/XPCServices/Downloader.xpc"
   codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle/Versions/B/Autoupdate"
   codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle/Versions/B/Updater.app"
   codesign -f -s "$sign_id" -o runtime "$stamp" "$sparkle"
   codesign -f -s "$sign_id" -o runtime "$stamp" --entitlements "$work/entitlements.plist" "$app"
   codesign --verify --deep --strict "$app"
-  for part in "$sparkle/Versions/B/XPCServices/Installer.xpc" "$sparkle/Versions/B/XPCServices/Downloader.xpc" \
+  for part in "$sparkle/Versions/B/XPCServices/Installer.xpc" \
     "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle"; do
     info=$(codesign -dv --verbose=4 "$part" 2>&1)
     echo "$info" | grep -q '^CodeDirectory .*flags=.*runtime' || fail "$(basename "$part") is not signed with the hardened runtime."
@@ -175,6 +185,9 @@ else
   # A release reads updates from the GitHub release feed and from nowhere else.
   feed=$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$app/Contents/Info.plist" 2>/dev/null || true)
   if [ -z "$rehearsal" ] && [ "$feed" != "$github_feed" ]; then fail "The app's update feed is $feed, not $github_feed."; fi
+  if [ -z "$rehearsal" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :PerydaUpdateRehearsal' "$app/Contents/Info.plist" 2>/dev/null || true)" = "YES" ]; then
+    fail "This release was built as an update rehearsal."
+  fi
   # What is shipped must be what was meant: the hardened runtime, the right team, no debugging entitlement.
   signature=$(codesign -dv --verbose=4 "$app" 2>&1)
   echo "$signature" | grep -q '^CodeDirectory .*flags=.*runtime' || fail "The app is not signed with the hardened runtime."

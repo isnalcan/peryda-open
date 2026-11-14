@@ -89,9 +89,45 @@ public final class LibraryStore: @unchecked Sendable {
         return base.appendingPathComponent("Peryda", isDirectory: true)
     }
 
-    private func read<T: Decodable>(_ type: T.Type, _ url: URL, default value: T) -> T {
+    /// Names of files that did not decode whole; each was copied aside (`<name>.unreadable-<hash>`)
+    /// before anything could write over it. For the app to tell the reader once.
+    private var unreadable: [String] = []
+
+    public func unreadableFiles() -> [String] { queue.sync { unreadable } }
+
+    /// A list read record by record: one record a build does not understand (written by a later
+    /// version, or damaged) no longer makes the whole list read as empty and then get written over
+    /// (audit MA-4, 15 Nov). What does not decode is kept in a copy beside the file.
+    private func read<T: Decodable>(_ type: [T].Type, _ url: URL, default value: [T]) -> [T] {
         guard let data = try? Data(contentsOf: url) else { return value }
-        return (try? JSONDecoder().decode(T.self, from: data)) ?? value
+        if let all = try? JSONDecoder().decode([T].self, from: data) { return all }
+        keepAside(url, data)
+        guard let some = try? JSONDecoder().decode([Lossy<T>].self, from: data) else { return value }
+        return some.compactMap(\.value)
+    }
+
+    private func read<T: Decodable>(_ type: [String: T].Type, _ url: URL, default value: [String: T]) -> [String: T] {
+        guard let data = try? Data(contentsOf: url) else { return value }
+        if let all = try? JSONDecoder().decode([String: T].self, from: data) { return all }
+        keepAside(url, data)
+        guard let some = try? JSONDecoder().decode([String: Lossy<T>].self, from: data) else { return value }
+        return some.compactMapValues(\.value)
+    }
+
+    /// Copies a file that did not decode next to itself, once per content, so the next write (which
+    /// keeps only what decoded) loses nothing for good.
+    private func keepAside(_ url: URL, _ data: Data) {
+        let tag = SHA256.hash(data: data).prefix(6).map { String(format: "%02x", $0) }.joined()
+        let copy = url.deletingLastPathComponent().appendingPathComponent("\(url.lastPathComponent).unreadable-\(tag)")
+        if !fm.fileExists(atPath: copy.path) { try? data.write(to: copy, options: [.atomic]) }
+        let name = url.lastPathComponent
+        if !unreadable.contains(name) { unreadable.append(name) }
+    }
+
+    /// One element of a list that may not decode.
+    private struct Lossy<T: Decodable>: Decodable {
+        let value: T?
+        init(from decoder: Decoder) throws { value = try? T(from: decoder) }
     }
 
     private func write<T: Encodable>(_ value: T, _ url: URL) throws {
@@ -206,10 +242,15 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     /// Removes a book and everything that belongs to it.
+    /// Books deleted in this run. Work still finishing for one of them (an answer streaming in, a page
+    /// being read) writes nothing back (audit MA-8, 15 Nov).
+    private var deleted = Set<String>()
+
     public func deleteBook(_ bookId: String) throws {
         try queue.sync {
             var list = storedBooks()
             guard let book = list.first(where: { $0.id == bookId }) else { return }
+            deleted.insert(bookId)
             let file = try fileURL(for: book)
             let cards = try path("cards", bookId, "json")
             let journal = try path("journal", bookId, "json")
@@ -236,7 +277,29 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func saveCards(_ cards: [YarnCard], for bookId: String) throws {
-        try queue.sync { try write(cards, path("cards", bookId, "json")) }
+        try queue.sync {
+            guard !deleted.contains(bookId) else { return }
+            try write(cards, path("cards", bookId, "json"))
+        }
+    }
+
+    /// For a book that is not open: page translations and readings waiting on Gemini batch jobs stop
+    /// waiting (they say `code`) and the jobs' names are returned, to be cancelled and removed at
+    /// Google (audit K-3: the Gemini key changed).
+    public func forgetBatchJobs(bookId: String, code: String) -> Set<String> {
+        queue.sync {
+            guard !deleted.contains(bookId), let cardsURL = try? path("cards", bookId, "json"), let readingsURL = try? path("readings", bookId, "json") else { return [] }
+            var jobs = Set<String>()
+            if fm.fileExists(atPath: cardsURL.path) {
+                let (cards, found) = CardsModel.forgettingBatchJobs(read([YarnCard].self, cardsURL, default: []), code: code)
+                if !found.isEmpty { try? write(cards, cardsURL); jobs.formUnion(found) }
+            }
+            if fm.fileExists(atPath: readingsURL.path) {
+                let (readings, found) = PageReadings.forgettingBatchJobs(read([PageReading].self, readingsURL, default: []), code: code)
+                if !found.isEmpty { try? write(readings, readingsURL); jobs.formUnion(found) }
+            }
+            return jobs
+        }
     }
 
     /// Pages read with Pery ("Extract page text"), kept with the book.
@@ -248,7 +311,10 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     public func saveReadings(_ readings: [PageReading], for bookId: String) throws {
-        try queue.sync { try write(readings, path("readings", bookId, "json")) }
+        try queue.sync {
+            guard !deleted.contains(bookId) else { return }
+            try write(readings, path("readings", bookId, "json"))
+        }
     }
 
     public func journal(for bookId: String) -> [JournalRecord] {
@@ -260,6 +326,7 @@ public final class LibraryStore: @unchecked Sendable {
 
     public func addJournal(_ record: JournalRecord) throws {
         try queue.sync {
+            guard !deleted.contains(record.bookId) else { return }
             let url = try path("journal", record.bookId, "json")
             var list = read([JournalRecord].self, url, default: [])
             list.append(record)
@@ -267,9 +334,21 @@ public final class LibraryStore: @unchecked Sendable {
         }
     }
 
+    /// Adds several entries to a book's journal in one write (a restore).
+    public func addJournal(_ records: [JournalRecord], for bookId: String) throws {
+        try queue.sync {
+            guard !deleted.contains(bookId) else { return }
+            let url = try path("journal", bookId, "json")
+            var list = read([JournalRecord].self, url, default: [])
+            list.append(contentsOf: records.filter { $0.bookId == bookId })
+            try write(list, url)
+        }
+    }
+
     /// Puts a changed entry in place of the one with its id (a thread saved again after it grew).
     public func replaceJournal(_ record: JournalRecord) throws {
         try queue.sync {
+            guard !deleted.contains(record.bookId) else { return }
             let url = try path("journal", record.bookId, "json")
             var list = read([JournalRecord].self, url, default: [])
             guard let i = list.firstIndex(where: { $0.id == record.id }) else { return }
@@ -302,6 +381,7 @@ public final class LibraryStore: @unchecked Sendable {
     public func savePosition(_ position: ReadingPosition) {
         guard SafeID.isValid(position.bookId) else { return }
         queue.sync {
+            guard !deleted.contains(position.bookId) else { return }
             var all = read([String: ReadingPosition].self, positionsFile, default: [:])
             all[position.bookId] = position
             try? write(all, positionsFile)

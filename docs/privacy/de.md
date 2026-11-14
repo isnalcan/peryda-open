@@ -2,7 +2,7 @@
 
 # Datenschutz
 
-*Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 13. November 2026*
+*Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 15. November 2026*
 
 [English](../../PRIVACY.md) · [Türkçe](../../docs/privacy/tr.md) · [Español](../../docs/privacy/es.md)
 
@@ -17,9 +17,9 @@ Dieser Text gilt für Peryda für Mac, Windows und das Web. Die Peryda-Apps für
 
 ## Was auf deinem Gerät bleibt
 
-- Die PDF- und EPUB-Dateien, die du hinzufügst, deine Lesepositionen, Fäden und ihre Karten, Übersetzungen, Notizen, das Buchjournal und deine Einstellungen. Auf dem Mac liegen sie in Perydas eigenem, abgeschirmtem Ordner, unter Windows im App-Datenordner von Peryda für dein Windows-Konto und im Web im Speicher dieses Browsers für die Website. Wenn du die App entfernst oder die Websitedaten löschst, werden sie gelöscht.
-- Eine Sicherung, die du exportierst, ist eine Datei, die du aufbewahrst. Sie enthält nie deine Schlüssel und ist nicht verschlüsselt.
-- Auf dem Mac wird der Text einer gescannten Seite auf dem Mac selbst gelesen, mit Apples eingebauter Texterkennung.
+- Die PDF- und EPUB-Dateien, die du hinzufügst, deine Lesepositionen, Fäden und ihre Karten, Übersetzungen, Notizen, das Buchjournal und deine Einstellungen. Auf dem Mac liegen sie in Perydas eigenem, abgeschirmtem Ordner, unter Windows im App-Datenordner von Peryda für dein Windows-Konto und im Web im Speicher dieses Browsers für die Website. Im Web werden sie gelöscht, wenn du die Websitedaten löschst. Das Entfernen der App allein löscht sie nicht: Um alles zu entfernen, lösche zuerst deine Schlüssel in Perydas Einstellungen und entferne dann die App; lösche auf dem Mac außerdem den Ordner Library/Containers/com.isnalcan.peryda.mac in deinem Benutzerordner, und setze unter Windows beim Deinstallieren das Häkchen, das die App-Daten löscht.
+- Eine Sicherung, die du exportierst, ist eine Datei, die du aufbewahrst. Sie enthält deine Bücher und alles, was du in Peryda geschrieben oder bekommen hast (Fäden, Übersetzungen, ausgelesene Seiten, das Journal), aber nie deine Schlüssel, und sie ist nicht verschlüsselt.
+- Auf dem Mac wird der Text einer gescannten Seite auf dem Mac selbst gelesen, mit Apples eingebauter Texterkennung, außer du wählst „Mit Pery auslesen“: Dann geht ein Bild der Seite an deinen Anbieter.
 - Ein Buch kann nicht ins Internet: Peryda lädt in einem Buch keine Bilder, Schriften, Stile oder Skripte aus dem Web.
 
 ## Wie deine Schlüssel geschützt sind
@@ -41,12 +41,12 @@ Nur wenn du etwas anforderst (eine Frage in einem Faden, eine Seitenübersetzung
 - deine Anfrage und die früheren Nachrichten dieses Fadens;
 - den markierten Text mit einem kurzen Abschnitt darum herum oder ein Bild des Seitenbereichs, den du ausgewählt hast;
 - den Titel des Buches und die Seitenzahl;
-- für eine Seitenübersetzung den Text der Seite; unter Windows und im Web ein Bild der Seite, wenn sie keinen eigenen Text hat (auch wenn du den Text einer Seite anforderst);
+- für eine Seitenübersetzung den Text der Seite oder ein Bild der Seite, wenn sie keinen eigenen Text hat; wenn du „Mit Pery auslesen“ wählst, ein Bild jeder gewählten Seite;
 - für eine Journal-Zusammenfassung die Journaleinträge dieses Buches.
 
-Dein ganzes Buch wird nie gesendet. Anfragen gehen über eine verschlüsselte Verbindung (HTTPS) direkt an den Anbieter; dazwischen gibt es keinen Peryda-Server.
+Gesendet werden nur die Seiten, die du anforderst, und nichts von selbst; ein Seitenbereich (höchstens 200 Seiten auf einmal) sendet jede seiner Seiten. Anfragen gehen über eine verschlüsselte Verbindung (HTTPS) direkt an den Anbieter; dazwischen gibt es keinen Peryda-Server.
 
-Wenn du mit Gemini viele Seiten auf einmal übersetzt, gehen sie als Batch-Auftrag zum halben Preis. Google behält den Auftrag, bis er fertig ist, höchstens 48 Stunden; Peryda löscht ihn, sobald die Übersetzungen zurück sind oder wenn du das Übersetzen stoppst.
+Wenn du mit Gemini mehr als zwei Seiten auf einmal übersetzt oder ausliest, gehen sie als Batch-Auftrag zum halben Preis. Google bearbeitet einen Auftrag höchstens 48 Stunden. Peryda löscht den Auftrag bei Google, sobald die Ergebnisse zurück sind (während das Buch in Peryda geöffnet ist), wenn du stoppst oder wenn du deinen Gemini-Schlüssel änderst. Google sagt nicht, wie lange es einen fertigen, nicht gelöschten Auftrag aufbewahrt.
 
 ## Die Bedingungen deines Anbieters
 

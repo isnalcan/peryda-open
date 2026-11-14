@@ -213,23 +213,31 @@ public final class PageReadings {
         let model = settings.model(for: .gemini, task: .translation)
         let generation = generation
         Task { [weak self] in
-            guard let self else { return }
-            var items: [GeminiBatch.Item] = []
+            // Pictures are drawn and sent one job at a time, each job kept under Google's size
+            // limit, so a long scanned range is never held in memory all at once (audit WW-5).
+            var group: [GeminiBatch.Item] = []
+            var bytes = 0
             for p in pages {
-                guard generation == self.generation else { return }
+                guard let self, generation == self.generation else { return }
                 guard let image = await self.picture(p) else {
                     self.fail(p, "unknown")
                     continue
                 }
                 let r = self.request(p, image: image, provider: .gemini, lang: lang)
-                items.append(GeminiBatch.Item(key: String(p), system: r.system, turns: r.turns))
+                let item = GeminiBatch.Item(key: String(p), system: r.system, turns: r.turns)
+                let size = CardsModel.batchItemBytes(item)
+                if !group.isEmpty, bytes + size > CardsModel.batchMaxBytes {
+                    self.submitGroup(group, key: key, model: model, generation: generation)
+                    group = []
+                    bytes = 0
+                }
+                group.append(item)
+                bytes += size
                 await Task.yield()
             }
+            guard let self, generation == self.generation else { return }
             self.save()
-            // One job per group that fits Google's size limit (scanned pages travel as pictures).
-            for group in CardsModel.splitBatch(items, size: CardsModel.batchItemBytes) {
-                self.submitGroup(group, key: key, model: model, generation: generation)
-            }
+            if !group.isEmpty { self.submitGroup(group, key: key, model: model, generation: generation) }
         }
     }
 
@@ -286,23 +294,26 @@ public final class PageReadings {
         let now = Date().timeIntervalSince1970 * 1000
         for job in Set(readings.values.compactMap(\.job)) {
             let waiting = readings.values.filter { $0.job == job && $0.state == .waiting }.map(\.page)
+            // Only pages still waiting on this job are changed by its answer: a page read again (or
+            // stopped) while the request was out keeps its new state (audit WW-4).
+            func stillWaiting() -> [Int] { waiting.filter { readings[$0]?.job == job && readings[$0]?.state == .waiting } }
             guard GeminiBatch.isValidName(job) else {
-                for p in waiting { fail(p, "expired") }
+                for p in stillWaiting() { fail(p, "expired") }
                 continue
             }
             let status: GeminiBatch.Status
             do {
                 status = try await batcher.status(apiKey: key, name: job)
             } catch let error as AIError where error.kind == .key {
-                for p in waiting { fail(p, "key") }
+                for p in stillWaiting() { fail(p, "key") }
                 continue
             } catch is GeminiBatch.JobGone {
-                for p in waiting { fail(p, "expired") }
+                for p in stillWaiting() { fail(p, "expired") }
                 continue
             } catch {
                 // A network hiccup: ask again next time, unless Google's 48-hour limit has passed.
                 if let oldest = waiting.compactMap({ readings[$0]?.createdAt }).min(), now - oldest > 48 * 3600 * 1000 {
-                    for p in waiting { fail(p, "expired") }
+                    for p in stillWaiting() { fail(p, "expired") }
                 }
                 continue
             }
@@ -310,10 +321,10 @@ public final class PageReadings {
             case .waiting:
                 continue
             case .failed(let code):
-                for p in waiting { fail(p, code) }
+                for p in stillWaiting() { fail(p, code) }
                 await batcher.delete(apiKey: key, name: job)
             case .done(let texts, let errors):
-                for p in waiting where readings[p]?.job == job {
+                for p in stillWaiting() {
                     let text = texts[String(p)]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     if text.isEmpty {
                         fail(p, errors[String(p)] ?? "unknown")
@@ -328,6 +339,37 @@ public final class PageReadings {
             }
         }
         save()
+    }
+
+    /// Pages stop waiting on their batch jobs and say `code`; returns the jobs, for the caller to
+    /// cancel and remove with the key that made them (the Gemini key changed, or the book is being
+    /// deleted). Pages still being read directly stop too.
+    @discardableResult
+    public func forgetBatchJobs(code: String) -> Set<String> {
+        generation += 1
+        let jobs = Self.jobs(in: Array(readings.values))
+        for r in readings.values where r.state == .waiting || r.state == .reading {
+            tasks[r.page]?.cancel()
+            tasks[r.page] = nil
+            fail(r.page, code)
+        }
+        save()
+        return jobs
+    }
+
+    /// The same for a book that is not open (its readings as stored).
+    public nonisolated static func forgettingBatchJobs(_ readings: [PageReading], code: String) -> (readings: [PageReading], jobs: Set<String>) {
+        var jobs = Set<String>()
+        let out = readings.map { r -> PageReading in
+            guard let job = r.job, r.state == .waiting else { return r }
+            jobs.insert(job)
+            var copy = r
+            copy.state = .failed
+            copy.error = code
+            copy.job = nil
+            return copy
+        }
+        return (out, jobs)
     }
 
     /// Removes jobs no page waits for any more.

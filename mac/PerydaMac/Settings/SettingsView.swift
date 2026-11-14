@@ -40,14 +40,22 @@ struct SettingsView: View {
                     HStack {
                         Spacer()
                         Button(saved ? t["saved"] : t["save"]) {
-                            model.saveSettings(draft, remember: remember)
-                            saved = true
-                            Task {
-                                try? await Task.sleep(for: .seconds(1.6))
-                                saved = false
+                            // "Saved" only when the Keychain took it (audit K-4); otherwise the reason,
+                            // and the switch shows what is really stored.
+                            if model.saveSettings(draft, remember: remember) {
+                                saved = true
+                                Task {
+                                    try? await Task.sleep(for: .seconds(1.6))
+                                    saved = false
+                                }
+                            } else {
+                                remember = model.rememberKeys
                             }
                         }
                         .keyboardShortcut(.defaultAction)
+                    }
+                    if let error = model.keychainError {
+                        Text(error).font(.callout).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -207,6 +215,7 @@ struct ModelPicker: View {
 struct BackupSettings: View {
     @Environment(AppModel.self) private var model
     @State private var message: String?
+    @State private var busy = false
 
     var body: some View {
         let t = model.t
@@ -219,32 +228,49 @@ struct BackupSettings: View {
                         panel.nameFieldStringValue = Backup.fileName()
                         panel.allowedContentTypes = [.zip]
                         guard panel.runModal() == .OK, let url = panel.url else { return }
-                        do {
-                            try Backup.export(store: model.store, to: url)
-                            message = t["exported"]
-                        } catch {
-                            message = t["errorUnknown"]
+                        run {
+                            try Backup.export(store: $0, to: url)
+                            return t["exported"]
+                        } failed: { error in
+                            (error as? Backup.Failure) == .tooLarge ? t["backupTooLarge"] : t["errorUnknown"]
                         }
                     }
                     Button(t["importData"]) {
                         let panel = NSOpenPanel()
                         panel.allowedContentTypes = [.zip]
                         guard panel.runModal() == .OK, let url = panel.url else { return }
-                        let scoped = url.startAccessingSecurityScopedResource()
-                        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                        do {
-                            let n = try Backup.restore(store: model.store, from: url)
-                            model.reloadBooks()
-                            message = t("imported", ["n": n])
-                        } catch {
-                            message = t["importBackupFailed"]
+                        run { store in
+                            let scoped = url.startAccessingSecurityScopedResource()
+                            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                            let n = try Backup.restore(store: store, from: url)
+                            return t("imported", ["n": n])
+                        } failed: { _ in
+                            t["importBackupFailed"]
                         }
                     }
+                    if busy { ProgressView().controlSize(.small) }
                 }
+                .disabled(busy)
                 if let message { Text(message).font(.callout).foregroundStyle(.secondary) }
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// Export and restore read and write the whole library: off the main thread, so the app stays
+    /// responsive with a large (or crafted) backup (audit MA-11).
+    private func run(_ work: @escaping @Sendable (LibraryStore) throws -> String, failed: @escaping @Sendable (Error) -> String) {
+        busy = true
+        message = nil
+        let store = model.store
+        Task {
+            let result: String = await Task.detached(priority: .userInitiated) {
+                do { return try work(store) } catch { return failed(error) }
+            }.value
+            model.reloadBooks()
+            message = result
+            busy = false
+        }
     }
 }
 

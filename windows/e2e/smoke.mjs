@@ -135,6 +135,27 @@ await step(page, 'import-pdf', async () => {
   return { pages: await page.locator('.page-number').textContent() }
 })
 
+// Audit 15 Nov (WW-2): every file the shell serves carries the policy, so the pdf.js worker (which
+// takes its policy from its own response, not from the page) cannot reach other addresses either.
+await step(page, 'policy-on-every-file', async () => {
+  const found = await page.evaluate(async () => {
+    const script = document.querySelector('script[type="module"]')?.getAttribute('src')
+    const worker = performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('pdf.worker'))
+    const out = {}
+    for (const url of [`${location.origin}/`, script && new URL(script, location.href).href, worker].filter(Boolean)) {
+      const r = await fetch(url, { cache: 'no-store' })
+      out[url.replace(location.origin, '')] = { csp: r.headers.get('content-security-policy'), nosniff: r.headers.get('x-content-type-options') }
+    }
+    return { worker: Boolean(worker), files: out }
+  })
+  const files = Object.entries(found.files)
+  if (files.length < 2) throw new Error('found no script to check')
+  for (const [path, h] of files) {
+    if (!h.csp?.includes("connect-src 'self' https://generativelanguage.googleapis.com") || h.nosniff !== 'nosniff') throw new Error(`no policy header on ${path}`)
+  }
+  return found
+})
+
 await step(page, 'selection-menu', async () => {
   await selectOnPage(page)
   return await page.locator('.selection-menu .menu-quick').allTextContents()

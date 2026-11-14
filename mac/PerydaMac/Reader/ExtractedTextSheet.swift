@@ -20,6 +20,8 @@ struct ExtractedTextSheet: View {
     @State private var askingRange = false
     @State private var from = 1
     @State private var to = 1
+    /// Saving the text failed (the reason is not hidden, audit MA-14).
+    @State private var saveFailed = false
 
     init(reader: ReaderModel, page: Int, lang: Lang) {
         self.reader = reader
@@ -45,6 +47,7 @@ struct ExtractedTextSheet: View {
             content
         }
         .frame(minWidth: 680, idealWidth: 780, minHeight: 520, idealHeight: 720)
+        .alert(t["saveFailed"], isPresented: $saveFailed) { Button(t["close"], role: .cancel) {} }
         .background(Color.paper)
         .task(id: page) {
             result = nil
@@ -253,7 +256,13 @@ struct ExtractedTextSheet: View {
         panel.allowedContentTypes = [.plainText]
         panel.nameFieldStringValue = "\(reader.book.title).txt"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? allRead.write(to: url, atomically: true, encoding: .utf8)
+        let text = allRead
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            // A sandboxed save may not make its temporary file next to the chosen one.
+            do { try text.write(to: url, atomically: false, encoding: .utf8) } catch { saveFailed = true }
+        }
     }
 
     private func errorText(_ code: String) -> String {
@@ -265,6 +274,7 @@ struct ExtractedTextSheet: View {
         case "network": t["errorNetwork"]
         case "expired": t["batchExpired"]
         case "batch": t["batchFailed"]
+        case "key-changed": t["batchKeyChanged"]
         default: t["errorUnknown"]
         }
     }

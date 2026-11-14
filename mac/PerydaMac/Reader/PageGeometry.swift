@@ -53,11 +53,16 @@ struct PageGeometry {
         ctx.restoreGState()
     }
 
+    /// The longer side of a region's picture, in pixels. The picture is stored in its thread (and in
+    /// backups), so it is kept to what small text needs (audit MA-2, MA-10).
+    static let maxCropSide = 2400.0
+
     /// Renders a normalized region at a scale that keeps small text legible; returns a PNG data URL.
     func croppedPNG(_ n: NormalizedRect) -> String? {
         let s = displaySize
         let minPixels = 1024.0
-        let scale = min(max(2 * Geometry.pageWorldWidth / s.width, minPixels / max(n.width * s.width, 1)), 4096 / s.width)
+        let longest = max(n.width * s.width, n.height * s.height, 1)
+        let scale = min(max(2 * Geometry.pageWorldWidth / s.width, minPixels / max(n.width * s.width, 1)), 4096 / s.width, Self.maxCropSide / longest)
         let full = CGSize(width: s.width * scale, height: s.height * scale)
         let crop = CGRect(x: (n.x * full.width).rounded(), y: (n.y * full.height).rounded(), width: max(1, (n.width * full.width).rounded()), height: max(1, (n.height * full.height).rounded()))
         guard let ctx = CGContext(data: nil, width: Int(crop.width), height: Int(crop.height), bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }

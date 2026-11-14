@@ -124,3 +124,35 @@ struct CardsModelTests {
         #expect(model.cards[0].messages[1].state == nil)
     }
 }
+
+/// One record a build does not understand must not empty the library at the next write (audit MA-4).
+@Suite("Library files that do not decode whole")
+struct UnreadableLibraryFileTests {
+    @Test func aRecordThatDoesNotDecodeLeavesTheOthersAndIsKeptAside() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("peryda-lossy-\(UUID().uuidString)")
+        let store = try LibraryStore(root: root)
+        let a = try store.importBook(data: Data("%PDF-1.4 a".utf8), fileName: "a.pdf", title: "A", author: nil, pageCount: 1)
+        _ = try store.importBook(data: Data("%PDF-1.4 b".utf8), fileName: "b.pdf", title: "B", author: nil, pageCount: 1)
+        // A later version wrote a format this build does not know.
+        let file = root.appendingPathComponent("library.json")
+        var list = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [[String: Any]])
+        let i = try #require(list.firstIndex { $0["id"] as? String == a.id })
+        list[i]["format"] = "djvu"
+        let damaged = try JSONSerialization.data(withJSONObject: list)
+        try damaged.write(to: file)
+        let reopened = try LibraryStore(root: root)
+        #expect(reopened.books().map(\.title) == ["B"], "the record that decodes is kept")
+        _ = try reopened.importBook(data: Data("%PDF-1.4 c".utf8), fileName: "c.pdf", title: "C", author: nil, pageCount: 1)
+        #expect(Set(reopened.books().map(\.title)) == ["B", "C"])
+        let aside = try FileManager.default.contentsOfDirectory(atPath: root.path).filter { $0.hasPrefix("library.json.unreadable-") }
+        #expect(aside.count == 1, "the original is kept beside the file")
+        #expect(try Data(contentsOf: root.appendingPathComponent(aside[0])) == damaged)
+        #expect(reopened.unreadableFiles() == ["library.json"])
+        // Not even JSON: nothing decodes, the file is still kept aside.
+        let cards = root.appendingPathComponent("cards/\(a.id).json")
+        try Data("{not json".utf8).write(to: cards)
+        #expect(reopened.cards(for: a.id).isEmpty)
+        #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("cards").path))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent("cards").path).contains { $0.hasPrefix("\(a.id).json.unreadable-") })
+    }
+}

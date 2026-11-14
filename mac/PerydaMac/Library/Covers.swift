@@ -45,6 +45,11 @@ enum Covers {
         }
         if FileManager.default.fileExists(atPath: files.none.path) { return nil }
         guard let source = try? store.fileURL(for: book) else { return nil }
+        // The "no cover" marker goes down before the attempt and is replaced by the cover when one is
+        // made: a book whose cover crashes the app (a parser bug) then costs one crash, not one at
+        // every launch (audit MA-1, 15 Nov).
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try? Data().write(to: files.none)
         let data: Data? = await Task.detached(priority: .utility) {
             switch book.format {
             case .pdf:
@@ -63,12 +68,9 @@ enum Covers {
                 return rep.representation(using: .png, properties: [:])
             }
         }.value
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        guard let data, let image = NSImage(data: data) else {
-            try? Data().write(to: files.none)
-            return nil
-        }
+        guard let data, let image = NSImage(data: data) else { return nil }
         try? data.write(to: files.cover)
+        try? FileManager.default.removeItem(at: files.none)
         memory[book.id] = image
         return image
     }

@@ -68,6 +68,9 @@ public struct EPUBBook: Sendable {
         do { archive = try ZIPFoundation.Archive(url: epub, accessMode: .read) } catch { throw Failure.unreadable }
         // What the headers declare is checked first; the bytes are counted again while unpacking,
         // because the headers can lie.
+        // Two entries for one path would leave the last on disk while the cover reader (and any
+        // other reader of the archive) takes the first: such a book is refused (audit MA-1).
+        guard !hasDuplicatePaths(archive) else { throw Failure.unreadable }
         var count = 0
         var declared: UInt64 = 0
         for entry in archive {
@@ -205,10 +208,34 @@ public struct EPUBBook: Sendable {
         """
     }
 
+    /// Whether two entries name the same file once the path is resolved the way the disk sees it
+    /// ("a/./b" and "a/b", or "A/b" and "a/b" on a case-insensitive volume). At most `limit` entries
+    /// are looked at; a longer archive is refused elsewhere.
+    public static func hasDuplicatePaths(_ archive: ZIPFoundation.Archive, limit: Int = Limits.standard.entries) -> Bool {
+        var seen = Set<String>()
+        var count = 0
+        for entry in archive {
+            count += 1
+            if count > limit { return false }
+            var parts: [String] = []
+            for piece in entry.path.split(separator: "/", omittingEmptySubsequences: true) {
+                switch piece {
+                case ".": continue
+                case "..": _ = parts.popLast()
+                default: parts.append(String(piece))
+                }
+            }
+            let key = parts.joined(separator: "/").precomposedStringWithCanonicalMapping.lowercased()
+            guard !key.isEmpty else { continue }
+            if !seen.insert(key).inserted { return true }
+        }
+        return false
+    }
+
     /// The book's cover picture, read straight from the file (EPUB 3 `cover-image`, or the EPUB 2
     /// `<meta name="cover">` item), without unpacking the book.
     public static func coverImageData(_ epub: URL, limit: UInt64 = 20_000_000) -> Data? {
-        guard let archive = try? ZIPFoundation.Archive(url: epub, accessMode: .read, pathEncoding: nil) else { return nil }
+        guard let archive = try? ZIPFoundation.Archive(url: epub, accessMode: .read, pathEncoding: nil), !hasDuplicatePaths(archive) else { return nil }
         // Nothing larger than `limit` is read: the declared size is checked first, and reading stops
         // as soon as the bytes go past it.
         func read(_ path: String) -> Data? {

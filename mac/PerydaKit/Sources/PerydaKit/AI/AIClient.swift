@@ -109,8 +109,26 @@ public final class AIClient: Sendable {
         c.httpShouldSetCookies = false
         c.httpCookieAcceptPolicy = .never
         c.urlCredentialStorage = nil
-        return URLSession(configuration: c)
+        return URLSession(configuration: c, delegate: RefuseRedirects(), delegateQueue: nil)
     }()
+
+    /// Provider requests never follow a redirect: URLSession would resend the request, with Gemini's
+    /// and Claude's key headers and the page text, to whatever host the redirect names (audit K-1 /
+    /// MA-7, 15 Nov). A 3xx answer is then an error like any other.
+    public final class RefuseRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+        public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+            completionHandler(nil)
+        }
+    }
+
+    /// A model name as it may appear in a request path: letters, digits, ".", "_" and "-" only, so a
+    /// name (from settings or a provider's list) can never change the path or the host.
+    public static func modelPath(_ model: String) -> String? {
+        guard !model.isEmpty, model.count <= 128, model != ".", model != "..",
+              model.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-").contains($0) })
+        else { return nil }
+        return model
+    }
 
     static let geminiBase = "https://generativelanguage.googleapis.com/v1beta"
     static let openAIBase = "https://api.openai.com/v1"
@@ -202,8 +220,8 @@ public final class AIClient: Sendable {
         let body: [String: Any]
         switch req.provider {
         case .gemini:
-            let path = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? model
-            r = URLRequest(url: URL(string: "\(Self.geminiBase)/models/\(path):streamGenerateContent?alt=sse")!)
+            guard let path = Self.modelPath(model), let url = URL(string: "\(Self.geminiBase)/models/\(path):streamGenerateContent?alt=sse") else { throw AIError(.unknown) }
+            r = URLRequest(url: url)
             r.setValue(req.apiKey, forHTTPHeaderField: "x-goog-api-key")
             body = Self.geminiBody(system: req.system, turns: req.turns, maxOutputTokens: req.maxOutputTokens, thinking: candidate.thinking, temperature: temp)
         case .openai, .deepseek:
@@ -233,6 +251,8 @@ public final class AIClient: Sendable {
         if status == 429 || lower.contains("quota") {
             return AIError(.quota, status: status)
         }
+        // A redirect that was not followed (see RefuseRedirects).
+        if (300..<400).contains(status) { return AIError(.network, status: status) }
         return AIError(.unknown, status: status)
     }
 

@@ -412,6 +412,33 @@ struct ProviderSessionTests {
         #expect(config.requestCachePolicy == .reloadIgnoringLocalAndRemoteCacheData)
         #expect(AIClient().session === AIClient.providerSession)
         #expect(GeminiBatch().session === AIClient.providerSession)
+        #expect(AIClient.providerSession.delegate is AIClient.RefuseRedirects)
+    }
+
+    /// A provider answering with a redirect to another host does not get the request (and its key
+    /// header) resent there (audit K-1 / MA-7).
+    @Test func aRedirectIsNotFollowed() async throws {
+        let config = AIClient.providerSession.configuration
+        config.protocolClasses = [RedirectingProvider.self]
+        let session = URLSession(configuration: config, delegate: AIClient.RefuseRedirects(), delegateQueue: nil)
+        var request = URLRequest(url: URL(string: "https://generativelanguage.googleapis.com/v1beta/models/x:streamGenerateContent")!)
+        request.httpMethod = "POST"
+        request.setValue("canary-not-a-key", forHTTPHeaderField: "x-goog-api-key")
+        request.httpBody = Data("{}".utf8)
+        let (_, response) = try await session.data(for: request)
+        #expect((response as? HTTPURLResponse)?.statusCode == 307)
+        #expect(RedirectingProvider.hosts == ["generativelanguage.googleapis.com"], "the other host was never asked")
+        #expect(AIClient.error(status: 307, body: "").kind == .network)
+    }
+
+    @Test func modelNamesCannotChangeThePath() {
+        #expect(AIClient.modelPath("gemini-3.8-flash") == "gemini-3.8-flash")
+        #expect(AIClient.modelPath("claude-sonnet-5-5") == "claude-sonnet-5-5")
+        for bad in ["", ".", "..", "../files", "a/b", "x?y", "x#y", "x y", "gemini%2F..", String(repeating: "a", count: 129)] {
+            #expect(AIClient.modelPath(bad) == nil, "\(bad)")
+        }
+        let req = AIRequest(provider: .gemini, apiKey: "k", model: "../../files", system: "", turns: [])
+        #expect(throws: (any Error).self) { try AIClient().urlRequest(for: req) }
     }
 
     @Test func oldCacheFilesAreDeletedOnce() throws {
@@ -608,3 +635,63 @@ struct PromptTitleTests {
         #expect(summary.contains("\"Y {bookTitle}\""))
     }
 }
+
+/// A crafted EPUB must not crash the app, at import or when its cover is looked for (audit MA-1, 15 Nov).
+@Suite("Hostile EPUB structure")
+struct HostileEPUBStructureTests {
+    @Test func malformedProcessingInstructionsDoNotCrashTheParser() throws {
+        for bad in ["<??>", "<?", "<?x", "<? ?>", "<?xml?><??><container/>"] {
+            _ = try? SwiftSoup.parse(bad, "", Parser.xmlParser())
+        }
+        let book = try Zip.make(Zip.temp("pi.epub"), Zip.epub(container: "<??>"))
+        #expect(throws: (any Error).self) { try EPUBBook.open(book, cacheParent: FileManager.default.temporaryDirectory, id: "peryda-pi-\(UUID().uuidString)") }
+        #expect(EPUBBook.coverImageData(book) == nil)
+    }
+
+    @Test func aBookWithTwoEntriesForOnePathIsRefusedEverywhere() throws {
+        var entries = Zip.epub()
+        // The first container is broken, the second normal: unpacking keeps the last, a reader of
+        // the archive takes the first.
+        entries.insert(("META-INF/container.xml", Data("<??>".utf8)), at: 1)
+        let url = try Zip.make(Zip.temp("twice.epub"), entries)
+        #expect(EPUBBook.hasDuplicatePaths(try ZIPFoundation.Archive(url: url, accessMode: .read)))
+        #expect(throws: (any Error).self) { try EPUBBook.open(url, cacheParent: FileManager.default.temporaryDirectory, id: "peryda-dup-\(UUID().uuidString)") }
+        #expect(EPUBBook.coverImageData(url) == nil)
+        #expect(!Backup.looksLike(.epub, url))
+        // Paths that name one file on the disk count as the same.
+        for pair in [("OEBPS/a.xhtml", "OEBPS/./a.xhtml"), ("OEBPS/a.xhtml", "oebps/A.xhtml"), ("x/../OEBPS/a.xhtml", "OEBPS/a.xhtml")] {
+            let u = try Zip.make(Zip.temp("same.epub"), Zip.epub(extra: [(pair.0, Data("1".utf8)), (pair.1, Data("2".utf8))]))
+            #expect(EPUBBook.hasDuplicatePaths(try ZIPFoundation.Archive(url: u, accessMode: .read)), "\(pair)")
+        }
+        let fine = try Zip.make(Zip.temp("fine.epub"), Zip.epub())
+        #expect(!EPUBBook.hasDuplicatePaths(try ZIPFoundation.Archive(url: fine, accessMode: .read)))
+        #expect(Backup.looksLike(.epub, fine))
+    }
+}
+
+/// Answers the provider's host with a redirect to another host, and records every host asked.
+final class RedirectingProvider: URLProtocol, @unchecked Sendable {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var asked: [String] = []
+    static var hosts: [String] { lock.withLock { asked } }
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let host = request.url?.host ?? ""
+        Self.lock.withLock { Self.asked.append(host) }
+        if host == "generativelanguage.googleapis.com" {
+            let target = URL(string: "https://elsewhere.example/collect")!
+            let response = HTTPURLResponse(url: request.url!, statusCode: 307, httpVersion: "HTTP/1.1", headerFields: ["Location": target.absoluteString])!
+            client?.urlProtocol(self, wasRedirectedTo: URLRequest(url: target), redirectResponse: response)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Data())
+        } else {
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [:])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Data("got it".utf8))
+        }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+

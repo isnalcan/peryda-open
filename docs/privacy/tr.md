@@ -2,7 +2,7 @@
 
 # Gizlilik
 
-*Peryda Mac, Windows ve web · Son güncelleme: 13 Kasım 2026*
+*Peryda Mac, Windows ve web · Son güncelleme: 15 Kasım 2026*
 
 [English](../../PRIVACY.md) · [Deutsch](../../docs/privacy/de.md) · [Español](../../docs/privacy/es.md)
 
@@ -17,9 +17,9 @@ Bu metin Peryda'nın Mac, Windows ve web sürümlerini kapsar. Peryda'nın iPhon
 
 ## Cihazında kalanlar
 
-- Eklediğin PDF ve EPUB dosyaları, okuma yerlerin, ilmekler ve kartları, çeviriler, notlar, Kitap Günlüğü ve ayarların. Mac'te Peryda'nın kendine ayrılmış korumalı klasöründe, Windows'ta Windows hesabına ait Peryda uygulama verisi klasöründe, web'de bu tarayıcının bu site için ayırdığı alanda durur. Uygulamayı kaldırmak ya da sitenin verilerini temizlemek hepsini siler.
-- Dışa aktardığın yedek, senin sakladığın bir dosyadır. Anahtarlarını asla içermez ve şifreli değildir.
-- Mac'te taranmış bir sayfanın metni, Apple'ın yerleşik metin tanımasıyla Mac'in kendisinde okunur.
+- Eklediğin PDF ve EPUB dosyaları, okuma yerlerin, ilmekler ve kartları, çeviriler, notlar, Kitap Günlüğü ve ayarların. Mac'te Peryda'nın kendine ayrılmış korumalı klasöründe, Windows'ta Windows hesabına ait Peryda uygulama verisi klasöründe, web'de bu tarayıcının bu site için ayırdığı alanda durur. Web'de sitenin verilerini temizlemek hepsini siler. Uygulamayı kaldırmak tek başına silmez: her şeyi silmek için önce Peryda'nın Ayarlar'ından anahtarlarını sil, sonra uygulamayı kaldır; Mac'te ayrıca ana klasöründeki Library/Containers/com.isnalcan.peryda.mac klasörünü sil, Windows'ta kaldırırken uygulama verilerini silen kutuyu işaretle.
+- Dışa aktardığın yedek, senin sakladığın bir dosyadır. Kitaplarını ve Peryda'da yazdığın ya da aldığın her şeyi (ilmekler, çeviriler, çıkarılan sayfalar, günlük) içerir, ama anahtarlarını asla içermez ve şifreli değildir.
+- Mac'te taranmış bir sayfanın metni, Apple'ın yerleşik metin tanımasıyla Mac'in kendisinde okunur; “Pery ile çıkar”ı seçersen sayfanın resmi sağlayıcına gider.
 - Bir kitap internete erişemez: Peryda kitabın içinden internetteki resim, yazı tipi, stil ya da betik yüklemez.
 
 ## Anahtarların nasıl korunur
@@ -41,12 +41,12 @@ Yalnızca sen bir şey istediğinde (bir ilmekte soru, sayfa çevirisi, sayfanı
 - isteğin ve o ilmekteki önceki mesajlar;
 - seçtiğin metin ve çevresinden kısa bir bölüm, ya da sayfada seçtiğin alanın resmi;
 - kitabın adı ve sayfa numarası;
-- sayfa çevirisi için sayfanın metni; Windows'ta ve web'de sayfanın kendi metni yoksa sayfanın resmi (sayfanın metnini istediğinde de);
+- sayfa çevirisi için sayfanın metni, sayfanın kendi metni yoksa sayfanın resmi; “Pery ile çıkar”ı seçtiğinde seçtiğin her sayfanın resmi;
 - günlük özeti için o kitabın günlük kayıtları.
 
-Kitabın tamamı asla gönderilmez. İstekler şifreli bağlantıyla (HTTPS) doğrudan sağlayıcıya gider; arada Peryda sunucusu yoktur.
+Yalnız istediğin sayfalar gönderilir, kendiliğinden hiçbir şey gönderilmez; bir sayfa aralığı (bir seferde en fazla 200 sayfa) aralıktaki her sayfayı gönderir. İstekler şifreli bağlantıyla (HTTPS) doğrudan sağlayıcıya gider; arada Peryda sunucusu yoktur.
 
-Gemini ile birçok sayfayı birden çevirdiğinde sayfalar yarı fiyatına toplu iş olarak gider. Google işi bitene kadar, en fazla 48 saat tutar; Peryda çeviriler gelir gelmez ya da sen çeviriyi durdurduğunda işi siler.
+Gemini ile ikiden fazla sayfayı birden çevirdiğinde ya da metnini çıkardığında sayfalar yarı fiyatına toplu iş olarak gider. Google bir işi en fazla 48 saat çalıştırır. Peryda sonuçlar gelince (o kitap Peryda'da açıkken), sen durdurduğunda ya da Gemini anahtarını değiştirdiğinde işi Google'dan siler. Google, silinmemiş bitmiş bir işi ne kadar tuttuğunu söylemiyor.
 
 ## Sağlayıcının koşulları
 

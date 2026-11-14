@@ -39,3 +39,32 @@ struct MarkdownTests {
         }
     }
 }
+
+/// Hostile text (from a backup or an answer) must not make reading slow (audit WW-1, 15 Nov).
+@Suite("Markdown takes linear time")
+struct MarkdownTimingTests {
+    func seconds(_ work: () -> Void) -> Double {
+        let start = Date()
+        work()
+        return Date().timeIntervalSince(start)
+    }
+
+    @Test func pathologicalInputsStayFast() {
+        let n = 190_000
+        let inputs = [
+            String(repeating: "![a](", count: n / 5),
+            String(repeating: "[a", count: n / 2),
+            "# a" + String(repeating: " ", count: n) + "b",
+            String(repeating: "a" + String(repeating: " ", count: 1000) + "b\n", count: n / 1003),
+        ]
+        for text in inputs {
+            let t = seconds { _ = Markdown.blocks(text); _ = Markdown.spans(text) }
+            #expect(t < 2, "\(t) s for \(text.prefix(12))…")
+        }
+        // Past the limit: plain text, no marks looked for.
+        let huge = String(repeating: "**a** ", count: 50_000)
+        #expect(Markdown.spans(huge) == [Markdown.Span(text: huge)])
+        #expect(Markdown.blocks("## Başlık ##") == [.heading("Başlık")])
+        #expect(Markdown.blocks("# C#") == [.heading("C#")])
+    }
+}

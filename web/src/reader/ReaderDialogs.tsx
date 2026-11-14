@@ -146,7 +146,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
     const url = URL.createObjectURL(new Blob([allRead], { type: 'text/plain;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `${props.bookTitle}.txt`
+    a.download = `${safeFileName(props.bookTitle)}.txt`
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
@@ -289,6 +289,17 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
 }
 
 const EMPTY_READINGS: PageReading[] = []
+
+/**
+ * A book title as a file name: no path separators, characters Windows refuses or control characters, no
+ * reserved device name, no leading or trailing dots and spaces, at most 120 characters (audit 15 Nov, WW-8).
+ */
+export function safeFileName(title: string): string {
+  let name = title.replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120)
+  name = name.replace(/^[.\s]+|[.\s]+$/g, '')
+  if (!name || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name)) return 'Peryda'
+  return name
+}
 
 function ExtractedText({ text, size }: { text: string; size: number }) {
   return (

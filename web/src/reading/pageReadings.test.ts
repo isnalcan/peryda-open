@@ -51,6 +51,8 @@ const until = async (check: () => boolean) => {
 describe('Read with Pery (pages and ranges)', () => {
   beforeEach(async () => {
     await db.prefs.clear()
+    await db.books.clear()
+    await db.books.put({ id: 'book', title: 'Freud', author: '', format: 'pdf', pageCount: 20, size: 1, fingerprint: 'f', addedAt: 1, openedAt: 1 })
   })
 
   it('reads one page directly from its picture', async () => {
@@ -143,4 +145,79 @@ describe('Read with Pery (pages and ranges)', () => {
     expect(await getPref(readingsKey('other'), null)).toBeNull()
     r.close()
   })
+
+  // Audit 15 Nov (WW-4).
+  it('never lets an older wait or failure in another window replace a finished reading', async () => {
+    const batcher = new FakeBatcher()
+    const a = readings(keyed, recorder().streamer, batcher)
+    await a.ready
+    a.read(5, 6, 'tr')
+    await until(() => a.reading(5)?.state === 'done' && a.reading(6)?.state === 'done')
+    await new Promise((r) => setTimeout(r, 20))
+    // Window B still believes page 5 waits and then fails it.
+    const kept = (await getPref<PageReading[]>(readingsKey('book'), [])).map((r) => (r.page === 5 ? { ...r, state: 'waiting' as const, job: 'batches/old', text: '' } : r))
+    await db.prefs.put({ key: readingsKey('book'), value: kept })
+    const b = readings(keyed, recorder().streamer, batcher)
+    await b.ready
+    await db.prefs.put({ key: readingsKey('book'), value: await getPref<PageReading[]>(readingsKey('book'), []).then((l) => l.map((r) => (r.page === 5 ? { ...r, state: 'done' as const, text: 'Beş', job: undefined } : r))) })
+    b.stop()
+    await new Promise((r) => setTimeout(r, 30))
+    const stored = await getPref<PageReading[]>(readingsKey('book'), [])
+    expect(stored.find((r) => r.page === 5)).toMatchObject({ state: 'done', text: 'Beş' })
+    a.close()
+    b.close()
+  })
+
+  it('writes nothing once the book is deleted', async () => {
+    const r = readings()
+    await r.ready
+    await db.books.delete('book')
+    r.read(1, 1, 'tr')
+    await until(() => r.reading(1)?.state === 'done')
+    await new Promise((res) => setTimeout(res, 30))
+    expect(await getPref(readingsKey('book'), null)).toBeNull()
+    r.close()
+  })
+
+  it('fails only pages still waiting on the job that failed', async () => {
+    const batcher = new FakeBatcher()
+    const r = readings(keyed, recorder().streamer, batcher)
+    await r.ready
+    r.read(2, 4, 'tr')
+    await until(() => r.inBatch === 3)
+    // Page 3 is read again on its own meanwhile.
+    r.read(3, 3, 'tr')
+    await until(() => r.reading(3)?.state === 'done')
+    batcher.state = { state: 'failed', code: 'batch' }
+    await until(() => r.reading(2)?.state === 'failed')
+    expect(r.reading(3)).toMatchObject({ state: 'done' })
+    r.close()
+  })
+
+  it('sends a long range as several jobs, each under the size limit', async () => {
+    const batcher = new FakeBatcher()
+    const big = async () => 'data:image/jpeg;base64,' + 'QUJD'.repeat(1_500_000)
+    const r = new PageReadingsStore({ bookId: 'book', bookTitle: 'Freud', pageCount: 20, settings: keyed, picture: big, streamer: recorder().streamer, batcher, pollStart: 10_000 })
+    await r.ready
+    r.read(1, 5, 'tr')
+    await until(() => r.inBatch === 5)
+    expect(batcher.created.length).toBeGreaterThan(1)
+    expect(batcher.created.flatMap((c) => c.items.map((i) => i.key))).toEqual(['1', '2', '3', '4', '5'])
+    r.close()
+  })
+
+  it('lets go of its jobs when the Gemini key changes (K-3)', async () => {
+    const batcher = new FakeBatcher()
+    const r = readings(keyed, recorder().streamer, batcher)
+    await r.ready
+    r.read(2, 4, 'tr')
+    await until(() => r.inBatch === 3)
+    r.settings = { ...keyed, geminiApiKey: 'AIza-another-key-000000' }
+    await until(() => batcher.cancelled.length > 0)
+    expect(batcher.cancelled).toEqual(['batches/job-1'])
+    expect(r.pending).toBe(0)
+    expect(r.reading(2)).toMatchObject({ state: 'failed', error: 'expired' })
+    r.close()
+  })
 })
+
