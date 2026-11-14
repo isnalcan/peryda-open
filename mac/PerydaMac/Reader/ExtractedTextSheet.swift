@@ -214,8 +214,8 @@ struct ExtractedTextSheet: View {
         let count = max(0, to - from + 1)
         let limit = TranslateRangeSheet.upperLimit(from: from, pageCount: reader.pages.count)
         return Form {
-            Stepper(value: $from, in: 1...max(1, reader.pages.count)) { Text("\(t["fromPage"]): \(from)").monospacedDigit() }
-            Stepper(value: $to, in: from...max(from, limit)) { Text("\(t["toPage"]): \(to)").monospacedDigit() }
+            PageNumberField(title: t["fromPage"], value: $from, range: 1...max(1, reader.pages.count))
+            PageNumberField(title: t["toPage"], value: $to, range: from...max(from, limit))
             Text(t("pagesToRead", ["n": count])).font(.headline)
             if reader.pages.count > CardsModel.maxPages {
                 Text(t("rangeLimit", ["n": CardsModel.maxPages])).font(.callout).foregroundStyle(.secondary)

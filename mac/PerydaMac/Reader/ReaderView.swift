@@ -219,6 +219,30 @@ struct ToolSwitcher: View {
     }
 }
 
+/// A page number that can be typed as well as stepped. What is typed is checked against the book only
+/// when the field is left or Return is pressed (owner test 15 Nov: reaching page 150 took 144 clicks of
+/// the stepper, and a field that checks every keystroke snaps back while a number is being typed).
+struct PageNumberField: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                TextField(title, value: Binding(get: { value }, set: { value = min(max($0, range.lowerBound), range.upperBound) }), format: .number.grouping(.never))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(width: 72)
+                Stepper(title, value: $value, in: range)
+                    .labelsHidden()
+            }
+        }
+    }
+}
+
 /// Which pages to translate; more than two go to Gemini as one batch job.
 struct TranslateRangeSheet: View {
     @Bindable var reader: ReaderModel
@@ -236,8 +260,8 @@ struct TranslateRangeSheet: View {
         let count = max(0, to - from + 1)
         let limit = Self.upperLimit(from: from, pageCount: reader.pages.count)
         Form {
-            Stepper(value: $from, in: 1...max(1, reader.pages.count)) { Text("\(t["fromPage"]): \(from)").monospacedDigit() }
-            Stepper(value: $to, in: 1...limit) { Text("\(t["toPage"]): \(to)").monospacedDigit() }
+            PageNumberField(title: t["fromPage"], value: $from, range: 1...max(1, reader.pages.count))
+            PageNumberField(title: t["toPage"], value: $to, range: from...max(from, limit))
             Text(t("pagesToTranslate", ["n": count])).font(.headline)
             if reader.pages.count > CardsModel.maxPages {
                 Text(t("rangeLimit", ["n": CardsModel.maxPages])).font(.callout).foregroundStyle(count >= CardsModel.maxPages ? Color.ink : .secondary)

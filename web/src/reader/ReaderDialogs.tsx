@@ -17,16 +17,71 @@ function useModal() {
   return ref
 }
 
+/**
+ * The first and last page of a range, typed freely: a number is held as typed and checked against the
+ * book (and the per-request limit) only when the reader leaves the field or presses Enter (owner test
+ * 15 Nov: typing 150 over 6 snapped back to 6 at the first "1"). `first`/`last` already include what is
+ * being typed, so the count and the button always use the range that would be committed.
+ */
+function usePageRange(pages: number, page: number) {
+  const [from, setFrom] = useState(page)
+  const [to, setTo] = useState(Math.min(pages, page + 9))
+  const [draftFrom, setDraftFrom] = useState<string | null>(null)
+  const [draftTo, setDraftTo] = useState<string | null>(null)
+  const clampPage = (n: number) => Math.min(pages, Math.max(1, Number.isFinite(n) ? Math.round(n) : 1))
+  const read = (draft: string | null, kept: number) => {
+    const n = draft === null || draft.trim() === '' ? NaN : Number(draft)
+    return Number.isFinite(n) ? n : kept
+  }
+  const first = clampPage(read(draftFrom, from))
+  const last = Math.min(Math.max(clampPage(read(draftTo, to)), first), first + RANGE_LIMIT - 1, pages)
+  const commit = () => {
+    setFrom(first)
+    setTo(last)
+    setDraftFrom(null)
+    setDraftTo(null)
+  }
+  const reset = (start: number) => {
+    setFrom(start)
+    setTo(Math.min(pages, start + 9))
+    setDraftFrom(null)
+    setDraftTo(null)
+  }
+  const field = (label: string, draft: string | null, kept: number, setDraft: (v: string) => void, min: number, max: number) => (
+    <label>
+      {label}
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={draft ?? String(kept)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit()
+        }}
+      />
+    </label>
+  )
+  return { first, last, count: Math.max(0, last - first + 1), commit, reset, field, from, to, draftFrom, draftTo, setDraftFrom, setDraftTo }
+}
+
+function RangeFields({ range, pages, labels }: { range: ReturnType<typeof usePageRange>; pages: number; labels: [string, string] }) {
+  return (
+    <div className="range-fields">
+      {range.field(labels[0], range.draftFrom, range.from, range.setDraftFrom, 1, pages)}
+      {range.field(labels[1], range.draftTo, range.to, range.setDraftTo, range.first, Math.min(pages, range.first + RANGE_LIMIT - 1))}
+    </div>
+  )
+}
+
 /** Which pages to translate (at most RANGE_LIMIT at once); more than two go to Gemini as one batch job. */
 export function TranslateRangeDialog({ page, pages, onTranslate, onClose }: { page: number; pages: number; onTranslate: (from: number, to: number) => void; onClose: () => void }) {
   const { t } = useI18n()
   const ref = useModal()
-  const [from, setFrom] = useState(page)
-  const [to, setTo] = useState(Math.min(pages, page + 9))
-  const clampPage = (n: number) => Math.min(pages, Math.max(1, Number.isFinite(n) ? Math.round(n) : 1))
-  /** The last page keeps within the first page and the per-request limit. */
-  const clampTo = (first: number, last: number) => Math.min(Math.max(last, first), first + RANGE_LIMIT - 1)
-  const count = Math.max(0, to - from + 1)
+  const range = usePageRange(pages, page)
+  const count = range.count
   return (
     <dialog ref={ref} className="settings-dialog small-dialog" onClose={onClose} onCancel={onClose}>
       <header className="dialog-header">
@@ -36,32 +91,7 @@ export function TranslateRangeDialog({ page, pages, onTranslate, onClose }: { pa
         </button>
       </header>
       <section>
-        <div className="range-fields">
-          <label>
-            {t.fromPage}
-            <input
-              type="number"
-              min={1}
-              max={pages}
-              value={from}
-              onChange={(e) => {
-                const v = clampPage(e.target.valueAsNumber)
-                setFrom(v)
-                setTo(clampTo(v, to))
-              }}
-            />
-          </label>
-          <label>
-            {t.toPage}
-            <input
-              type="number"
-              min={from}
-              max={Math.min(pages, from + RANGE_LIMIT - 1)}
-              value={to}
-              onChange={(e) => setTo(clampTo(from, clampPage(e.target.valueAsNumber)))}
-            />
-          </label>
-        </div>
+        <RangeFields range={range} pages={pages} labels={[t.fromPage, t.toPage]} />
         <p className="range-count">{t.pagesToTranslate(count)}</p>
         {pages > RANGE_LIMIT && <p className={`dialog-intro${count >= RANGE_LIMIT ? ' is-at-limit' : ''}`}>{t.rangeLimit(RANGE_LIMIT)}</p>}
         <p className="dialog-intro">{t.rangeBatchNote}</p>
@@ -72,7 +102,7 @@ export function TranslateRangeDialog({ page, pages, onTranslate, onClose }: { pa
             className="primary-button"
             disabled={count === 0}
             onClick={() => {
-              onTranslate(from, Math.min(to, from + RANGE_LIMIT - 1))
+              onTranslate(range.first, range.last)
               onClose()
             }}
           >
@@ -100,8 +130,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
   const [size, setSize] = useState(18)
   const [copied, setCopied] = useState(false)
   const [asking, setAsking] = useState(false)
-  const [from, setFrom] = useState(props.page)
-  const [to, setTo] = useState(Math.min(pages, props.page + 9))
+  const range = usePageRange(pages, props.page)
   const store = props.readings
   const noop = useCallback(() => () => {}, [])
   const snapshot = useSyncExternalStore(store?.subscribe ?? noop, store?.getSnapshot ?? (() => EMPTY_READINGS))
@@ -150,9 +179,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
-  const clampPage = (n: number) => Math.min(pages, Math.max(1, Number.isFinite(n) ? Math.round(n) : 1))
-  const clampTo = (first: number, last: number) => Math.min(Math.max(last, first), first + RANGE_LIMIT - 1, pages)
-  const count = Math.max(0, to - from + 1)
+  const count = range.count
   const errorText = (code?: string) =>
     code === 'no-key' ? t.noKeyBody : code === 'key' ? t.errorKey : code === 'quota' ? t.errorQuota : code === 'blocked' ? t.errorBlocked : code === 'network' ? t.errorNetwork : code === 'expired' ? t.batchExpired : code === 'key-changed' ? t.batchKeyChanged : code === 'batch' ? t.batchFailed : t.errorUnknown
   const empty = !streaming && reading?.state !== 'done' && own !== null && own.trim().length < 40
@@ -184,8 +211,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
             aria-expanded={asking}
             disabled={!store}
             onClick={() => {
-              setFrom(page)
-              setTo(Math.min(pages, page + 9))
+              range.reset(page)
               setAsking(!asking)
             }}
           >
@@ -201,26 +227,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
       </header>
       {asking && store && (
         <section className="extract-range">
-          <div className="range-fields">
-            <label>
-              {t.fromPage}
-              <input
-                type="number"
-                min={1}
-                max={pages}
-                value={from}
-                onChange={(e) => {
-                  const v = clampPage(e.target.valueAsNumber)
-                  setFrom(v)
-                  setTo(clampTo(v, to))
-                }}
-              />
-            </label>
-            <label>
-              {t.toPage}
-              <input type="number" min={from} max={Math.min(pages, from + RANGE_LIMIT - 1)} value={to} onChange={(e) => setTo(clampTo(from, clampPage(e.target.valueAsNumber)))} />
-            </label>
-          </div>
+          <RangeFields range={range} pages={pages} labels={[t.fromPage, t.toPage]} />
           <p className="range-count">{t.pagesToRead(count)}</p>
           {pages > RANGE_LIMIT && <p className="dialog-intro">{t.rangeLimit(RANGE_LIMIT)}</p>}
           <p className="dialog-intro">{t.readRangeNote}</p>
@@ -231,7 +238,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
               className="primary-button"
               disabled={count === 0}
               onClick={() => {
-                store.read(from, to, lang)
+                store.read(range.first, range.last, lang)
                 setAsking(false)
               }}
             >

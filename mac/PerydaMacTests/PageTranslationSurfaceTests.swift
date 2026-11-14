@@ -316,6 +316,21 @@ final class PageTranslationSurfaceTests: XCTestCase {
         try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-extract.png"))
     }
 
+    /// The page range form with typeable page numbers, for a look (owner test 15 Nov).
+    func testRangeSheetSnapshot() async throws {
+        let app = AppModel(store: store, settings: ByokSettings(geminiApiKey: "placeholder-not-a-key"), lang: .tr)
+        let sheet = NSHostingView(rootView: TranslateRangeSheet(reader: reader, t: UIText(.tr)).environment(app))
+        let w = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 460, height: 420), styleMask: [.borderless], backing: .buffered, defer: false)
+        w.contentView = sheet
+        w.orderFrontRegardless()
+        defer { w.orderOut(nil) }
+        try await Task.sleep(for: .milliseconds(500))
+        sheet.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(sheet.bitmapImageRepForCachingDisplay(in: sheet.bounds))
+        sheet.cacheDisplay(in: sheet.bounds, to: rep)
+        try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-range.png"))
+    }
+
     func testAScannedPageIsReadOnTheMac() async throws {
         // A page that is only a picture of text, as from a scanner.
         let size = CGSize(width: 1200, height: 800)
