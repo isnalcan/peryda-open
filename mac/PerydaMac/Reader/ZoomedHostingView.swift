@@ -35,10 +35,19 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
     static func control(in view: NSView, at point: CGPoint) -> NSView? {
         for sub in view.subviews.reversed() where !sub.isHidden && sub.alphaValue > 0.01 {
             let p = sub.convert(point, from: view)
-            guard sub.bounds.contains(p) else { continue }
-            if sub is NSControl { return sub }
+            let inside = sub.bounds.contains(p)
+            if sub is NSControl {
+                if inside { return sub } else { continue }
+            }
             // Text that cannot be selected (a blurred answer) lets the click through to the card.
-            if let text = sub as? NSText { if text.isSelectable || text.isEditable { return sub } else { continue } }
+            if let text = sub as? NSText {
+                if inside, text.isSelectable || text.isEditable { return sub } else { continue }
+            }
+            // SwiftUI may host a control in a container smaller than the control itself (the page
+            // translation's Close and Retranslate sat outside their 22-point containers), so other
+            // containers are searched even when the point is outside them. Scrolling regions clip
+            // what they hold, so those are searched only where the point falls inside.
+            if !inside, sub is NSClipView || sub is NSScrollView { continue }
             if let inner = control(in: sub, at: p) { return inner }
         }
         return nil

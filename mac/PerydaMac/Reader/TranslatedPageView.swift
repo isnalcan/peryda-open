@@ -93,7 +93,11 @@ struct TranslatedPageView: View {
         case (.streaming, true):
             waiting(card)
         default:
-            TranslationText(text: answer?.content ?? "") { text, rect in onSelectText(cardId, text, rect) }
+            TranslationText(
+                text: answer?.content ?? "",
+                marks: reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.highlight($0.color), near: $0.rect, multiply: true) },
+                onPress: { reader.pending = nil }
+            ) { text, rect in onSelectText(cardId, text, rect) }
         }
     }
 
@@ -135,6 +139,8 @@ struct TranslatedPageView: View {
 /// page without running over; selectable (selecting opens the same menu as on the PDF).
 struct TranslationText: NSViewRepresentable {
     let text: String
+    var marks: [AnswerTextView.Mark] = []
+    var onPress: (() -> Void)?
     let onSelect: (String, CGRect) -> Void
 
     func makeNSView(context: Context) -> FittingTextView {
@@ -143,6 +149,8 @@ struct TranslationText: NSViewRepresentable {
 
     func updateNSView(_ view: FittingTextView, context: Context) {
         view.textView.onSelect = onSelect
+        view.textView.onPress = onPress
+        view.textView.marks = marks
         if view.source != text {
             view.source = text
             view.needsLayout = true

@@ -8,6 +8,7 @@ import type { ByokSettings } from '../ai/provider'
 import { CONTEXT_LENGTH, chapterTitle, kindLabel, kindTitle } from '../ai/compose'
 import { useCards } from '../ilmek/useCards'
 import { useThreadActions } from '../ilmek/useThreadActions'
+import { useThreadMarks } from '../ilmek/threadMarks'
 import { YarnCardView } from '../ilmek/YarnCardView'
 import { SelectionMenu, type ScreenRect } from '../ilmek/SelectionMenu'
 import type { PdfYarnAnchor, YarnCard, YarnColor } from '../ilmek/types'
@@ -59,6 +60,9 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
   const [bounds, setBounds] = useState({ width: 800, height: 600 })
   const { cards, create, ask, retry, stop, remove, update } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
   const actions = useThreadActions({ bookId: book.id, cards, t })
+  // Passages threads were opened from inside cards, marked in those threads' colours.
+  const laneRef = useRef<HTMLElement>(null)
+  useThreadMarks(laneRef, cards)
 
   useLayoutEffect(() => {
     const el = shellRef.current
@@ -315,7 +319,7 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
   }
 
   return (
-    <div className="reader-shell">
+    <div className="reader-shell" style={{ ['--card-text' as string]: actions.cardTextScale }}>
       <ReaderTopBar
         title={book.title}
         onBack={onBack}
@@ -357,7 +361,7 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
         <div className="epub-reading">
           {failed ? <p className="reader-message">{t.importFailed}</p> : <div ref={hostRef} className="epub-host" />}
         </div>
-        <aside className="epub-lane" aria-label={t.journal} onPointerUp={onColumnPointerUp}>
+        <aside ref={laneRef} className="epub-lane" aria-label={t.journal} onPointerUp={onColumnPointerUp}>
           {ordered.filter(({ card }) => !hideThreads || revealed.has(card.id)).map(({ card, depth }) =>
             card.collapsed ? (
               <button
@@ -395,6 +399,9 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
                     setFocused(id)
                   }}
                   onSaveToJournal={actions.saveToJournal}
+                  journal={actions.journalStates.get(card.id)}
+                  textScale={actions.cardTextScale}
+                  onTextSize={actions.stepCardText}
                   onQuoteClick={goTo}
                 />
               </div>

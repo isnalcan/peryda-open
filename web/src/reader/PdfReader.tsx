@@ -16,15 +16,18 @@ import { centredContentWidth, clipsFor, contentRect, isShown, pageBand, placeCar
 import { PdfPageView, type PageHighlight, type PageKnot, type Tool } from './PdfPageView'
 import { ReaderTopBar } from './ReaderTopBar'
 import { anchorsFromSelection, normalizeText, selectionScreenRect, type PageElement } from './selection'
-import { useCamera, type Camera } from './useCamera'
+import { constrainToBand, useCamera, type Camera } from './useCamera'
 import { EyeIcon, EyeOffIcon, LinkIcon } from '../ui/icons'
 import { JournalPanel } from '../journal/JournalPanel'
 import { useThreadActions } from '../ilmek/useThreadActions'
+import { useThreadMarks } from '../ilmek/threadMarks'
 import { CameraBar, PageMenu, PageNav, TiedKnot, ToolSwitcher, TranslateMenu } from './ReaderControls'
 import { ExtractTextDialog, TranslateRangeDialog } from './ReaderDialogs'
 import { TranslatedPageView } from './TranslatedPageView'
 import { RANGE_LIMIT, isUnfinishedTranslation } from '../ilmek/cardsStore'
-import { PageTextCache, pageSource } from './pageText'
+import { PageTextCache, pageSource, renderPageJpeg } from './pageText'
+import { PageReadingsStore } from '../reading/pageReadings'
+import { useFakeAi } from '../ai/fake'
 import { cardText } from './useThreadSelection'
 import yarnKinds from '@shared/yarn-kinds.json'
 
@@ -44,7 +47,6 @@ interface Pending {
 }
 
 /** How long the reader stays on a translated page before the next page's translation starts. */
-const DWELL_MS = 4500
 /** The first wait before asking Google about a batch job; later waits grow to 30 s. */
 const POLL_START_MS = 5000
 
@@ -239,10 +241,27 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const brushRange = useRef<Range | null>(null)
   const pageElements = useRef(new Map<number, { element: HTMLElement; textLayer: HTMLElement | null }>())
   const pageTexts = useMemo(() => new PageTextCache(doc), [doc])
+  // Pages read with Pery in "Extract page text", kept with the book; a batch job still lands while it is open.
+  const fake = useFakeAi()
+  const readings = useMemo(
+    () => new PageReadingsStore({ bookId: book.id, bookTitle: book.title, pageCount: doc.numPages, settings, fake, picture: async (p) => renderPageJpeg(await doc.getPage(p), 2, 0.88) }),
+    // Settings follow below; a new store only for another book or document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [book.id, doc, fake],
+  )
+  useEffect(() => {
+    readings.open()
+    return () => readings.close()
+  }, [readings])
+  useEffect(() => {
+    readings.settings = settings
+  }, [readings, settings])
   const { store, cards, create, ask, retry, stop, remove, update, resize } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
   store.pageCount = pages.length
   store.explainTerms = explainTerms
   const actions = useThreadActions({ bookId: book.id, cards, t })
+  // Passages threads were opened from inside cards and translated pages, marked in their colours.
+  useThreadMarks(worldRef, cards)
 
   // ---- Where the reader is ----
   const scrollPage = useMemo(() => {
@@ -317,14 +336,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     [pagedReading, shownInput, placements],
   )
   const constrainFor = useCallback(
-    (band: { top: number; bottom: number } | null) =>
-      band
-        ? (c: Camera): Camera => {
-            const top = 24 - band.top * c.s
-            const bottom = viewport.height - 24 - band.bottom * c.s
-            return { ...c, y: bottom >= top ? top : Math.min(top, Math.max(bottom, c.y)) }
-          }
-        : null,
+    (band: { top: number; bottom: number } | null) => (band ? (c: Camera): Camera => constrainToBand(c, band, viewport.height) : null),
     [viewport.height],
   )
   constrainRef.current = constrainFor(bandFor(currentPage))
@@ -437,8 +449,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const [preparingCount, setPreparingCount] = useState(0)
   /** Bumped by "Stop translating": pages being prepared are dropped. */
   const translateGeneration = useRef(0)
-  /** The next page is translated by itself after a short stay, until the reader stops translating. */
-  const autoNext = useRef(true)
   const pollTimer = useRef<number | null>(null)
   const ensurePolling = useCallback(() => {
     if (pollTimer.current !== null) return
@@ -505,21 +515,22 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     [doc, pages, store],
   )
 
-  /** "Translate this page": this page and the next at once (the next is ready when the reader gets there). */
+  /**
+   * "Translate this page": only this page. Nothing is translated without the reader asking: more
+   * pages only through "Translate pages…" (owner's decision, 14 Nov).
+   */
   const startTranslating = (page = currentPage, target = translationTarget) => {
     if (target !== translationTarget) {
       setTranslationTarget(target)
       void setPref(`translateLang:${book.id}`, target)
     }
-    autoNext.current = true
     setShowTranslationFor(page)
-    void translate([page, page + 1], target)
+    void translate([page], target)
   }
   const translateRange = (from: number, to: number) => {
     const lower = Math.max(1, from)
     const upper = Math.min(pages.length, to, lower + RANGE_LIMIT - 1)
     if (lower > upper) return
-    autoNext.current = true
     setShowTranslationFor(lower)
     void translate(Array.from({ length: upper - lower + 1 }, (_, i) => lower + i), translationTarget)
   }
@@ -529,7 +540,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   /** Stops every page translation still on its way; pages already translated stay. */
   const stopTranslating = () => {
     translateGeneration.current += 1
-    autoNext.current = false
     const preparingNow = preparing.current.size
     preparing.current.clear()
     setPreparingCount(0)
@@ -546,15 +556,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       setShowTranslationFor(null)
     }
   }, [showTranslationFor, placements, store, translationTarget, showTranslation])
-
-  // Reading a translated page for a few seconds quietly starts the next page's translation.
-  useEffect(() => {
-    const page = currentPage
-    const timer = window.setTimeout(() => {
-      if (autoNext.current && store.pageTranslation(page, translationTarget)) void translate([page + 1], translationTarget)
-    }, DWELL_MS)
-    return () => window.clearTimeout(timer)
-  }, [currentPage, translationTarget, store, translate])
 
   // ---- Wheel, pinch and keys ----
   useEffect(() => {
@@ -958,7 +959,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     brush?.frozen && brush.from ? [...segments, { key: 'brush-live', color: brushColor, from: brush.from, to: brush.pointer, dashed: true }] : segments
 
   return (
-    <div className="reader-shell">
+    <div className="reader-shell" style={{ ['--card-text' as string]: actions.cardTextScale }}>
       <ReaderTopBar
         title={book.title}
         onBack={onBack}
@@ -1101,6 +1102,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                     onOpenSettings={onOpenSettings}
                     onFocusCard={setFocusedCard}
                     onSaveToJournal={actions.saveToJournal}
+                    journal={actions.journalStates.get(card.id)}
+                    textScale={actions.cardTextScale}
+                    onTextSize={actions.stepCardText}
                   />
                 </div>
               )
@@ -1181,7 +1185,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       </div>
       {askingRange && <TranslateRangeDialog page={currentPage} pages={pages.length} onTranslate={translateRange} onClose={() => setAskingRange(false)} />}
       {extractingPage !== null && (
-        <ExtractTextDialog doc={doc} page={extractingPage} bookTitle={book.title} settings={settings} onOpenSettings={onOpenSettings} onClose={() => setExtractingPage(null)} />
+        <ExtractTextDialog doc={doc} page={extractingPage} bookTitle={book.title} readings={readings} onOpenSettings={onOpenSettings} onClose={() => setExtractingPage(null)} />
       )}
       {actions.toast && <div className="toast" role="status">{actions.toast}</div>}
     </div>

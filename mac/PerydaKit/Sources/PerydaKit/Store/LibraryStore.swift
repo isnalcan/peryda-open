@@ -79,7 +79,7 @@ public final class LibraryStore: @unchecked Sendable {
 
     public init(root: URL) throws {
         self.root = root
-        for dir in ["", "books", "cards", "journal"] {
+        for dir in ["", "books", "cards", "journal", "readings"] {
             try fm.createDirectory(at: root.appendingPathComponent(dir), withIntermediateDirectories: true)
         }
     }
@@ -213,11 +213,13 @@ public final class LibraryStore: @unchecked Sendable {
             let file = try fileURL(for: book)
             let cards = try path("cards", bookId, "json")
             let journal = try path("journal", bookId, "json")
+            let readings = try path("readings", bookId, "json")
             list.removeAll { $0.id == bookId }
             try write(list, libraryFile)
             try? fm.removeItem(at: file)
             try? fm.removeItem(at: cards)
             try? fm.removeItem(at: journal)
+            try? fm.removeItem(at: readings)
             var positions = read([String: ReadingPosition].self, positionsFile, default: [:])
             positions[bookId] = nil
             try write(positions, positionsFile)
@@ -237,6 +239,18 @@ public final class LibraryStore: @unchecked Sendable {
         try queue.sync { try write(cards, path("cards", bookId, "json")) }
     }
 
+    /// Pages read with Pery ("Extract page text"), kept with the book.
+    public func readings(for bookId: String) -> [PageReading] {
+        queue.sync {
+            guard let url = try? path("readings", bookId, "json") else { return [] }
+            return read([PageReading].self, url, default: [])
+        }
+    }
+
+    public func saveReadings(_ readings: [PageReading], for bookId: String) throws {
+        try queue.sync { try write(readings, path("readings", bookId, "json")) }
+    }
+
     public func journal(for bookId: String) -> [JournalRecord] {
         queue.sync {
             guard let url = try? path("journal", bookId, "json") else { return [] }
@@ -249,6 +263,17 @@ public final class LibraryStore: @unchecked Sendable {
             let url = try path("journal", record.bookId, "json")
             var list = read([JournalRecord].self, url, default: [])
             list.append(record)
+            try write(list, url)
+        }
+    }
+
+    /// Puts a changed entry in place of the one with its id (a thread saved again after it grew).
+    public func replaceJournal(_ record: JournalRecord) throws {
+        try queue.sync {
+            let url = try path("journal", record.bookId, "json")
+            var list = read([JournalRecord].self, url, default: [])
+            guard let i = list.firstIndex(where: { $0.id == record.id }) else { return }
+            list[i] = record
             try write(list, url)
         }
     }

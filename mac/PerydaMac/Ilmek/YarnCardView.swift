@@ -18,6 +18,8 @@ struct YarnCardView: View {
     @State private var confirmRemove = false
 
     private var t: UIText { UIText(lang) }
+    /// The book's card text size (the − and + in the header).
+    private var s: CGFloat { reader.cardTextScale }
     /// About three lines of the card's quote; longer passages get the shorten toggle.
     static let longQuote = 160
 
@@ -88,7 +90,7 @@ struct YarnCardView: View {
                 let short = reader.shortQuotes.contains(cardId)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(quote)
-                        .font(.reading(13))
+                        .font(.reading(13 * s))
                         .foregroundStyle(Color.inkSoft)
                         .lineLimit(short ? 3 : nil)
                         .fixedSize(horizontal: false, vertical: true)
@@ -128,11 +130,15 @@ struct YarnCardView: View {
                 .tracking(0.9)
                 .foregroundStyle(Color.yarn(card.color))
             Spacer(minLength: 4)
+            // Text size for every card of this book (owner test 14 Nov: some PDFs leave cards small).
+            iconButton("textformat.size.smaller", t["textSmaller"]) { reader.stepCardText(-1) }
+                .disabled(!reader.canShrinkCardText)
+            iconButton("textformat.size.larger", t["textLarger"]) { reader.stepCardText(1) }
+                .disabled(!reader.canGrowCardText)
             if card.isPinned {
                 iconButton("pin.slash", t["backToLane"]) { reader.cards.unpin(cardId) }
             }
-            iconButton("bookmark", t["saveToJournal"]) { reader.saveToJournal(cardId, lang: lang) }
-                .disabled(streaming || card.messages.isEmpty)
+            journalButton(card, streaming: streaming)
             iconButton("arrow.down.right.and.arrow.up.left", t["collapse"]) { reader.cards.setCollapsed(cardId, true) }
             iconButton("xmark", t["removeCard"]) {
                 if card.messages.count <= 1 { reader.cards.remove(cardId) } else { confirmRemove = true }
@@ -142,6 +148,26 @@ struct YarnCardView: View {
         .padding(.trailing, 6)
         .frame(height: 36)
         .contentShape(Rectangle())
+    }
+
+    /// Saves the card to the journal once; then it stays lit. If the conversation went on since, it
+    /// goes back to plain and a click brings the one entry up to date.
+    private func journalButton(_ card: YarnCard, streaming: Bool) -> some View {
+        let state = reader.journalState(cardId)
+        let label = state == .saved ? t["inJournal"] : state == .outdated ? t["updateInJournal"] : t["saveToJournal"]
+        return Button {
+            if state != .saved { reader.saveToJournal(cardId, lang: lang) }
+        } label: {
+            Image(systemName: state == .saved ? "bookmark.fill" : "bookmark")
+                .font(.system(size: 11, weight: .medium))
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(state == .saved ? Color.yarn(card.color) : Color.inkSoft)
+        .help(label)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(state == .saved ? .isSelected : [])
+        .disabled(streaming || card.messages.isEmpty)
     }
 
     private func iconButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
@@ -154,19 +180,27 @@ struct YarnCardView: View {
         .accessibilityLabel(label)
     }
 
+    /// Passages of this card that threads were opened from, in their colours.
+    private var marks: [AnswerTextView.Mark] {
+        reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.yarn($0.color).withAlphaComponent(0.26), near: $0.rect) }
+    }
+
+    /// A press in the card's text closes the selection menu (a new selection opens it again).
+    private func pressed() { reader.pending = nil }
+
     @ViewBuilder
     private func messageView(_ card: YarnCard, index: Int, message: YarnMessage, isNote: Bool) -> some View {
         switch (message.role, message.state) {
         case (.user, _):
             if isNote {
-                SelectableAnswer(text: message.content, markdown: false) { text, rect in onSelectText(cardId, text, rect) }
+                SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
             } else if index > 0 || card.kind == .question {
-                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13, weight: .semibold), markdown: false) { text, rect in onSelectText(cardId, text, rect) }
+                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13 * s, weight: .semibold), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
                     .padding(.top, 4)
             }
         case (.assistant, .error):
             VStack(alignment: .leading, spacing: 4) {
-                Text(message.content == "no-key" ? t["noKeyBody"] : errorText(message.content)).font(.callout)
+                Text(message.content == "no-key" ? t["noKeyBody"] : errorText(message.content)).font(.system(size: 13 * s))
                 if message.content == "no-key" {
                     LinkButton(title: t["openSettings"], action: openSettings)
                 } else {
@@ -178,11 +212,11 @@ struct YarnCardView: View {
             .background(Color.red.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
         case (.assistant, _):
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("⁂").font(.system(size: 12)).foregroundStyle(Color.peryda)
+                Text("⁂").font(.system(size: 12 * s)).foregroundStyle(Color.peryda)
                 if message.content.isEmpty {
-                    Text(t["thinking"]).font(.reading(14).italic()).foregroundStyle(Color.inkFaint)
+                    Text(t["thinking"]).font(.reading(14 * s).italic()).foregroundStyle(Color.inkFaint)
                 } else {
-                    SelectableAnswer(text: message.content) { text, rect in onSelectText(cardId, text, rect) }
+                    SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
                 }
             }
         }
@@ -195,6 +229,7 @@ struct YarnCardView: View {
             if replying || !draft.isEmpty {
                 TextField(isNote ? t["notePlaceholder"] : t["continuePlaceholder"], text: $draft, axis: .vertical)
                     .textFieldStyle(.plain)
+                    .font(.system(size: 13 * s))
                     .lineLimit(1...6)
                     .focused($fieldFocused)
                     .onSubmit(send)
@@ -205,6 +240,7 @@ struct YarnCardView: View {
                     fieldFocused = true
                 } label: {
                     Text(isNote ? t["notePlaceholder"] : t["continuePlaceholder"])
+                        .font(.system(size: 13 * s))
                         .foregroundStyle(Color.inkFaint)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())

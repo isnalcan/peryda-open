@@ -13,6 +13,21 @@ export const MAX_SCALE = 4
 
 const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
 
+/** How much of the current page's band stays on screen, at least, in page-by-page reading (px). */
+export const KEPT_IN_VIEW = 120
+
+/**
+ * Page by page, the view moves freely up and down around the current page's band (its page and
+ * threads) until only a strip of it is left at the bottom or the top of the window. (Owner test
+ * 14 Nov: with the band smaller than the window the surface did not move at all.)
+ */
+export function constrainToBand(c: Camera, band: { top: number; bottom: number }, viewportHeight: number): Camera {
+  const kept = Math.min(KEPT_IN_VIEW, viewportHeight / 2)
+  const lowest = kept - band.bottom * c.s
+  const highest = viewportHeight - kept - band.top * c.s
+  return { ...c, y: lowest > highest ? (lowest + highest) / 2 : Math.min(highest, Math.max(lowest, c.y)) }
+}
+
 /**
  * Pan and zoom for the reading surface. The camera only changes on the reader's own input or when a
  * camera button is pressed; nothing else moves it.

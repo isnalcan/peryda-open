@@ -64,9 +64,7 @@ final class ReaderModel {
     var focusedCard: String?
     var cameraCommand: CameraCommand?
     var magnification: Double = 1
-    var currentPage = 1 {
-        didSet { if currentPage != oldValue { scheduleDwell() } }
-    }
+    var currentPage = 1
     /// One page at a time instead of one long scroll; a reader preference.
     var pagedReading = UserDefaults.standard.bool(forKey: "pagedReading") {
         didSet { UserDefaults.standard.set(pagedReading, forKey: "pagedReading") }
@@ -92,22 +90,48 @@ final class ReaderModel {
     var translationTarget: Lang = .tr {
         didSet { if let key = SafeID.defaultsKey("translateLang", book.id) { UserDefaults.standard.set(translationTarget.rawValue, forKey: key) } }
     }
+    /// The size of the text in this book's cards (×1 is as designed), kept per book: in some PDFs the
+    /// cards end up small beside large pages (owner test 14 Nov).
+    var cardTextScale: Double = 1 {
+        didSet { if let key = SafeID.defaultsKey("cardTextScale", book.id) { UserDefaults.standard.set(cardTextScale, forKey: key) } }
+    }
+    static let cardTextScales: [Double] = [0.85, 1, 1.15, 1.3, 1.5, 1.75]
+
+    /// One step smaller (−1) or larger (+1) text in every card of this book.
+    func stepCardText(_ delta: Int) {
+        let steps = Self.cardTextScales
+        let here = steps.indices.min { abs(steps[$0] - cardTextScale) < abs(steps[$1] - cardTextScale) } ?? 1
+        cardTextScale = steps[min(max(here + delta, 0), steps.count - 1)]
+    }
+
+    var canShrinkCardText: Bool { cardTextScale > Self.cardTextScales.first! + 0.001 }
+    var canGrowCardText: Bool { cardTextScale < Self.cardTextScales.last! - 0.001 }
+
+    private static func savedCardTextScale(_ bookId: String) -> Double {
+        let saved = SafeID.defaultsKey("cardTextScale", bookId).map { UserDefaults.standard.double(forKey: $0) } ?? 0
+        return cardTextScales.contains(saved) ? saved : 1
+    }
+
+    /// Pages read with Pery in "Extract page text" (PDFs only).
+    private(set) var readings: PageReadings?
+
+    /// A page's picture for Pery to read (JPEG at 2×).
+    func pagePicture(_ number: Int) -> String? {
+        guard number >= 1, number <= pages.count, let page = document?.page(at: number - 1) else { return nil }
+        return PageGeometry(page: page).jpegDataURL(scale: 2, quality: 0.88)
+    }
+
     /// Asking which pages to translate.
     var askingRange = false
     /// The page whose extracted text is shown.
     var extractingPage: ExtractRequest?
     struct ExtractRequest: Identifiable { var page: Int; var id: Int { page } }
-    /// How long the reader stays on a page before the next page's translation starts.
-    var dwellDelay: Duration = .milliseconds(4500)
     /// The first wait before asking Google about a batch job; later waits grow to 30 s.
     var pollStart: Duration = .seconds(5)
-    private var dwellTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
     private var preparing: Set<Int> = []
     /// Bumped by "Stop translating": pages being prepared are dropped.
     private var translateGeneration = 0
-    /// The next page is translated by itself after a short stay, until the reader stops translating.
-    private var autoNext = true
 
     /// Pages still on their way: being prepared, waiting their turn, streaming in or in a batch job.
     var pendingTranslations: Int { preparing.count + cards.unfinishedTranslations.count }
@@ -115,7 +139,6 @@ final class ReaderModel {
     /// Stops every page translation still on its way; pages already translated stay.
     func stopTranslating(lang: Lang) {
         translateGeneration += 1
-        autoNext = false
         let preparingNow = preparing.count
         preparing.removeAll()
         let stopped = cards.stopTranslations() + preparingNow
@@ -143,6 +166,10 @@ final class ReaderModel {
         let saved = SafeID.defaultsKey("translateLang", book.id).flatMap { UserDefaults.standard.string(forKey: $0) }
         self.translationTarget = Lang(rawValue: saved ?? "") ?? lang
         self.cards.pageCount = doc.pageCount
+        self.cardTextScale = Self.savedCardTextScale(book.id)
+        self.readings = PageReadings(bookId: book.id, bookTitle: book.title, pageCount: doc.pageCount, settings: settings, store: store, streamer: streamer, batcher: batcher) { [weak self] page in
+            self?.pagePicture(page)
+        }
         store.markOpened(book.id)
         ensurePolling()
         reloadJournal()
@@ -163,6 +190,7 @@ final class ReaderModel {
         self.cards = CardsModel(bookId: book.id, bookTitle: book.title, lang: lang, settings: settings, store: store, streamer: streamer)
         self.streamer = streamer
         self.translationTarget = lang
+        self.cardTextScale = Self.savedCardTextScale(book.id)
         store.markOpened(book.id)
         reloadJournal()
         loadSummary()
@@ -185,7 +213,6 @@ final class ReaderModel {
         guard !isClosed else { return }
         isClosed = true
         pollTask?.cancel()
-        dwellTask?.cancel()
         summaryTask?.cancel()
         guard epub != nil else { return }
         let left = (Self.openEpubs[book.id] ?? 1) - 1
@@ -216,12 +243,11 @@ final class ReaderModel {
         return CardsModel.PageSource(page: number, text: "", imageDataURL: geometry.jpegDataURL(scale: 1.6, quality: 0.86), width: box.width, height: box.height)
     }
 
-    /// "Translate this page": this page and the next, at once (the next is ready when the reader
-    /// gets there).
+    /// "Translate this page": only this page. Nothing is translated without the reader asking: more
+    /// pages only through "Translate pages…" (owner's decision, 14 Nov).
     func startTranslating(at page: Int? = nil) {
         let p = page ?? currentPage
-        autoNext = true
-        translate([p, p + 1])
+        translate([p])
         cameraCommand = .showTranslation(page: p)
     }
 
@@ -229,7 +255,6 @@ final class ReaderModel {
     func translateRange(_ range: ClosedRange<Int>) {
         let lower = max(1, range.lowerBound), upper = min(pages.count, range.upperBound, lower + CardsModel.maxPages - 1)
         guard lower <= upper else { return }
-        autoNext = true
         translate(Array(lower...upper))
         cameraCommand = .showTranslation(page: lower)
     }
@@ -256,19 +281,6 @@ final class ReaderModel {
             guard generation == self.translateGeneration else { return }
             self.cards.translatePages(sources, target: target)
             self.ensurePolling()
-        }
-    }
-
-    /// Reading a translated page for 4.5 seconds quietly starts the next page's translation.
-    private func scheduleDwell() {
-        dwellTask?.cancel()
-        guard document != nil else { return }
-        let page = currentPage
-        let delay = dwellDelay
-        dwellTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            guard let self, !Task.isCancelled, self.autoNext, self.currentPage == page, self.translation(of: page) != nil else { return }
-            self.translate([page + 1])
         }
     }
 
@@ -596,6 +608,16 @@ final class ReaderModel {
         return out
     }
 
+    /// Passages in a card's text (or a translated page's) that threads were opened from, each in its
+    /// thread's colour, with where it was selected (card units). A removed thread takes its mark along.
+    func marks(inCard id: String) -> [(text: String, color: YarnColor, rect: CGRect)] {
+        cards.cards.flatMap { card in
+            card.anchors.filter { $0.sourceType == .card && $0.sourceCardId == id }.map { a in
+                (a.selectedText, card.color, CGRect(x: a.boundingRect.x, y: a.boundingRect.y, width: a.boundingRect.width, height: a.boundingRect.height))
+            }
+        }
+    }
+
     struct Knot: Hashable {
         var cardId: String
         var color: YarnColor
@@ -653,17 +675,44 @@ final class ReaderModel {
         flash(UIText(lang)["clipped"])
     }
 
-    func saveToJournal(_ cardId: String, lang: Lang) {
-        guard let card = cards.cards.first(where: { $0.id == cardId }) else { return }
+    /// What a card puts in the journal: its passage and its conversation (or note).
+    private func journalContent(_ card: YarnCard) -> (quote: String, text: String) {
         let quote = card.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
         let usable = card.messages.filter { $0.state != .error && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let isNote = card.kind == .quick(.cream)
-        let text = isNote
+        let text = card.kind == .quick(.cream)
             ? usable.map(\.content).joined(separator: "\n\n")
             : usable.enumerated().filter { $0.element.role == .assistant || ($0.offset > 0 && $0.element.role == .user) }
                 .map { $0.element.role == .user ? "**\($0.element.content)**" : $0.element.content }
                 .joined(separator: "\n\n")
-        try? store.addJournal(JournalRecord(bookId: book.id, source: isNote ? .note : .thread, quote: quote, text: text, pageNumber: card.anchors.first { $0.sourceType != .card }?.pageNumber ?? 0, cardId: card.id))
+        return (quote, text)
+    }
+
+    enum JournalState { case notSaved, saved, outdated }
+
+    /// Whether a card is in the journal, and if so whether the conversation went on since.
+    func journalState(_ cardId: String) -> JournalState {
+        guard let card = cards.cards.first(where: { $0.id == cardId }), let entry = journal.first(where: { $0.cardId == cardId }) else { return .notSaved }
+        let now = journalContent(card)
+        return entry.text == now.text && entry.quote == now.quote ? .saved : .outdated
+    }
+
+    /// A card goes into the journal once (owner test 14 Nov: it could be saved again and again). Saved
+    /// again after the conversation went on, its one entry is brought up to date instead.
+    func saveToJournal(_ cardId: String, lang: Lang) {
+        guard let card = cards.cards.first(where: { $0.id == cardId }) else { return }
+        let content = journalContent(card)
+        if let entry = journal.first(where: { $0.cardId == card.id }) {
+            guard entry.text != content.text || entry.quote != content.quote else { return }
+            var updated = entry
+            updated.quote = content.quote
+            updated.text = content.text
+            try? store.replaceJournal(updated)
+            reloadJournal()
+            flash(UIText(lang)["journalUpdated"])
+            return
+        }
+        let isNote = card.kind == .quick(.cream)
+        try? store.addJournal(JournalRecord(bookId: book.id, source: isNote ? .note : .thread, quote: content.quote, text: content.text, pageNumber: card.anchors.first { $0.sourceType != .card }?.pageNumber ?? 0, cardId: card.id))
         reloadJournal()
         flash(UIText(lang)["savedToJournal"])
     }

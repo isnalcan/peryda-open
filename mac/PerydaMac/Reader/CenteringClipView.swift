@@ -1,13 +1,21 @@
 import AppKit
 
 /// Keeps the world centred when it is smaller than the window (zoomed out), instead of pinned to the
-/// left, and in page-by-page reading keeps the view on the current page's band. While scrolling the
-/// book, the reader may go on down past the last page or thread until only a strip of it is left at
-/// the top of the window, at any zoom: room to move threads into, as on the web's free camera.
+/// left, and in page-by-page reading keeps the current page's band in view. While scrolling the book,
+/// the reader may go on down past the last page or thread until only a strip of it is left at the top
+/// of the window, at any zoom: room to move threads into, as on the web's free camera. Page by page,
+/// the view moves just as freely up and down around the band, until only a strip of it is left at the
+/// bottom or the top (owner test 14 Nov: with the band smaller than the window it did not move at all).
 final class CenteringClipView: NSClipView {
     /// The vertical stretch the view may show (page-by-page reading), in world units.
     var band: ClosedRange<CGFloat>? {
         didSet { if band != oldValue { scroll(to: bounds.origin) } }
+    }
+
+    /// Where the view starts on a band: centred on it when it fits in the window, else at its top.
+    func start(of band: ClosedRange<CGFloat>) -> CGFloat {
+        let length = band.upperBound - band.lowerBound
+        return bounds.height >= length ? band.lowerBound + length / 2 - bounds.height / 2 : band.lowerBound
     }
 
     /// Where the lowest page, thread or translation ends, in world units.
@@ -25,12 +33,13 @@ final class CenteringClipView: NSClipView {
         var r = super.constrainBoundsRect(proposed)
         guard let doc = documentView?.frame else { return r }
         if r.width >= doc.width { r.origin.x = doc.midX - r.width / 2 }
+        // Bounds are in world units: a strip of so many points on screen is this many world units.
+        let strip = min(Self.keptInView * r.height / max(frame.height, 1), r.height)
         if let band {
-            let length = band.upperBound - band.lowerBound
-            r.origin.y = r.height >= length ? band.lowerBound + length / 2 - r.height / 2 : min(max(r.origin.y, band.lowerBound), band.upperBound - r.height)
+            let highest = band.lowerBound - (r.height - strip)
+            let lowest = max(band.upperBound - strip, highest)
+            r.origin.y = min(max(proposed.origin.y, highest), lowest)
         } else {
-            // Bounds are in world units: a strip of so many points on screen is this many world units.
-            let strip = Self.keptInView * r.height / max(frame.height, 1)
             let lowest = max((contentBottom ?? doc.maxY) - strip, doc.minY)
             r.origin.y = min(max(proposed.origin.y, doc.minY), lowest)
         }

@@ -34,7 +34,10 @@ struct ReaderView: View {
             }
         }
         .onDisappear { reader?.close() }
-        .onChange(of: app.settings) { _, s in reader?.cards.settings = s }
+        .onChange(of: app.settings) { _, s in
+            reader?.cards.settings = s
+            reader?.readings?.settings = s
+        }
         .onChange(of: app.lang) { _, l in reader?.cards.lang = l }
         .onChange(of: app.explainTerms) { _, on in reader?.cards.explainTerms = on }
     }
@@ -134,13 +137,16 @@ struct ReaderSurface: View {
                 .help(reader.pagedReading ? t["readByPage"] : t["readScrolling"])
                 if reader.pendingTranslations > 0 {
                     // While pages are on their way the reader can always see how many, and stop them in one click.
-                    HStack(spacing: 6) {
-                        ProgressView().controlSize(.small)
+                    // The spinner gets a frame of its own and the row an inset, so neither runs past the
+                    // toolbar's rounded background (owner test 14 Nov: the spinner overflowed it).
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small).frame(width: 16, height: 16)
                         Text(t("translationsPending", ["n": reader.pendingTranslations])).monospacedDigit().foregroundStyle(.secondary)
                         Button { reader.stopTranslating(lang: app.lang) } label: { Image(systemName: "stop.fill") }
                             .help(t["stopTranslating"])
                             .accessibilityLabel(t["stopTranslating"])
                     }
+                    .padding(.horizontal, 8)
                 }
                 Menu {
                     Section(t["translateInto"]) {
@@ -192,15 +198,18 @@ struct ToolSwitcher: View {
             item(.brush, "paintbrush.pointed", t["toolBrush"])
             item(.area, "viewfinder", t["toolArea"])
         }
+        // Inset from the toolbar's rounded background, with a rounded mark of the same shape inside it
+        // (owner test 14 Nov: the square mark ran past the background's rounded end).
+        .padding(.horizontal, 4)
     }
 
     private func item(_ value: ReaderTool, _ symbol: String, _ label: String) -> some View {
         Button { tool = value } label: {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
-                .frame(width: 30, height: 24)
-                .background(RoundedRectangle(cornerRadius: 6).fill(tool == value ? Color.primary.opacity(0.13) : .clear))
-                .contentShape(Rectangle())
+                .frame(width: 32, height: 24)
+                .background(Capsule().fill(tool == value ? Color.primary.opacity(0.13) : .clear))
+                .contentShape(Capsule())
         }
         .buttonStyle(.borderless)
         .foregroundStyle(tool == value ? Color.ink : Color.inkSoft)

@@ -2,11 +2,12 @@ import { memo, useEffect, useRef, useState, type KeyboardEvent, type PointerEven
 import { useI18n } from '../i18n/I18n'
 import { kindTitle } from '../ai/compose'
 import { Markdown } from '../ui/Markdown'
-import { AsterismIcon, ChevronDownIcon, ChevronUpIcon, ClipIcon, CloseIcon, MagnetIcon, MinimizeIcon, RetryIcon, SendIcon, StopIcon } from '../ui/icons'
+import { AsterismIcon, ChevronDownIcon, ChevronUpIcon, ClipIcon, ClipSavedIcon, CloseIcon, MagnetIcon, MinimizeIcon, RetryIcon, SendIcon, StopIcon, TextLargerIcon, TextSmallerIcon } from '../ui/icons'
 import type { Strings } from '../i18n/strings'
 import { CARD_HEIGHT_RANGE, CARD_WIDTH_RANGE } from './cardsStore'
 import { GEOMETRY } from './geometry'
 import type { YarnCard } from './types'
+import { CARD_TEXT_SCALES, type JournalState } from './useThreadActions'
 
 interface Props {
   /** 'world' cards float on the reading surface; 'column' cards sit in a list beside an EPUB. */
@@ -34,6 +35,11 @@ interface Props {
   onOpenSettings: () => void
   onFocusCard: (id: string) => void
   onSaveToJournal: (id: string) => void
+  /** Whether the card is in the journal (lit when it is, plain again when the conversation went on). */
+  journal?: JournalState
+  /** This book's card text size, and its − and + (every card of the book follows it). */
+  textScale?: number
+  onTextSize?: (delta: number) => void
   /** When given, the quote is a link back to the passage. */
   onQuoteClick?: (id: string) => void
 }
@@ -198,20 +204,48 @@ function YarnCardViewImpl(props: Props) {
         <span className="yarn-dot" aria-hidden="true" />
         <span className="yarn-card-title">{kindTitle(lang, card)}</span>
         <span className="yarn-card-actions">
+          {props.onTextSize && (
+            <>
+              <button
+                type="button"
+                className="icon-button"
+                title={t.textSmaller}
+                aria-label={t.textSmaller}
+                disabled={(props.textScale ?? 1) <= CARD_TEXT_SCALES[0]!}
+                onClick={() => props.onTextSize!(-1)}
+              >
+                <TextSmallerIcon size={15} />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                title={t.textLarger}
+                aria-label={t.textLarger}
+                disabled={(props.textScale ?? 1) >= CARD_TEXT_SCALES[CARD_TEXT_SCALES.length - 1]!}
+                onClick={() => props.onTextSize!(1)}
+              >
+                <TextLargerIcon size={15} />
+              </button>
+            </>
+          )}
           {card.isPinned && (
             <button type="button" className="icon-button" title={t.backToLane} aria-label={t.backToLane} onClick={() => props.onUnpin(card.id)}>
               <MagnetIcon size={15} />
             </button>
           )}
+          {/* Saved once, then lit; plain again (and a click updates the one entry) when the conversation went on. */}
           <button
             type="button"
-            className="icon-button"
-            title={t.saveToJournal}
-            aria-label={t.saveToJournal}
+            className={`icon-button journal-button${props.journal === 'saved' ? ' is-saved' : ''}`}
+            title={props.journal === 'saved' ? t.inJournal : props.journal === 'outdated' ? t.updateInJournal : t.saveToJournal}
+            aria-label={props.journal === 'saved' ? t.inJournal : props.journal === 'outdated' ? t.updateInJournal : t.saveToJournal}
+            aria-pressed={props.journal === 'saved'}
             disabled={streaming || card.messages.length === 0}
-            onClick={() => props.onSaveToJournal(card.id)}
+            onClick={() => {
+              if (props.journal !== 'saved') props.onSaveToJournal(card.id)
+            }}
           >
-            <ClipIcon size={15} />
+            {props.journal === 'saved' ? <ClipSavedIcon size={15} /> : <ClipIcon size={15} />}
           </button>
           <button type="button" className="icon-button" title={t.collapse} aria-label={t.collapse} onClick={() => props.onCollapse(card.id)}>
             <MinimizeIcon size={15} />

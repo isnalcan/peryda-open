@@ -414,6 +414,21 @@ button:disabled {
   background: var(--hl);
 }
 
+/* Passages threads were opened from inside cards and translated pages (threadMarks.ts): the card's
+   colour on the card, the page highlight on the translated paper. */
+::highlight(yarn-card-coral) { background-color: color-mix(in srgb, var(--yarn-coral) 26%, transparent); }
+::highlight(yarn-card-mint) { background-color: color-mix(in srgb, var(--yarn-mint) 26%, transparent); }
+::highlight(yarn-card-sky) { background-color: color-mix(in srgb, var(--yarn-sky) 26%, transparent); }
+::highlight(yarn-card-amber) { background-color: color-mix(in srgb, var(--yarn-amber) 26%, transparent); }
+::highlight(yarn-card-lavender) { background-color: color-mix(in srgb, var(--yarn-lavender) 26%, transparent); }
+::highlight(yarn-card-cream) { background-color: color-mix(in srgb, var(--yarn-cream) 26%, transparent); }
+::highlight(yarn-page-coral) { background-color: var(--yarn-coral-tint); }
+::highlight(yarn-page-mint) { background-color: var(--yarn-mint-tint); }
+::highlight(yarn-page-sky) { background-color: var(--yarn-sky-tint); }
+::highlight(yarn-page-amber) { background-color: var(--yarn-amber-tint); }
+::highlight(yarn-page-lavender) { background-color: var(--yarn-lavender-tint); }
+::highlight(yarn-page-cream) { background-color: var(--yarn-cream-tint); }
+
 .highlight-area {
   border: 1.5px solid var(--stroke);
   background: color-mix(in srgb, var(--stroke) 8%, transparent);
@@ -641,6 +656,11 @@ button:disabled {
   height: 28px;
 }
 
+/* In the journal: the bookmark lit in the card's colour. */
+.yarn-card-actions .journal-button.is-saved {
+  color: var(--stroke);
+}
+
 .yarn-card-image {
   display: block;
   max-height: 120px;
@@ -658,7 +678,7 @@ button:disabled {
   border-left: 2px solid var(--stroke);
   color: var(--ink-soft);
   font-family: 'Literata', Georgia, serif;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--card-text, 1));
   line-height: 1.45;
   white-space: pre-wrap;
 }
@@ -677,13 +697,13 @@ button:disabled {
 .yarn-question {
   margin: 10px 0 4px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: calc(14px * var(--card-text, 1));
 }
 
 .yarn-note-text {
   margin: 8px 0;
   font-family: 'Literata', Georgia, serif;
-  font-size: 15px;
+  font-size: calc(15px * var(--card-text, 1));
   line-height: 1.55;
   white-space: pre-wrap;
 }
@@ -702,7 +722,7 @@ button:disabled {
 
 .yarn-answer-text {
   font-family: 'Literata', Georgia, serif;
-  font-size: 15px;
+  font-size: calc(15px * var(--card-text, 1));
   line-height: 1.55;
   transition: filter 200ms ease-out;
 }
@@ -765,7 +785,7 @@ button:disabled {
   border-radius: 8px;
   background: color-mix(in srgb, var(--error-text) 8%, transparent);
   color: var(--ink);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--card-text, 1));
 }
 
 .yarn-error p {
@@ -796,6 +816,11 @@ button:disabled {
 .yarn-card-footer textarea::placeholder,
 .selection-menu-ask textarea::placeholder {
   color: var(--ink-faint);
+}
+
+/* The card text size the reader chose for this book (the − and + in a card's header). */
+.yarn-card-footer textarea {
+  font-size: calc(1em * var(--card-text, 1));
 }
 
 /* ---------- Selection menu ---------- */
@@ -1309,6 +1334,13 @@ button:disabled {
 .journal-text {
   font-family: 'Literata', Georgia, serif;
   line-height: 1.55;
+}
+
+/* Journal text always fits the panel's width, long links and words included (owner test 14 Nov, Mac). */
+.journal-quote,
+.journal-text,
+.journal-summary {
+  overflow-wrap: anywhere;
 }
 
 .journal-text p {
@@ -2333,10 +2365,63 @@ button:disabled {
   margin: 2px 0 0;
 }
 
-.extract-actions {
+.extract-dialog .dialog-header {
+  flex-wrap: wrap;
+}
+
+/* Previous and next page beside the title (owner test 14 Nov: page by page in the extract window). */
+.extract-pager {
   display: flex;
   align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.extract-pager > div {
+  margin-left: 8px;
+  min-width: 0;
+}
+
+.extract-pager .icon-button {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.extract-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 4px;
+  margin-left: auto;
+}
+
+.extract-actions .ghost-button {
+  white-space: nowrap;
+}
+
+.extract-range {
+  padding: 12px 24px 4px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-raised, var(--paper));
+}
+
+.extract-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--accent-tint);
+  font-size: 13px;
+}
+
+.extract-failed {
+  margin: 0;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--line);
 }
 
 .extract-actions .icon-button {

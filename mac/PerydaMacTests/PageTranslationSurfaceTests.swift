@@ -64,7 +64,6 @@ final class PageTranslationSurfaceTests: XCTestCase {
         batcher = TestBatcher()
         streamer = RecordingInstantStreamer()
         reader = try XCTUnwrap(ReaderModel(book: book, store: store, lang: .tr, settings: ByokSettings(activeProvider: .gemini, geminiApiKey: "AIza-placeholder-not-real"), streamer: streamer, batcher: batcher))
-        reader.dwellDelay = .milliseconds(250)
         let reader = self.reader!
         var worldRef: WorldView?
         world = WorldView(model: reader) { id in
@@ -107,13 +106,19 @@ final class PageTranslationSurfaceTests: XCTestCase {
 
     func translatedPages() -> [Int] { reader.cards.cards.compactMap(\.translatedPage).sorted() }
 
-    func testThisPageAndTheNextAreTranslatedDirectlyAndSitBesideTheirPages() async throws {
+    /// "Translate this page" translates that page only (owner, 14 Nov: the next page is not translated
+    /// unasked); a range goes through "Translate pages…".
+    func testThisPageAloneIsTranslatedDirectlyAndSitsBesideItsPage() async throws {
         reader.startTranslating(at: 1)
-        try await waitUntil { self.streamer.requests.count == 2 }
+        try await waitUntil { self.streamer.requests.count == 1 }
+        try await waitUntil { self.reader.translation(of: 1)?.messages.last?.role == .assistant && self.reader.translation(of: 1)?.messages.last?.state == nil }
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(translatedPages(), [1])
+        XCTAssertEqual(streamer.requests.count, 1)
+        reader.translate([2])
         try await waitUntil { self.reader.translation(of: 2)?.messages.last?.role == .assistant && self.reader.translation(of: 2)?.messages.last?.state == nil }
-        XCTAssertEqual(translatedPages(), [1, 2])
         let jobs = await batcher.jobs
-        XCTAssertTrue(jobs.isEmpty, "two pages: no batch")
+        XCTAssertTrue(jobs.isEmpty, "one page at a time: no batch")
         XCTAssertEqual(reader.cameraCommand, .showTranslation(page: 1))
         let req = try XCTUnwrap(streamer.requests.first)
         guard case .text(let prompt) = req.turns[0].parts[0] else { return XCTFail("text") }
@@ -179,26 +184,17 @@ final class PageTranslationSurfaceTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(reader.placements[t.id]).x, lp.x + lane.width + 60, accuracy: 0.5)
     }
 
-    /// Reading a translated page for a while starts the next one; passing through does not.
-    func testReadingATranslatedPageStartsTheNextOne() async throws {
+    /// Staying on a translated page starts nothing by itself.
+    func testNothingIsTranslatedWithoutBeingAsked() async throws {
         reader.startTranslating(at: 1)
-        try await waitUntil { self.streamer.requests.count == 2 }
-        // Passing quickly over page 2 to page 3 and back: nothing new.
+        try await waitUntil { self.streamer.requests.count == 1 }
         reader.currentPage = 2
-        try await Task.sleep(for: .milliseconds(80))
-        reader.currentPage = 3
-        try await Task.sleep(for: .milliseconds(80))
-        reader.currentPage = 2
-        try await Task.sleep(for: .milliseconds(120))
-        XCTAssertEqual(translatedPages(), [1, 2], "not yet")
-        // Staying on translated page 2 starts page 3 in the background.
-        try await waitUntil { self.translatedPages() == [1, 2, 3] }
-        try await waitUntil { self.streamer.requests.count == 3 }
-        // Staying on a page with no translation starts nothing.
-        reader.cards.remove(try XCTUnwrap(reader.translation(of: 3)?.id))
-        reader.currentPage = 3
-        try await Task.sleep(for: .milliseconds(450))
-        XCTAssertEqual(translatedPages(), [1, 2])
+        try await Task.sleep(for: .milliseconds(150))
+        reader.currentPage = 1
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertEqual(translatedPages(), [1])
+        XCTAssertEqual(streamer.requests.count, 1)
+        XCTAssertEqual(reader.pendingTranslations, 0)
     }
 
     func testTheTranslationArrivesAndThreadsOpenFromItsText() async throws {
@@ -220,6 +216,7 @@ final class PageTranslationSurfaceTests: XCTestCase {
         try await snapshot("peryda-mac-translation.png")
 
         // Select words in the translation, as a reader would.
+        CardButtonTests.deliverQueuedMouseEvents(to: nil)
         let line = text.layoutManager!.lineFragmentRect(forGlyphAt: 30, effectiveRange: nil)
         let start = text.convert(CGPoint(x: 2, y: line.midY), to: nil)
         let end = text.convert(CGPoint(x: 160, y: line.midY), to: nil)
@@ -242,15 +239,81 @@ final class PageTranslationSurfaceTests: XCTestCase {
         let yarn = try XCTUnwrap(reader.segments.first { $0.cardId == thread.id })
         XCTAssertEqual(yarn.from.x, tp.x + reader.pages[0].width, accuracy: 0.5, "its yarn leaves the translation's edge")
 
+        // The passage is marked in the thread's colour in the translation (owner test 14 Nov).
+        await settle()
+        let marked = try XCTUnwrap(find(host))
+        XCTAssertEqual(marked.marks.count, 1)
+        XCTAssertEqual(marked.marks.first?.text, thread.anchors.first?.selectedText)
+        XCTAssertEqual(marked.marks.first?.multiply, true)
+
+        // A new selection opens the menu; a click elsewhere in the text closes it. (Mouse events left
+        // in the queue by earlier steps would end the text view's drag early: drop them first.)
+        CardButtonTests.deliverQueuedMouseEvents(to: nil)
+        NSApp.postEvent(ev(.leftMouseDragged, end), atStart: false)
+        NSApp.postEvent(ev(.leftMouseUp, end), atStart: false)
+        window.sendEvent(ev(.leftMouseDown, start))
+        while let e = NSApp.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: Date(), inMode: .default, dequeue: true) { window.sendEvent(e) }
+        XCTAssertNotNil(reader.pending)
+        CardButtonTests.deliverQueuedMouseEvents(to: nil)
+        let elsewhere = text.convert(CGPoint(x: 40, y: text.layoutManager!.lineFragmentRect(forGlyphAt: 120, effectiveRange: nil).midY), to: nil)
+        NSApp.postEvent(ev(.leftMouseUp, elsewhere), atStart: false)
+        window.sendEvent(ev(.leftMouseDown, elsewhere))
+        while let e = NSApp.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: Date(), inMode: .default, dequeue: true) { window.sendEvent(e) }
+        XCTAssertNil(reader.pending, "a click in other text closes the menu")
+
+        // Deleting the thread takes its mark away.
+        reader.cards.remove(thread.id)
+        await settle()
+        XCTAssertTrue(try XCTUnwrap(find(host)).marks.isEmpty)
+        reader.pending = PendingSelection(anchors: thread.anchors, rect: .zero, parentCardId: id)
+        reader.create(color: .lavender, kind: .quick(.lavender))
+        await settle()
+        let again = try XCTUnwrap(reader.cards.cards.first { $0.parentCardId == id })
+
         // Hiding threads leaves the translation; page by page shows it on its own page only.
         reader.hideThreads = true
         XCTAssertTrue(reader.isShown(try XCTUnwrap(reader.translation(of: 1))))
-        XCTAssertFalse(reader.isShown(thread))
+        XCTAssertFalse(reader.isShown(again))
         reader.hideThreads = false
         reader.pagedReading = true
         reader.currentPage = 2
         XCTAssertFalse(reader.isShown(try XCTUnwrap(reader.translation(of: 1))))
         reader.pagedReading = false
+    }
+
+    /// "Read with Pery" in "Extract page text": the page's picture goes with the transcription prompt;
+    /// the reading is kept with the book.
+    func testReadWithPerySendsThePagesPicture() async throws {
+        let readings = try XCTUnwrap(reader.readings)
+        readings.read(1...1, lang: .tr)
+        try await waitUntil { readings.readings[1]?.state == .done }
+        let req = try XCTUnwrap(streamer.requests.last)
+        XCTAssertEqual(req.system, Compose.pageTranscriptionSystem(.tr))
+        guard case .image(let mime, let data) = req.turns[0].parts[0] else { return XCTFail("the page's picture first") }
+        XCTAssertEqual(mime, "image/jpeg")
+        XCTAssertGreaterThan(data.count, 1000)
+        guard case .text(let prompt) = req.turns[0].parts[1] else { return XCTFail("then the instruction") }
+        XCTAssertTrue(prompt.contains("Dört Sayfa"), prompt)
+        XCTAssertNil(reader.pagePicture(9), "no such page")
+        XCTAssertEqual(store.readings(for: reader.book.id).first?.page, 1)
+    }
+
+    /// The extract window with a range read by Pery, for a look.
+    func testExtractWindowSnapshot() async throws {
+        let readings = try XCTUnwrap(reader.readings)
+        readings.read(1...2, lang: .tr)
+        try await waitUntil { readings.done.count == 2 }
+        let app = AppModel(store: store, settings: ByokSettings(geminiApiKey: "placeholder-not-a-key"), lang: .tr)
+        let sheet = NSHostingView(rootView: ExtractedTextSheet(reader: reader, page: 1, lang: .tr).environment(app).frame(width: 780, height: 560))
+        let w = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 780, height: 560), styleMask: [.borderless], backing: .buffered, defer: false)
+        w.contentView = sheet
+        w.orderFrontRegardless()
+        defer { w.orderOut(nil) }
+        try await Task.sleep(for: .milliseconds(600))
+        sheet.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(sheet.bitmapImageRepForCachingDisplay(in: sheet.bounds))
+        sheet.cacheDisplay(in: sheet.bounds, to: rep)
+        try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-extract.png"))
     }
 
     func testAScannedPageIsReadOnTheMac() async throws {
@@ -278,6 +341,42 @@ final class PageTranslationSurfaceTests: XCTestCase {
         }
         XCTAssertEqual(PageText.clean("Ost-\nWest"), "Ost- West")
         XCTAssertEqual(PageText.clean("first line\nsecond line\n\nnext paragraph"), "first line second line\n\nnext paragraph")
+    }
+
+    /// The translated page's own buttons, clicked through the window at the zoom a reader uses:
+    /// Retranslate asks again, Close removes it. (Owner test 14 Nov: neither did anything.)
+    func testTheTranslatedPagesButtonsWorkWhenClicked() async throws {
+        reader.translate([1])
+        try await waitUntil { self.reader.translation(of: 1)?.messages.last?.role == .assistant && self.reader.translation(of: 1)?.messages.last?.state == nil }
+        let id = try XCTUnwrap(reader.translation(of: 1)?.id)
+        for m in [0.74, 1.0] {
+            world.scrollView.magnification = m
+            let place = try XCTUnwrap(reader.placements[id])
+            world.scrollView.contentView.scroll(to: CGPoint(x: place.x - 100, y: place.y - 40))
+            world.scrollView.reflectScrolledClipView(world.scrollView.contentView)
+            await settle()
+            let host = try XCTUnwrap(world.documentView.subviews.first { $0 is ZoomedHostingView<AnyView> && abs($0.frame.minX - place.x) < 1 })
+            host.layoutSubtreeIfNeeded()
+            let before = streamer.requests.count
+            await click(world.documentView.convert(CGPoint(x: host.frame.maxX - 44 - 11 - 22 - 8, y: host.frame.minY + 20 + 11), to: nil))
+            try await waitUntil { self.streamer.requests.count == before + 1 }
+            await settle()
+        }
+        let place = try XCTUnwrap(reader.placements[id])
+        let host = try XCTUnwrap(world.documentView.subviews.first { $0 is ZoomedHostingView<AnyView> && abs($0.frame.minX - place.x) < 1 })
+        await click(world.documentView.convert(CGPoint(x: host.frame.maxX - 44 - 11, y: host.frame.minY + 20 + 11), to: nil))
+        XCTAssertNil(reader.translation(of: 1), "Close removes the translation")
+    }
+
+    func click(_ windowPoint: CGPoint) async {
+        CardButtonTests.deliverQueuedMouseEvents(to: nil)
+        func ev(_ type: NSEvent.EventType) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: windowPoint, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+        NSApp.postEvent(ev(.leftMouseUp), atStart: false)
+        window.sendEvent(ev(.leftMouseDown))
+        CardButtonTests.deliverQueuedMouseEvents(to: window)
+        try? await Task.sleep(for: .milliseconds(150))
     }
 
     func snapshot(_ name: String) async throws {

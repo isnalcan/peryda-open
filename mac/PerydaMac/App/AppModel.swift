@@ -202,16 +202,20 @@ final class AppModel {
     /// unpacked EPUB, its cover, its preferences, and any batch job its pages were waiting on.
     func delete(_ book: BookRecord) {
         let jobs = store.cards(for: book.id).filter { $0.batchJob != nil }
+        let readingJobs = PageReadings.jobs(in: store.readings(for: book.id))
         try? store.deleteBook(book.id)
         if let cache = Self.epubCache { try? EPUBBook.removeCache(parent: cache, id: book.id) }
         Covers.remove(book)
         for prefix in SafeID.perBookDefaults {
             if let key = SafeID.defaultsKey(prefix, book.id) { UserDefaults.standard.removeObject(forKey: key) }
         }
-        if !jobs.isEmpty {
+        if !jobs.isEmpty || !readingJobs.isEmpty {
             let key = settings.key(for: .gemini)
             let batcher = batcher
-            pendingWork.append(Task { await CardsModel.abandonBatches(of: jobs, apiKey: key, batcher: batcher) })
+            pendingWork.append(Task {
+                await CardsModel.abandonBatches(of: jobs, apiKey: key, batcher: batcher)
+                for job in readingJobs { await batcher.abandon(apiKey: key, name: job) }
+            })
         }
         reloadBooks()
     }

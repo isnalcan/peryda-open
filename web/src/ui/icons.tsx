@@ -62,6 +62,15 @@ export const ClipIcon = (p: IconProps) => (
     <path d="M12 7v6M9 10h6" />
   </Svg>
 )
+/** The same bookmark, filled: the card is in the journal. */
+export const ClipSavedIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="currentColor" />
+  </Svg>
+)
+/** Smaller and larger card text: an A with a minus or a plus. */
+export const TextSmallerIcon = (p: IconProps) => <Svg {...p}><path d="M3.5 18l4.5-10 4.5 10M5.1 14.5h5.8M15 12h6" /></Svg>
+export const TextLargerIcon = (p: IconProps) => <Svg {...p}><path d="M2.5 19l5.5-13 5.5 13M4.5 14.8h7M15 11h6M18 8v6" /></Svg>
 export const NoteIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z" />

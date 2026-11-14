@@ -97,6 +97,17 @@ public enum Compose {
         return [AITurn(role: .user, parts: [.text(fill(instruction.text(target), values.merging(["text": text]) { a, _ in a }))])]
     }
 
+    /// "Read with Pery": the page's picture, to be written out as text in its own language.
+    public static func pageTranscriptionSystem(_ lang: Lang) -> String {
+        SharedContract.prompts.pageTranscribeSystem.text(lang)
+    }
+
+    public static func pageTranscriptionTurns(_ lang: Lang, file: String, page: Int, pages: Int, imageDataURL: String) -> [AITurn] {
+        let text = fill(SharedContract.prompts.pageTranscribe.text(lang), ["file": promptTitle(file), "page": String(page), "pages": String(max(pages, page))])
+        guard let part = imagePart(imageDataURL) else { return [AITurn(role: .user, parts: [.text(text)])] }
+        return [AITurn(role: .user, parts: [part, .text(text)])]
+    }
+
     /// A `data:` URL as an image part.
     static func imagePart(_ dataURL: String) -> AIPart? {
         guard dataURL.hasPrefix("data:"), let comma = dataURL.firstIndex(of: ","), let semi = dataURL.firstIndex(of: ";"), semi < comma else { return nil }

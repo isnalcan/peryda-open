@@ -146,6 +146,9 @@ public struct Prompts: Decodable, Sendable {
     public let pageTranslateScannedNoTerms: Localized
     public let contextTemplate: Localized
     public let areaSelection: Localized
+    /// Reading a page's picture into text ("Read with Pery" in "Extract page text").
+    public let pageTranscribeSystem: Localized
+    public let pageTranscribe: Localized
 }
 
 public enum Lang: String, CaseIterable, Sendable {

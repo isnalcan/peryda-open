@@ -227,6 +227,12 @@
     "de": "Alles kopieren",
     "es": "Copiar todo"
   },
+  "copyAllRead": {
+    "tr": "Çıkarılan tüm sayfaları kopyala",
+    "en": "Copy all extracted pages",
+    "de": "Alle ausgelesenen Seiten kopieren",
+    "es": "Copiar todas las páginas extraídas"
+  },
   "deepseekKey": {
     "tr": "DeepSeek anahtarı",
     "en": "DeepSeek key",
@@ -425,6 +431,12 @@
     "de": "Wird hinzugefügt…",
     "es": "Añadiendo…"
   },
+  "inJournal": {
+    "tr": "Günlükte kayıtlı",
+    "en": "Saved in the journal",
+    "de": "Steht im Journal",
+    "es": "Ya está en el diario"
+  },
   "journal": {
     "tr": "Kitap Günlüğü",
     "en": "Book Journal",
@@ -436,6 +448,12 @@
     "en": "Nothing in the journal yet. Clip a passage or save a thread to the journal.",
     "de": "Noch nichts im Journal. Übernimm eine Stelle oder speichere einen Faden im Journal.",
     "es": "Aún no hay nada en el diario. Recorta un fragmento o guarda un hilo en el diario."
+  },
+  "journalUpdated": {
+    "tr": "Günlükteki kayıt güncellendi",
+    "en": "Journal entry updated",
+    "de": "Journaleintrag aktualisiert",
+    "es": "Entrada del diario actualizada"
   },
   "keepLink": {
     "tr": "Kalıcı bağla",
@@ -593,6 +611,12 @@
     "de": "{n} Seiten",
     "es": "{n} páginas"
   },
+  "pagesToRead": {
+    "tr": "{n} sayfa çıkarılacak",
+    "en": "{n} pages will be extracted",
+    "de": "{n} Seiten werden ausgelesen",
+    "es": "Se extraerán {n} páginas"
+  },
   "pagesToTranslate": {
     "tr": "{n} sayfa çevrilecek",
     "en": "{n} pages will be translated",
@@ -677,11 +701,41 @@
     "de": "Höchstens {n} Seiten können auf einmal übersetzt werden.",
     "es": "Se pueden traducir como máximo {n} páginas a la vez."
   },
+  "read": {
+    "tr": "Çıkar",
+    "en": "Extract",
+    "de": "Auslesen",
+    "es": "Extraer"
+  },
   "readByPage": {
     "tr": "Sayfa sayfa",
     "en": "Page by page",
     "de": "Seitenweise",
     "es": "Página a página"
+  },
+  "readByPery": {
+    "tr": "Pery çıkardı",
+    "en": "Extracted by Pery",
+    "de": "Von Pery ausgelesen",
+    "es": "Extraído por Pery"
+  },
+  "readFailed": {
+    "tr": "Pery bu sayfanın metnini çıkaramadı.",
+    "en": "Pery could not extract this page.",
+    "de": "Pery konnte diese Seite nicht auslesen.",
+    "es": "Pery no pudo extraer esta página."
+  },
+  "readRange": {
+    "tr": "Sayfa aralığını çıkar…",
+    "en": "Extract a range of pages…",
+    "de": "Seitenbereich auslesen…",
+    "es": "Extraer un rango de páginas…"
+  },
+  "readRangeNote": {
+    "tr": "İkiden fazla sayfa Gemini ile toplu iş olarak gider: yarı fiyattır, ne zaman biteceğini Google belirler. Diğer sağlayıcılarda sayfalar dörder dörder çıkarılır.",
+    "en": "More than two pages go to Gemini as a batch job: half the price, and Google decides when it finishes. With other providers, pages are extracted four at a time.",
+    "de": "Mehr als zwei Seiten gehen als Batch-Auftrag an Gemini: zum halben Preis, und Google bestimmt, wann er fertig ist. Bei anderen Anbietern werden je vier Seiten ausgelesen.",
+    "es": "Más de dos páginas van a Gemini como trabajo por lotes: cuesta la mitad y Google decide cuándo termina. Con otros proveedores, las páginas se extraen de cuatro en cuatro."
   },
   "readScrolling": {
     "tr": "Kaydırarak",
@@ -689,17 +743,41 @@
     "de": "Fortlaufend",
     "es": "Continuo"
   },
+  "readThisPage": {
+    "tr": "Bu sayfayı çıkar",
+    "en": "Extract this page",
+    "de": "Diese Seite auslesen",
+    "es": "Extraer esta página"
+  },
   "readWithPery": {
-    "tr": "Pery ile oku",
-    "en": "Read with Pery",
-    "de": "Mit Pery lesen",
-    "es": "Leer con Pery"
+    "tr": "Pery ile çıkar",
+    "en": "Extract with Pery",
+    "de": "Mit Pery auslesen",
+    "es": "Extraer con Pery"
+  },
+  "readWithPeryHint": {
+    "tr": "Metin kötü çıktıysa Pery, sayfanın görüntüsüne bakıp metni senin anahtarınla yeniden çıkarabilir.",
+    "en": "If the text came out badly, Pery can look at the page's picture and extract it again with your key.",
+    "de": "Ist der Text schlecht erkannt, kann Pery ihn mit deinem Schlüssel aus dem Bild der Seite neu auslesen.",
+    "es": "Si el texto salió mal, Pery puede mirar la imagen de la página y extraerlo de nuevo con tu clave."
   },
   "readWithPeryNote": {
     "tr": "Bu sayfanın metin katmanı yok. Pery, sayfanın görüntüsünü senin anahtarınla okuyup yazıya geçirebilir.",
     "en": "This page has no text layer. Pery can read the page's picture with your key and write out its text.",
     "de": "Diese Seite hat keine Textebene. Pery kann das Seitenbild mit deinem Schlüssel lesen und den Text abschreiben.",
     "es": "Esta página no tiene capa de texto. Pery puede leer la imagen de la página con tu clave y transcribir el texto."
+  },
+  "readingInBatch": {
+    "tr": "Toplu iş: Google bitirince sonuç buraya gelir; bu pencereyi kapatabilirsin.",
+    "en": "Batch job: the result arrives here when Google finishes; you can close this window.",
+    "de": "Batch-Auftrag: Das Ergebnis erscheint hier, sobald Google fertig ist; du kannst dieses Fenster schließen.",
+    "es": "Trabajo por lotes: el resultado llega aquí cuando Google termine; puedes cerrar esta ventana."
+  },
+  "readingPages": {
+    "tr": "Pery {n} sayfanın metnini çıkarıyor",
+    "en": "Pery is extracting {n} pages",
+    "de": "Pery liest {n} Seiten aus",
+    "es": "Pery está extrayendo {n} páginas"
   },
   "readingText": {
     "tr": "Metin okunuyor…",
@@ -760,6 +838,12 @@
     "en": "Save",
     "de": "Speichern",
     "es": "Guardar"
+  },
+  "saveAllRead": {
+    "tr": "Çıkarılan tüm sayfaları kaydet…",
+    "en": "Save all extracted pages…",
+    "de": "Alle ausgelesenen Seiten sichern…",
+    "es": "Guardar todas las páginas extraídas…"
   },
   "saveToJournal": {
     "tr": "Günlüğe kaydet",
@@ -868,6 +952,18 @@
     "en": "Tap to reveal",
     "de": "Zum Anzeigen tippen",
     "es": "Toca para ver"
+  },
+  "textLarger": {
+    "tr": "Yazıyı büyüt",
+    "en": "Larger text",
+    "de": "Größere Schrift",
+    "es": "Texto más grande"
+  },
+  "textSmaller": {
+    "tr": "Yazıyı küçült",
+    "en": "Smaller text",
+    "de": "Kleinere Schrift",
+    "es": "Texto más pequeño"
   },
   "theme": {
     "tr": "Görünüm",
@@ -1012,6 +1108,12 @@
     "en": "Could not check for updates. Check your internet connection and try again.",
     "de": "Die Suche nach Updates ist fehlgeschlagen. Prüfe deine Internetverbindung und versuche es erneut.",
     "es": "No se pudo buscar actualizaciones. Revisa tu conexión a internet e inténtalo de nuevo."
+  },
+  "updateInJournal": {
+    "tr": "Günlükteki kaydı güncelle",
+    "en": "Update the journal entry",
+    "de": "Eintrag im Journal aktualisieren",
+    "es": "Actualizar la entrada del diario"
   },
   "updateInstall": {
     "tr": "Kur ve yeniden başlat",

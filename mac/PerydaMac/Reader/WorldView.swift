@@ -164,6 +164,9 @@ final class WorldView: NSView {
             documentView.addSubview(view)
         }
 
+        // The menu closed (a press in a card's text, a new thread, Escape): the page selection goes too.
+        if model.pending == nil, dragStart == nil, areaDrag == nil, selection != nil { clearSelection() }
+
         yarnView.ghost = model.liveBrush.map { (model.brushColor, $0.to) }
         refreshYarns(dt: 0)
         layoutClips(placements)
@@ -249,7 +252,7 @@ final class WorldView: NSView {
         if model.pagedReading {
             fadeContent()
             applyPaging()
-            if let band = clipView.band { scroll(to: CGPoint(x: clipView.bounds.minX, y: band.lowerBound), animated: false) }
+            if let band = clipView.band { scroll(to: CGPoint(x: clipView.bounds.minX, y: clipView.start(of: band)), animated: false) }
         } else {
             scroll(to: CGPoint(x: clipView.bounds.minX, y: model.pages[next - 1].y - 24), animated: true)
         }
@@ -406,6 +409,7 @@ final class WorldView: NSView {
         window?.makeFirstResponder(documentView)
         model.pending = nil
         clearSelection()
+        AnswerTextView.clearActive()
         let local = pageView.convert(event.locationInWindow, from: nil)
         let pt = pageView.geometry.pagePoint(fromView: local, viewSize: pageView.bounds.size)
         let areaGesture = model.tool == .area || event.modifierFlags.contains(.shift) || event.modifierFlags.contains(.option) || pageView.geometry.isTextless
@@ -737,6 +741,7 @@ final class WorldDocumentView: NSView {
     override func mouseDown(with event: NSEvent) {
         guard let clip = enclosingScrollView?.contentView else { return }
         world?.model?.pending = nil
+        AnswerTextView.clearActive()
         panStart = (event.locationInWindow, clip.bounds.origin)
     }
 

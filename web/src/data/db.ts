@@ -131,14 +131,20 @@ export async function setPref(key: string, value: unknown): Promise<void> {
   await db.prefs.put({ key, value })
 }
 
+/** Preferences kept per book (`<name>:<bookId>`), removed with the book. */
+export const PER_BOOK_PREFS = ['translateLang', 'journalSummary', 'cardTextScale', 'readings'] as const
+
 /**
  * Removes a book and everything that belongs to it, in one transaction. Returns the Gemini batch jobs its
- * page translations were still waiting on, so the caller can cancel them.
+ * page translations and page readings were still waiting on, so the caller can cancel them.
  */
 export async function deleteBook(bookId: string): Promise<string[]> {
-  return db.transaction('rw', [db.books, db.files, db.cards, db.positions, db.journal, db.covers], async () => {
+  return db.transaction('rw', [db.books, db.files, db.cards, db.positions, db.journal, db.covers, db.prefs], async () => {
     const cards = await db.cards.where('bookId').equals(bookId).toArray()
     const jobs = cards.filter((c) => c.batchJob).map((c) => c.batchJob!)
+    const readings = (await db.prefs.get(`readings:${bookId}`))?.value
+    if (Array.isArray(readings)) for (const r of readings) if (r && typeof r.job === 'string') jobs.push(r.job)
+    await db.prefs.bulkDelete(PER_BOOK_PREFS.map((name) => `${name}:${bookId}`))
     await db.books.delete(bookId)
     await db.files.delete(bookId)
     await db.covers.delete(bookId)

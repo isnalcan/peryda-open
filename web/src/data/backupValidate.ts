@@ -178,9 +178,10 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     case 'extractedTextSize':
       return typeof value === 'number' && value >= 14 && value <= 28 ? { key, value } : null
   }
-  const perBook = /^(translateLang|journalSummary):(.+)$/.exec(key)
+  const perBook = /^(translateLang|journalSummary|cardTextScale):(.+)$/.exec(key)
   if (!perBook || !restoredBooks.has(perBook[2]!)) return null
   if (perBook[1] === 'translateLang') return oneOf(value, LANGS) ? { key, value } : null
+  if (perBook[1] === 'cardTextScale') return typeof value === 'number' && value >= 0.85 && value <= 1.75 ? { key, value } : null
   if (isObject(value) && typeof value.text === 'string' && typeof value.createdAt === 'number' && Number.isFinite(value.createdAt)) {
     return { key, value: { text: text(value.text, LONG_TEXT), createdAt: value.createdAt } }
   }

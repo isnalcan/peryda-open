@@ -179,4 +179,29 @@ extension LayoutAndPagingTests {
             XCTAssertEqual(clip.bounds.minY, 0, accuracy: 0.5, "and no further up than the first page at ×\(magnification)")
         }
     }
+
+    /// Page by page, a band smaller than the window can still be moved up and down (owner test 14 Nov:
+    /// with a few threads open the empty surface would not scroll at all), until only a strip of it is
+    /// left at the window's bottom or top.
+    func testPageByPageTheViewStillMovesUpAndDownAroundThePage() throws {
+        reader.currentPage = 1
+        reader.pagedReading = true
+        world.sync()
+        let clip = world.clipView
+        for magnification in [0.5, 1.0] {
+            world.scrollView.magnification = magnification
+            let band = try XCTUnwrap(clip.band)
+            let start = clip.bounds.minY
+            clip.scroll(to: CGPoint(x: clip.bounds.minX, y: start + 150))
+            world.scrollView.reflectScrolledClipView(clip)
+            XCTAssertEqual(clip.bounds.minY, start + 150, accuracy: 0.5, "moves down at ×\(magnification)")
+            clip.scroll(to: CGPoint(x: clip.bounds.minX, y: 1_000_000))
+            world.scrollView.reflectScrolledClipView(clip)
+            XCTAssertEqual((band.upperBound - clip.bounds.minY) * magnification, CenteringClipView.keptInView, accuracy: 1, "a strip of the page stays at the top at ×\(magnification)")
+            clip.scroll(to: CGPoint(x: clip.bounds.minX, y: -1_000_000))
+            world.scrollView.reflectScrolledClipView(clip)
+            XCTAssertEqual((clip.bounds.maxY - band.lowerBound) * magnification, CenteringClipView.keptInView, accuracy: 1, "and at the bottom at ×\(magnification)")
+        }
+        reader.pagedReading = false
+    }
 }
