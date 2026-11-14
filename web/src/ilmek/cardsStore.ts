@@ -2,7 +2,7 @@ import yarnKinds from '@shared/yarn-kinds.json'
 import { db, newId } from '../data/db'
 import { AiError, streamAnswer, type AiRequest } from '../ai/client'
 import { fakeStream } from '../ai/fake'
-import { JobGone, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type PageBatching } from '../ai/batch'
+import { JobGone, KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type BatchStatus, type PageBatching } from '../ai/batch'
 import { composeTurns, kindPrompt, pageTranslationSystem, pageTranslationTurns, runsAI, systemPrompt } from '../ai/compose'
 import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
 import type { Lang } from '../i18n/strings'
@@ -37,11 +37,16 @@ export type CreateCardInput = {
   text?: string
 }
 
-/** A page to translate: its text layer, or (for a scanned page) its picture. */
+/**
+ * A page to translate: its text layer, or (for a scanned page) its picture. A scanned page may come
+ * without its picture (`scanned`): the store draws it when the request is made, so a long range never
+ * holds every page's picture at once (audit 15 Nov, WW-5).
+ */
 export interface PageSource {
   page: number
   text: string
   imageDataUrl?: string
+  scanned?: boolean
   width: number
   height: number
 }
@@ -125,6 +130,15 @@ export class CardsStore {
   private disposed = false
   /** Bumped when the reader stops translating, so waves already planned do not go on. */
   private waveGeneration = 0
+  /**
+   * Bumped when a batch being drawn and sent must not go on: the reader stopped, closed the book, or
+   * changed the Gemini key the batch started with (audit 15 Nov, KR-1).
+   */
+  private batchGeneration = 0
+  /** Jobs being collected or let go with an old Gemini key; polling with the new key leaves them alone. */
+  private releasing = new Set<string>()
+  /** Draws a scanned page's picture (JPEG data URL) when its translation is sent; set by the PDF reader. */
+  pagePicture: ((page: number) => Promise<string | null>) | null = null
 
   constructor(options: CardsOptions) {
     this.bookId = options.bookId
@@ -141,18 +155,74 @@ export class CardsStore {
   }
 
   /**
-   * A new or removed Gemini key cannot ask about jobs made with the old one: those jobs are cancelled and
-   * removed at Google with the old key, and their pages say so and can be translated again (audit
-   * 15 Nov, K-3).
+   * A new or removed Gemini key cannot ask about jobs made with the old one. A batch still being drawn
+   * and sent stops, and its pages not sent yet say the key changed (a job whose request is already on
+   * its way is removed with the key that made it, in `submitGroup`). Jobs that have a name are asked
+   * about once with the old key: finished results are kept and saved before the job is deleted at
+   * Google; unfinished jobs are cancelled and removed with the old key (audit 15 Nov, K-3, KR-1, KR-2).
+   * React sets this from an effect, never while rendering.
    */
   set settings(next: ByokSettings) {
     const before = keyFor(this.currentSettings, 'gemini')
     this.currentSettings = next
     if (!before || before === keyFor(next, 'gemini')) return
-    const waiting = this.cards.filter((c) => c.batchJob)
-    if (!waiting.length) return
-    for (const job of new Set(waiting.map((c) => c.batchJob!))) this.track(abandonBatchJob(before, job, this.batcher).catch(() => undefined))
-    for (const c of waiting) this.failTranslation(c.id, 'expired')
+    this.batchGeneration += 1
+    for (const id of [...this.submissions.keys()]) {
+      this.submissions.delete(id)
+      const card = this.cards.find((c) => c.id === id)
+      if (card && !card.batchJob && isUnfinishedTranslation(card)) this.failTranslation(id, KEY_CHANGED)
+    }
+    for (const job of new Set(this.cards.filter((c) => c.batchJob).map((c) => c.batchJob!))) {
+      this.releasing.add(job)
+      this.track(this.collectOrRelease(before, job).finally(() => this.releasing.delete(job)))
+    }
+  }
+
+  /** One question to Google with the key that made the job: keep what finished, let go of the rest. */
+  private async collectOrRelease(oldKey: string, job: string) {
+    let status: BatchStatus | null = null
+    if (isBatchName(job)) {
+      try {
+        status = await this.batcher.status(oldKey, job)
+      } catch {
+        status = null
+      }
+    }
+    const waiting = this.cards.filter((c) => c.batchJob === job)
+    if (status?.state === 'done') {
+      this.applyResults(waiting, status)
+      await this.saveNow(waiting.map((c) => c.id))
+      await this.batcher.delete(oldKey, job).catch(() => undefined)
+      return
+    }
+    for (const c of waiting) this.failTranslation(c.id, KEY_CHANGED)
+    await this.saveNow(waiting.map((c) => c.id))
+    await abandonBatchJob(oldKey, job, this.batcher).catch(() => undefined)
+  }
+
+  /** Writes these cards as they are now and waits for it (a collected result is saved before its job goes). */
+  private async saveNow(ids: readonly string[]) {
+    const cards = ids.map((id) => this.cards.find((c) => c.id === id)).filter((c): c is YarnCard => !!c)
+    if (cards.length) await db.cards.bulkPut(cards).catch(() => undefined)
+  }
+
+  /** Copies a finished job's texts into its pages; a page with no text says why. */
+  private applyResults(waiting: readonly YarnCard[], status: Extract<BatchStatus, { state: 'done' }>) {
+    for (const c of waiting) {
+      const text = status.texts[c.id]
+      if (text === undefined) {
+        this.failTranslation(c.id, status.errors[c.id] ?? 'unknown')
+        continue
+      }
+      this.patch(c.id, (card) => {
+        const messages = [...card.messages]
+        const i = messages.map((m) => m.role).lastIndexOf('assistant')
+        if (i >= 0) messages[i] = { ...messages[i]!, content: text.trim(), state: undefined }
+        const next: YarnCard = { ...withoutPageImage(card), messages }
+        delete next.batchJob
+        return next
+      })
+    }
   }
 
   // ---- Subscription (React) ----
@@ -214,6 +284,8 @@ export class CardsStore {
   /** Stops every running answer (the reader is closing). Batch jobs carry on at Google. */
   dispose() {
     this.disposed = true
+    // A batch still being drawn stops: the document it draws from is closing.
+    this.batchGeneration += 1
     for (const c of this.controllers.values()) c.abort()
     this.controllers.clear()
   }
@@ -316,7 +388,7 @@ export class CardsStore {
       if (this.pageTranslation(s.page, target) || created.some((c) => c.translatedPage === s.page)) continue
       const anchor: PdfYarnAnchor = {
         id: newId(),
-        sourceType: s.imageDataUrl ? 'pdf_area' : 'pdf_text',
+        sourceType: s.imageDataUrl || s.scanned ? 'pdf_area' : 'pdf_text',
         bookId: this.bookId,
         pageNumber: s.page,
         selectedText: s.text,
@@ -369,76 +441,127 @@ export class CardsStore {
     )
   }
 
-  /** The request for a page translation with the reader's provider and translation model. */
-  private translationRequest(card: YarnCard, provider: ProviderId): AiRequest {
+  /**
+   * A scanned page's picture: the one kept with an older card, or drawn now from the PDF. Null when the
+   * page has its own text.
+   */
+  private async pictureFor(card: YarnCard): Promise<string | null> {
     const anchor = card.anchors[0]
+    if (anchor?.sourceType !== 'pdf_area') return null
+    if (anchor.croppedImage) return anchor.croppedImage
+    const page = card.translatedPage ?? anchor.pageNumber
+    const picture = this.pagePicture ? await this.pagePicture(page).catch(() => null) : null
+    if (!picture) throw new AiError('unknown', 'no picture of the page')
+    return picture
+  }
+
+  /** The request for a page translation with the reader's provider and translation model. */
+  private async translationRequest(card: YarnCard, provider: ProviderId): Promise<AiRequest> {
+    const anchor = card.anchors[0]
+    const picture = await this.pictureFor(card)
     const target = (card.translationLanguage as Lang | undefined) ?? this.lang
     let model = modelFor(this.settings, provider, 'translation')
     // DeepSeek's reasoning model takes no pictures; scanned pages always go to deepseek-flash.
-    if (provider === 'deepseek' && anchor?.croppedImage) model = 'deepseek-flash'
+    if (provider === 'deepseek' && picture) model = 'deepseek-flash'
     return {
       provider,
       apiKey: keyFor(this.settings, provider),
       model,
       system: pageTranslationSystem(target, this.explainTerms),
-      turns: pageTranslationTurns(target, this.bookTitle, card.translatedPage ?? anchor?.pageNumber ?? 1, this.pageCount, anchor?.selectedText ?? '', anchor?.croppedImage, this.explainTerms),
+      turns: pageTranslationTurns(target, this.bookTitle, card.translatedPage ?? anchor?.pageNumber ?? 1, this.pageCount, anchor?.selectedText ?? '', picture ?? undefined, this.explainTerms),
       maxOutputTokens: ModelAdvice.maxOutputTokens(provider, 'translation'),
       temperature: ModelAdvice.temperature('translation'),
       candidates: provider === 'gemini' ? ModelAdvice.geminiChain(model) : undefined,
     }
   }
 
+  /**
+   * Sends pages as Gemini batch jobs. Pictures of scanned pages are drawn one job at a time, each job kept
+   * under Google's size limit, so a long scanned range never holds every picture at once (audit 15 Nov,
+   * WW-5). The whole range belongs to the key it started with (KR-1).
+   */
   private submitBatch(ids: readonly string[]) {
     const key = keyFor(this.settings, 'gemini')
     const model = modelFor(this.settings, 'gemini', 'translation')
+    const token = Symbol('submission')
     for (const id of ids) {
+      this.submissions.set(id, token)
       this.patch(id, (c) => ({
         ...c,
         messages: [...c.messages.slice(0, 1), { id: newId(), role: 'assistant', content: '', createdAt: Date.now(), state: 'streaming', provider: 'gemini', model }],
       }))
     }
-    const items: BatchItem[] = []
-    for (const id of ids) {
-      const card = this.cards.find((c) => c.id === id)
-      if (!card) continue
-      const r = this.translationRequest(card, 'gemini')
-      items.push({ key: id, system: r.system, turns: r.turns })
-    }
-    // One job per group that fits Google's size limit; each group goes on (or fails) on its own.
-    for (const group of splitBatch(items, batchItemBytes)) this.submitGroup(key, model, group)
-  }
-
-  private submitGroup(key: string, model: string, items: BatchItem[]) {
-    const ids = items.map((item) => item.key)
-    const token = Symbol('submission')
-    for (const id of ids) this.submissions.set(id, token)
+    const generation = this.batchGeneration
     this.track(
       (async () => {
-        let name: string
-        try {
-          name = await this.batcher.create(key, model, items)
-        } catch (error) {
-          // Never a silent fall back to full-price direct requests: each page says the batch could not
-          // start, and its Retry translates that page directly.
-          const code = error instanceof AiError && error.kind === 'key' ? 'key' : 'batch'
-          for (const id of ids) if (this.submissions.get(id) === token) this.failTranslation(id, code)
-          return
+        let group: BatchItem[] = []
+        let bytes = 0
+        const send = async () => {
+          if (!group.length) return
+          const items = group
+          group = []
+          bytes = 0
+          await this.submitGroup(key, model, items, token, generation)
         }
-        const still = ids.filter((id) => this.submissions.get(id) === token)
-        if (!isBatchName(name)) {
-          for (const id of still) this.failTranslation(id, 'batch')
-          return
+        for (const id of ids) {
+          if (generation !== this.batchGeneration) return
+          // Translated now, translated again or closed meanwhile.
+          if (this.submissions.get(id) !== token) continue
+          const card = this.cards.find((c) => c.id === id)
+          if (!card) continue
+          let item: BatchItem
+          try {
+            const r = await this.translationRequest(card, 'gemini')
+            item = { key: id, system: r.system, turns: r.turns }
+          } catch {
+            if (generation !== this.batchGeneration) return
+            this.submissions.delete(id)
+            this.failTranslation(id, 'unknown')
+            continue
+          }
+          if (generation !== this.batchGeneration) return
+          const size = batchItemBytes(item)
+          if (group.length && size + bytes > BATCH_MAX_BYTES) await send()
+          group.push(item)
+          bytes += size
         }
-        if (!still.length) {
-          // Every page was closed or translated another way while the job was being made.
-          this.track(abandonBatchJob(key, name, this.batcher).catch(() => undefined))
-          return
-        }
-        for (const id of still) this.patch(id, (c) => ({ ...c, batchJob: name }))
-        // The reader closed the book meanwhile: keep the job's name on the stored pages so it is collected later.
-        if (this.disposed) for (const id of still) this.track(db.cards.update(id, { batchJob: name }).catch(() => undefined))
+        await send()
       })(),
     )
+  }
+
+  private async submitGroup(key: string, model: string, items: BatchItem[], token: symbol, generation: number) {
+    const ids = items.map((item) => item.key)
+    let name: string
+    try {
+      name = await this.batcher.create(key, model, items)
+    } catch (error) {
+      // Never a silent fall back to full-price direct requests: each page says the batch could not
+      // start, and its Retry translates that page directly.
+      if (generation !== this.batchGeneration && !this.disposed) return
+      const code = error instanceof AiError && error.kind === 'key' ? 'key' : 'batch'
+      for (const id of ids) {
+        if (this.submissions.get(id) !== token) continue
+        this.submissions.delete(id)
+        this.failTranslation(id, code)
+      }
+      return
+    }
+    const still = ids.filter((id) => this.submissions.get(id) === token)
+    for (const id of still) this.submissions.delete(id)
+    if (!isBatchName(name)) {
+      for (const id of still) this.failTranslation(id, 'batch')
+      return
+    }
+    if (!still.length) {
+      // Every page was closed, translated another way, or let go with a changed key while the job was
+      // being made: it is removed with the key that made it.
+      await abandonBatchJob(key, name, this.batcher).catch(() => undefined)
+      return
+    }
+    for (const id of still) this.patch(id, (c) => ({ ...c, batchJob: name }))
+    // The reader closed the book meanwhile: keep the job's name on the stored pages so it is collected later.
+    if (this.disposed) await Promise.all(still.map((id) => db.cards.update(id, { batchJob: name }).catch(() => undefined)))
   }
 
   /**
@@ -474,6 +597,7 @@ export class CardsStore {
    */
   stopTranslations = (): number => {
     this.waveGeneration += 1
+    this.batchGeneration += 1
     const ids = this.unfinishedTranslations.map((c) => c.id)
     if (ids.length) this.removeAll(ids)
     return ids.length
@@ -496,6 +620,8 @@ export class CardsStore {
     const now = Date.now()
     const jobs = new Set(this.waitingTranslations.map((c) => c.batchJob!))
     for (const job of jobs) {
+      // Being collected or let go with an old key (the key changed): not asked with the new one.
+      if (this.releasing.has(job)) continue
       const waiting = this.waitingTranslations.filter((c) => c.batchJob === job)
       // Only a name Google could have given goes into a request (a backup may carry anything).
       if (!isBatchName(job)) {
@@ -522,23 +648,11 @@ export class CardsStore {
         this.track(this.batcher.delete(key, job).catch(() => undefined))
         continue
       }
-      for (const c of waiting) {
-        const text = status.texts[c.id]
-        if (text === undefined) {
-          this.failTranslation(c.id, status.errors[c.id] ?? 'unknown')
-          continue
-        }
-        this.patch(c.id, (card) => {
-          const messages = [...card.messages]
-          const i = messages.map((m) => m.role).lastIndexOf('assistant')
-          if (i >= 0) messages[i] = { ...messages[i]!, content: text.trim(), state: undefined }
-          const next: YarnCard = { ...withoutPageImage(card), messages }
-          delete next.batchJob
-          return next
-        })
-      }
-      // The results are copied into the pages; the job (pages and translations) need not stay at Google.
-      this.track(this.batcher.delete(key, job).catch(() => undefined))
+      this.applyResults(waiting, status)
+      // The results are saved first; only then need the job (pages and translations) not stay at Google
+      // (audit 15 Nov, WR-2).
+      await this.saveNow(waiting.map((c) => c.id))
+      await this.batcher.delete(key, job).catch(() => undefined)
     }
   }
 
@@ -570,7 +684,7 @@ export class CardsStore {
   /** A scanned page whose picture was dropped after its translation; it must be drawn again to be re-sent. */
   needsPageImage(cardId: string): boolean {
     const anchor = this.cards.find((c) => c.id === cardId)?.anchors[0]
-    return anchor?.sourceType === 'pdf_area' && !anchor.croppedImage
+    return anchor?.sourceType === 'pdf_area' && !anchor.croppedImage && !this.pagePicture
   }
 
   // ---- Streaming ----
@@ -586,13 +700,13 @@ export class CardsStore {
       return
     }
     const p = provider ?? 'gemini'
-    let request: AiRequest
-    if (card.translatedPage !== undefined) {
-      request = this.translationRequest(card, p)
-    } else {
+    const translation = card.translatedPage !== undefined
+    // A page translation may need its picture drawn first; the request is made inside the run.
+    const makeRequest = async (): Promise<AiRequest> => {
+      if (translation) return this.translationRequest(card, p)
       const pages = card.anchors.filter((a) => a.sourceType !== 'card').map((a) => a.pageNumber)
       const model = modelFor(this.settings, p, 'thread')
-      request = {
+      return {
         provider: p,
         apiKey: keyFor(this.settings, p),
         model,
@@ -603,10 +717,10 @@ export class CardsStore {
         candidates: p === 'gemini' ? ModelAdvice.geminiChain(model) : undefined,
       }
     }
-    this.stream(cardId, answerId, request, card.translatedPage !== undefined)
+    this.stream(cardId, answerId, makeRequest, translation)
   }
 
-  private stream(cardId: string, answerId: string, request: AiRequest, translation: boolean) {
+  private stream(cardId: string, answerId: string, makeRequest: () => Promise<AiRequest>, translation: boolean) {
     this.controllers.get(cardId)?.abort()
     const controller = new AbortController()
     this.controllers.set(cardId, controller)
@@ -614,7 +728,9 @@ export class CardsStore {
       let text = ''
       let lastSave = Date.now()
       try {
-        const source = this.fake ? fakeStream(controller.signal, translation) : this.streamer({ ...request, signal: controller.signal })
+        const request = this.fake ? null : await makeRequest()
+        if (controller.signal.aborted) throw new AiError('aborted', 'aborted')
+        const source = this.fake || !request ? fakeStream(controller.signal, translation) : this.streamer({ ...request, signal: controller.signal })
         for await (const piece of source) {
           if (controller.signal.aborted) throw new AiError('aborted', 'aborted')
           text += piece
@@ -623,7 +739,7 @@ export class CardsStore {
           this.setAnswer(cardId, answerId, text, 'streaming', save)
         }
         if (controller.signal.aborted) throw new AiError('aborted', 'aborted')
-        this.setAnswer(cardId, answerId, text, undefined, true, request.provider, request.model)
+        this.setAnswer(cardId, answerId, text, undefined, true, request?.provider, request?.model)
         if (translation && this.cards.find((c) => c.id === cardId)?.anchors[0]?.croppedImage) this.patch(cardId, withoutPageImage)
       } catch (error) {
         const kind = error instanceof AiError ? error.kind : 'unknown'
@@ -670,7 +786,7 @@ export class CardsStore {
  * A translated scanned page no longer keeps its picture: it can be drawn again from the PDF, and kept it
  * would swell the library and every backup.
  */
-function withoutPageImage(card: YarnCard): YarnCard {
+export function withoutPageImage(card: YarnCard): YarnCard {
   if (card.translatedPage === undefined || !card.anchors.some((a) => a.croppedImage)) return card
   return {
     ...card,

@@ -25,7 +25,7 @@ import { CameraBar, PageMenu, PageNav, TiedKnot, ToolSwitcher, TranslateMenu } f
 import { ExtractTextDialog, TranslateRangeDialog } from './ReaderDialogs'
 import { TranslatedPageView } from './TranslatedPageView'
 import { RANGE_LIMIT, isUnfinishedTranslation } from '../ilmek/cardsStore'
-import { PageTextCache, pageSource, renderPageJpeg } from './pageText'
+import { PageTextCache, pageSource, renderPageJpeg, translationPicture } from './pageText'
 import { PageReadingsStore } from '../reading/pageReadings'
 import { useFakeAi } from '../ai/fake'
 import { cardText } from './useThreadSelection'
@@ -259,6 +259,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const { store, cards, create, ask, retry, stop, remove, update, resize } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
   store.pageCount = pages.length
   store.explainTerms = explainTerms
+  // Scanned pages' pictures are drawn when their translation is sent, not kept beforehand (WW-5).
+  store.pagePicture = useCallback((page: number) => translationPicture(doc, page), [doc])
   const actions = useThreadActions({ bookId: book.id, cards, t })
   // Passages threads were opened from inside cards and translated pages, marked in their colours.
   useThreadMarks(worldRef, cards)
@@ -501,19 +503,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     [doc, pages, store, ensurePolling],
   )
 
-  /** Translates a page again; a scanned page whose picture was dropped after its translation is drawn again first. */
-  const retranslate = useCallback(
-    async (cardId: string) => {
-      const page = store.cards.find((c) => c.id === cardId)?.translatedPage
-      if (!store.needsPageImage(cardId) || page === undefined || !pages[page - 1]) {
-        store.retranslate(cardId)
-        return
-      }
-      const source = await pageSource(doc, page, pages[page - 1]!).catch(() => null)
-      store.retranslate(cardId, source ?? undefined)
-    },
-    [doc, pages, store],
-  )
+  /** Translates a page again; a scanned page's picture is drawn again by the store when it is sent. */
+  const retranslate = useCallback((cardId: string) => store.retranslate(cardId), [store])
 
   /**
    * "Translate this page": only this page. Nothing is translated without the reader asking: more

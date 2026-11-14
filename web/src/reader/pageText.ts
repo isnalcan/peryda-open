@@ -133,16 +133,22 @@ export async function renderPageJpeg(page: PDFPageProxy, scale: number, quality:
 }
 
 /**
- * The page as sent for translation: its raw text, or for a page without a text layer, a picture at 1.6×
- * (JPEG, quality 0.86) for the model to read and translate.
+ * The page as sent for translation: its raw text, or for a page without a text layer, a note that it is
+ * scanned. Its picture is drawn only when the translation is sent (`translationPicture`), so a long range
+ * never holds every page's picture at once (audit 15 Nov, WW-5).
  */
 export async function pageSource(doc: PDFDocumentProxy, number: number, box: PageBox): Promise<PageSource | null> {
   if (number < 1 || number > doc.numPages) return null
   const page = await doc.getPage(number)
   const raw = await rawPageText(page)
   if (hasTextLayer(raw)) return { page: number, text: raw, width: box.width, height: box.height }
-  const image = await renderPageJpeg(page, 1.6, 0.86)
-  return { page: number, text: '', imageDataUrl: image || undefined, width: box.width, height: box.height }
+  return { page: number, text: '', scanned: true, width: box.width, height: box.height }
+}
+
+/** A scanned page's picture for its translation: 1.6× (JPEG, quality 0.86), for the model to read. */
+export async function translationPicture(doc: PDFDocumentProxy, number: number): Promise<string | null> {
+  if (number < 1 || number > doc.numPages) return null
+  return (await renderPageJpeg(await doc.getPage(number), 1.6, 0.86)) || null
 }
 
 /** Remembers each page's text once read; threads take the start of it as their context. */

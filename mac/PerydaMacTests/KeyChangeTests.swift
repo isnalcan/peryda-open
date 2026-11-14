@@ -8,12 +8,20 @@ actor KeyRecordingBatcher: PageBatching {
     var created = 0
     var cancelled: [(key: String, name: String)] = []
     var deleted: [(key: String, name: String)] = []
+    var asked: [(key: String, name: String)] = []
+    /// What Google says about each job (waiting unless set).
+    var statuses: [String: GeminiBatch.Status] = [:]
+
+    func set(_ status: GeminiBatch.Status, for name: String) { statuses[name] = status }
 
     func create(apiKey: String, model: String, items: [GeminiBatch.Item]) async throws -> String {
         created += 1
         return "batches/open-\(created)"
     }
-    func status(apiKey: String, name: String) async throws -> GeminiBatch.Status { .waiting }
+    func status(apiKey: String, name: String) async throws -> GeminiBatch.Status {
+        asked.append((apiKey, name))
+        return statuses[name] ?? .waiting
+    }
     func cancel(apiKey: String, name: String) async { cancelled.append((apiKey, name)) }
     func delete(apiKey: String, name: String) async { deleted.append((apiKey, name)) }
 }
@@ -80,5 +88,55 @@ final class KeyChangeTests: XCTestCase {
         XCTAssertNil(store.cards(for: closed.id).first?.batchJob)
         XCTAssertEqual(store.readings(for: closed.id).first?.state, .failed)
         _ = reader
+    }
+
+    /// A job that had already finished is collected with the old key, not thrown away (audit KR-2):
+    /// its pages get their text, it is deleted (not cancelled), and an unfinished one is removed.
+    func testFinishedJobsAreKeptWhenTheGeminiKeyChanges() async throws {
+        let store = try store()
+        let batcher = KeyRecordingBatcher()
+        let old = "AIza-old-placeholder-not-real"
+        let app = AppModel(store: store, settings: ByokSettings(activeProvider: .gemini, geminiApiKey: old), lang: .tr, batcher: batcher)
+        let pdf = try XCTUnwrap(PDFDocument(url: Self.repo.appendingPathComponent("web/dev-samples/okuma.pdf"))?.dataRepresentation())
+        let closed = try store.importBook(data: pdf, fileName: "a.pdf", title: "A", author: nil, pageCount: 1)
+        app.reloadBooks()
+        var card = YarnCard(id: "t-closed", bookId: closed.id, color: .sky, kind: .translate, anchors: [], messages: [YarnMessage(role: .user, content: "ÇEVİRİ"), YarnMessage(role: .assistant, content: "", state: .streaming)])
+        card.translatedPage = 1
+        card.translationLanguage = "tr"
+        card.batchJob = "batches/finished"
+        try store.saveCards([card], for: closed.id)
+        try store.saveReadings([PageReading(page: 1, state: .waiting, job: "batches/unfinished")], for: closed.id)
+        await batcher.set(.done(texts: ["t-closed": "Çeviri hazır"], errors: [:]), for: "batches/finished")
+
+        XCTAssertTrue(app.saveSettings(ByokSettings(activeProvider: .gemini, geminiApiKey: "AIza-new-placeholder-not-real"), remember: false))
+        for task in app.pendingWork { await task.value }
+        XCTAssertEqual(store.cards(for: closed.id).first?.messages.last?.content, "Çeviri hazır", "the paid result is kept")
+        XCTAssertEqual(store.readings(for: closed.id).first?.error, "key-changed")
+        let asked = await batcher.asked
+        XCTAssertTrue(asked.allSatisfy { $0.key == old }, "asked with the key that made the jobs")
+        let cancelled = await batcher.cancelled.map(\.name)
+        let deleted = await batcher.deleted.map(\.name)
+        XCTAssertEqual(cancelled, ["batches/unfinished"])
+        XCTAssertEqual(Set(deleted), ["batches/finished", "batches/unfinished"])
+        // Saving the same key again stops nothing.
+        let before = await batcher.asked.count
+        XCTAssertTrue(app.saveSettings(app.settings, remember: false))
+        for task in app.pendingWork { await task.value }
+        let after = await batcher.asked.count
+        XCTAssertEqual(before, after)
+    }
+
+    /// A book whose threads file did not decode whole: the reader is told when the book opens
+    /// (audit recheck MA-4), not only for the library file at launch.
+    func testAnUnreadableThreadsFileIsToldWhenTheBookOpens() throws {
+        let store = try store()
+        let app = AppModel(store: store, settings: ByokSettings(), lang: .tr)
+        let pdf = try XCTUnwrap(PDFDocument(url: Self.repo.appendingPathComponent("web/dev-samples/okuma.pdf"))?.dataRepresentation())
+        let book = try store.importBook(data: pdf, fileName: "a.pdf", title: "A", author: nil, pageCount: 1)
+        try Data("[{\"id\": 1}]".utf8).write(to: store.root.appendingPathComponent("cards/\(book.id).json"))
+        XCTAssertNil(app.lastError)
+        let reader = try XCTUnwrap(ReaderModel(book: book, app: app))
+        XCTAssertEqual(app.lastError, UIText(.tr)["unreadableFiles"])
+        reader.close()
     }
 }

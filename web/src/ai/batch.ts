@@ -45,6 +45,9 @@ export function isBatchName(name: unknown): name is string {
   return typeof name === 'string' && BATCH_NAME.test(name)
 }
 
+/** The error a page shows when its batch went with a Gemini key the reader changed or removed (Mac: "key-changed"). */
+export const KEY_CHANGED = 'key-changed'
+
 export const BATCH_MAX_OUTPUT_TOKENS = 16_384
 
 /** Each request carries the model's thinking and the translation temperature where the model takes one. */

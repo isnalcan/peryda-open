@@ -28,6 +28,13 @@ public final class CardsModel {
     private var submissions: [String: UUID] = [:]
     /// Bumped when the reader stops translating, so waves already planned do not go on.
     private var waveGeneration = 0
+    /// Bumped when pages stop going to batch jobs (stop, or the Gemini key changed), so a range still
+    /// being drawn sends nothing more; direct translations are not affected (audit KR-1, MR-2, MR-8).
+    private var batchGeneration = 0
+    /// Page translations on their way to a batch job (being drawn, or the job not made yet).
+    private var batchBound = Set<String>()
+    /// Jobs being settled with an old key: polling with the new key leaves them alone.
+    private var settling = Set<String>()
     private var saveTask: Task<Void, Never>?
 
     public init(bookId: String, bookTitle: String, lang: Lang, settings: ByokSettings, store: LibraryStore?, streamer: AnswerStreaming, batcher: PageBatching = GeminiBatch()) {
@@ -60,6 +67,13 @@ public final class CardsModel {
     }
 
     // MARK: Persistence
+
+    /// Writes the threads now: before a batch job's results are deleted at Google, they must be on
+    /// disk (audit WR-2).
+    private func saveNow() {
+        saveTask?.cancel()
+        try? store?.saveCards(cards, for: bookId)
+    }
 
     private func scheduleSave(immediately: Bool = false) {
         saveTask?.cancel()
@@ -339,6 +353,8 @@ public final class CardsModel {
     @discardableResult
     public func stopTranslations() -> Int {
         waveGeneration += 1
+        batchGeneration += 1
+        batchBound.removeAll()
         let ids = unfinishedTranslations.map(\.id)
         if !ids.isEmpty { removeAll(ids) }
         return ids.count
@@ -374,13 +390,16 @@ public final class CardsModel {
         // One job per group that fits Google's size limit; each group goes on (or fails) on its own.
         // Scanned pages' pictures are drawn as the group fills and dropped once it is sent, so a
         // long range is never held in memory at once (audit WW-5).
-        let generation = waveGeneration
+        batchBound.formUnion(ids)
+        let generation = batchGeneration
         Task { [weak self] in
             var group: [GeminiBatch.Item] = []
             var bytes = 0
             for id in ids {
-                guard let self, generation == self.waveGeneration else { return }
-                guard let card = self.cards.first(where: { $0.id == id }), card.messages.last?.state == .streaming, card.batchJob == nil else { continue }
+                guard let self, generation == self.batchGeneration else { return }
+                // A page translated now (or stopped) while the range was being drawn is not sent
+                // again in the job (audit MR-2).
+                guard self.batchBound.contains(id), let card = self.cards.first(where: { $0.id == id }), card.messages.last?.state == .streaming, card.batchJob == nil else { continue }
                 let image = await self.picture(for: card)
                 if card.anchors.first?.sourceType == .pdfArea, image == nil {
                     self.failTranslation(id, "unknown")
@@ -398,7 +417,7 @@ public final class CardsModel {
                 bytes += size
                 await Task.yield()
             }
-            guard let self, generation == self.waveGeneration, !group.isEmpty else { return }
+            guard let self, generation == self.batchGeneration, !group.isEmpty else { return }
             self.submitGroup(group, key: key, model: model)
         }
     }
@@ -411,8 +430,13 @@ public final class CardsModel {
         Task { [weak self] in
             do {
                 let name = try await batcher.create(apiKey: key, model: model, items: items)
-                guard let self else { return }
+                guard let self else {
+                    // The book was closed (or deleted) while the job was being made.
+                    await batcher.abandon(apiKey: key, name: name)
+                    return
+                }
                 let still = ids.filter { self.submissions[$0] == token }
+                self.batchBound.subtract(ids)
                 for id in still { self.mutate(id) { $0.batchJob = name } }
                 // Every page was taken out (translated now, or closed) while the job was being made.
                 // Nobody waits for it: removed with the key it was made with (the key in settings may
@@ -431,16 +455,72 @@ public final class CardsModel {
         }
     }
 
-    /// Page translations stop waiting on their batch jobs and say `code`; returns the jobs, for the
-    /// caller to cancel and remove with the key that made them (the Gemini key changed, audit K-3).
+    /// The Gemini key changed: pages on their way to a batch job stop and say `code` (a job made
+    /// anyway is removed with the key that made it); pages already in a job keep waiting until that
+    /// job is settled with the old key (`apply`). Direct translations, with any provider, carry on
+    /// (audit KR-1, MR-2, MR-8). Returns the jobs to settle.
     @discardableResult
-    public func forgetBatchJobs(code: String) -> Set<String> {
+    public func detachBatchJobs(code: String) -> Set<String> {
+        batchGeneration += 1
         var jobs = Set<String>()
         for card in cards where card.translatedPage != nil && card.messages.last?.state == .streaming {
-            // Waiting on a job, or on its name (a submission still on its way).
-            guard card.batchJob != nil || submissions[card.id] != nil else { continue }
-            if let job = card.batchJob { jobs.insert(job) }
+            if let job = card.batchJob {
+                jobs.insert(job)
+                continue
+            }
+            guard batchBound.contains(card.id) || submissions[card.id] != nil else { continue }
             submissions[card.id] = nil
+            failTranslation(card.id, code)
+        }
+        batchBound.removeAll()
+        settling.formUnion(jobs)
+        if !jobs.isEmpty { saveNow() }
+        return jobs
+    }
+
+    /// What became of a job settled with the old key: finished pages are filled in, the others say
+    /// `code`; saved before the caller deletes the job at Google (audit KR-2, WR-2).
+    public func apply(_ outcome: BatchOutcome, of job: String, code: String) {
+        settling.remove(job)
+        let next = Self.applying(outcome, of: job, code: code, to: cards)
+        guard next != cards else { return }
+        cards = next
+        saveNow()
+    }
+
+    /// The same for stored threads (a book that is not open).
+    nonisolated public static func applying(_ outcome: BatchOutcome, of job: String, code: String, to cards: [YarnCard]) -> [YarnCard] {
+        let now = Date().timeIntervalSince1970 * 1000
+        return cards.map { card in
+            guard card.batchJob == job, card.messages.last?.state == .streaming else { return card }
+            var c = card
+            c.batchJob = nil
+            c.updatedAt = now
+            guard let i = c.messages.lastIndex(where: { $0.role == .assistant }) else { return c }
+            if case .done(let texts, let errors) = outcome {
+                let text = texts[card.id]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if text.isEmpty {
+                    c.messages[i].state = .error
+                    c.messages[i].content = errors[card.id] ?? "unknown"
+                } else {
+                    c.messages[i].content = text
+                    c.messages[i].state = nil
+                }
+            } else {
+                c.messages[i].state = .error
+                c.messages[i].content = code
+            }
+            return c
+        }
+    }
+
+    /// Page translations stop waiting on their batch jobs and say `code`; returns the jobs, for the
+    /// caller to cancel and remove with the key that made them (the book is being deleted).
+    @discardableResult
+    public func forgetBatchJobs(code: String) -> Set<String> {
+        let jobs = detachBatchJobs(code: code)
+        settling.subtract(jobs)
+        for card in cards where card.batchJob.map(jobs.contains) == true && card.messages.last?.state == .streaming {
             failTranslation(card.id, code)
         }
         return jobs
@@ -464,6 +544,7 @@ public final class CardsModel {
     }
 
     private func failTranslation(_ cardId: String, _ code: String) {
+        batchBound.remove(cardId)
         mutate(cardId) { c in
             c.batchJob = nil
             if let i = c.messages.lastIndex(where: { $0.role == .assistant }) {
@@ -485,7 +566,7 @@ public final class CardsModel {
         let key = settings.key(for: .gemini)
         guard ByokSettings.hasUsableKey(key) else { return }
         let now = Date().timeIntervalSince1970 * 1000
-        for job in Set(waitingTranslations.compactMap(\.batchJob)) {
+        for job in Set(waitingTranslations.compactMap(\.batchJob)).subtracting(settling) {
             let waiting = waitingTranslations.filter { $0.batchJob == job }
             // Only a name Google could have given goes into a request (a backup may carry anything).
             guard GeminiBatch.isValidName(job) else {
@@ -513,6 +594,7 @@ public final class CardsModel {
                 continue
             case .failed(let code):
                 for card in waiting { failTranslation(card.id, code) }
+                saveNow()
                 await batcher.delete(apiKey: key, name: job)
             case .done(let texts, let errors):
                 for card in waiting {
@@ -528,7 +610,9 @@ public final class CardsModel {
                         failTranslation(card.id, errors[card.id] ?? "unknown")
                     }
                 }
-                // The results are copied: Google need not keep the pages or their translations.
+                // The results are on disk (saved first, audit WR-2): Google need not keep the pages
+                // or their translations.
+                saveNow()
                 await batcher.delete(apiKey: key, name: job)
             }
         }
@@ -538,6 +622,7 @@ public final class CardsModel {
     public func translateNow(_ cardId: String) {
         let job = cards.first { $0.id == cardId }?.batchJob
         submissions[cardId] = nil
+        batchBound.remove(cardId)
         mutate(cardId) { c in
             c.batchJob = nil
             c.messages.removeAll { $0.role == .assistant }

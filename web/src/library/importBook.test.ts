@@ -44,5 +44,7 @@ describe('importBook', () => {
     const before = await db.books.count()
     await expect(importBook(new File([bomb as Uint8Array<ArrayBuffer>], 'bomb.epub'))).rejects.toMatchObject({ kind: 'unreadable' })
     expect(await db.books.count()).toBe(before)
-  })
+    // Real work (a large archive is made and unpacked): about 1 s alone, longer when the machine is busy
+    // with the whole suite in parallel (audit 15 Nov, WR-4).
+  }, 20_000)
 })

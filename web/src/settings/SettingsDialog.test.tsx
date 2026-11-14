@@ -40,4 +40,28 @@ describe('Settings: removing a key', () => {
     act(() => root.unmount())
     host.remove()
   })
+
+  it('says so when the device refuses the write, and keeps showing the key (KR-3)', async () => {
+    const settings: ByokSettings = { ...DEFAULT_SETTINGS, geminiApiKey: 'AIza-placeholder-000000' }
+    const onSave = vi.fn(async () => {
+      throw new Error('QuotaExceededError')
+    })
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+    await act(async () => {
+      root.render(
+        <I18nProvider lang="tr">
+          <SettingsDialog settings={settings} remember lang="tr" theme="system" onSave={onSave} onLang={() => undefined} onTheme={() => undefined} onClose={() => undefined} />
+        </I18nProvider>,
+      )
+    })
+    const remove = [...host.querySelectorAll('button')].find((b) => b.textContent === STRINGS.tr.removeKey)!
+    await act(async () => remove.click())
+    expect(host.textContent).toContain(STRINGS.tr.keysSaveFailed)
+    // The key is still there to remove again.
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === STRINGS.tr.removeKey)).toBe(true)
+    act(() => root.unmount())
+    host.remove()
+  })
 })

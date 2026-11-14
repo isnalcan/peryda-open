@@ -61,15 +61,23 @@ public enum Backup {
             for i in c.anchors.indices { c.anchors[i].croppedImage = nil }
             return c
         }
+        let journal = books.flatMap { store.journal(for: $0.id) }
+        // A book with more threads or entries than a restore takes is refused here, so export and
+        // restore always agree and nothing is dropped silently (audit recheck MR-4).
+        for book in books {
+            if cards.lazy.filter({ $0.bookId == book.id }).count > maxCards || journal.lazy.filter({ $0.bookId == book.id }).count > maxJournal {
+                throw Failure.tooLarge
+            }
+        }
         let manifest = Manifest(
             format: format,
             version: version,
             createdAt: now.timeIntervalSince1970 * 1000,
             books: books,
             cards: cards,
-            journal: books.flatMap { store.journal(for: $0.id) },
+            journal: journal,
             positions: books.compactMap { store.position(for: $0.id) },
-            prefs: []
+            prefs: books.compactMap { readingsPref(store.readings(for: $0.id), bookId: $0.id) }
         )
         let json = try JSONEncoder().encode(manifest)
         guard UInt64(json.count) <= limits.manifest else { throw Failure.tooLarge }
@@ -147,30 +155,74 @@ public enum Backup {
             book.pageCount = min(max(book.pageCount, 0), 100_000)
             book.addedAt = finite(book.addedAt, 1e15)
             book.openedAt = finite(book.openedAt, 1e15)
-            guard try store.restoreBook(book, movingFile: temp) else { continue }
-            let cards = checked.cards.filter { $0.bookId == book.id }.map(clamped)
-            if !cards.isEmpty { try store.saveCards(cards, for: book.id) }
-            let journal = checked.journal.filter { $0.bookId == book.id }.map(clamped)
-            if !journal.isEmpty { try store.addJournal(journal, for: book.id) }
-            if let position = checked.positions.first(where: { $0.bookId == book.id }) { store.savePosition(clamped(position)) }
+            // Threads, journal, readings and position go down before the book's own record (audit
+            // recheck MR-6); a book deleted earlier in this run saves normally again (MR-1).
+            let data = LibraryStore.RestoredData(
+                cards: checked.cards.filter { $0.bookId == book.id }.map(clamped),
+                journal: checked.journal.filter { $0.bookId == book.id }.map(clamped),
+                position: checked.positions.first(where: { $0.bookId == book.id }).map(clamped),
+                readings: readings(from: manifest.prefs, bookId: book.id)
+            )
+            guard try store.restoreBook(book, movingFile: temp, with: data) else { continue }
             restored += 1
         }
         return restored
     }
 
-    /// The most threads, journal entries and characters a restore takes: far above real libraries, a
-    /// stop for a crafted file that would make a book slow or stuck to open (audit MA-11).
+    /// The most threads, journal entries and characters a restore takes, per book: far above real
+    /// libraries, a stop for a crafted file that would make a book slow or stuck to open (audit MA-11;
+    /// per book since the recheck, MR-4). Export refuses a book above them.
     static let maxCards = 20_000
     static let maxJournal = 50_000
     static let maxText = 2_000_000
     static let maxQuote = 200_000
+    /// The longest chain of threads opened inside threads (a link deeper than this is cut).
+    static let maxDepth = 200
+    /// Pages Pery read, per book, and the longest text kept for one (as the web engine).
+    static let maxReadings = 2_000
+    static let maxReadingText = 1_000_000
+
+    /// A book's finished page readings as a backup preference row (`readings:<bookId>`), in the web
+    /// engine's shape: page, text, state "done", createdAt; never a job name (audit WR-1).
+    static func readingsPref(_ readings: [PageReading], bookId: String) -> Pref? {
+        let done = readings.filter { $0.state == .done && !$0.text.isEmpty }.sorted { $0.page < $1.page }.prefix(maxReadings)
+        guard !done.isEmpty else { return nil }
+        let rows: [Any?] = done.map { r -> Any? in
+            ["page": Double(r.page), "text": String(r.text.prefix(maxReadingText)), "state": "done", "createdAt": r.createdAt] as [String: Any?]
+        }
+        return Pref(key: "readings:\(bookId)", value: AnyCodable(rows))
+    }
+
+    /// The finished readings a backup brings for a book (from the Mac or the web), checked as the web
+    /// engine checks them: whole pages 1…100,000, once each, text present, at most 2,000.
+    static func readings(from prefs: [Pref], bookId: String) -> [PageReading] {
+        guard let row = prefs.first(where: { $0.key == "readings:\(bookId)" }), let list = row.value.value as? [Any?] else { return [] }
+        var pages = Set<Int>()
+        var out: [PageReading] = []
+        for item in list {
+            guard out.count < maxReadings, let r = item as? [String: Any?],
+                  let pageNumber = r["page"] as? Double, pageNumber.rounded() == pageNumber, pageNumber >= 1, pageNumber <= 100_000,
+                  r["state"] as? String == "done",
+                  let text = r["text"] as? String, !text.isEmpty
+            else { continue }
+            let page = Int(pageNumber)
+            guard pages.insert(page).inserted else { continue }
+            let createdAt = (r["createdAt"] as? Double).map { finite($0, 1e15) } ?? 0
+            out.append(PageReading(page: page, text: String(text.prefix(maxReadingText)), state: .done, createdAt: createdAt))
+        }
+        return out
+    }
 
     /// The manifest as restored: one record per id (the first), no thread that is its own parent or
     /// part of a loop of parents, counts and texts within the limits above.
     static func sane(_ m: Manifest) -> Manifest {
         var out = m
         var seen = Set<String>()
-        var cards = m.cards.filter { seen.insert($0.id).inserted }.prefix(maxCards).map { card -> YarnCard in
+        var perBook: [String: Int] = [:]
+        var cards = m.cards.filter { seen.insert($0.id).inserted }.filter { card in
+            perBook[card.bookId, default: 0] += 1
+            return perBook[card.bookId]! <= maxCards
+        }.map { card -> YarnCard in
             var c = card
             if c.parentCardId == c.id { c.parentCardId = nil }
             c.messages = c.messages.map { msg in
@@ -200,9 +252,34 @@ public enum Backup {
                 current = cards[j].parentCardId
             }
         }
+        // Chains of threads opened inside threads are cut past `maxDepth` (audit recheck MA-11): a
+        // book with a chain thousands deep would be very slow to open, or overflow the stack.
+        var depth: [String: Int] = [:]
+        for start in cards.indices {
+            var chain: [Int] = []
+            var current: Int? = start
+            while let i = current, depth[cards[i].id] == nil {
+                chain.append(i)
+                current = cards[i].parentCardId.flatMap { index[$0] }
+                if chain.count > cards.count { break }
+            }
+            var below = current.flatMap { depth[cards[$0].id] } ?? 0
+            for i in chain.reversed() {
+                if below + 1 > maxDepth {
+                    cards[i].parentCardId = nil
+                    below = 0
+                }
+                below += 1
+                depth[cards[i].id] = below
+            }
+        }
         out.cards = cards
         var seenJournal = Set<String>()
-        out.journal = m.journal.filter { seenJournal.insert($0.id).inserted }.prefix(maxJournal).map { record in
+        var journalPerBook: [String: Int] = [:]
+        out.journal = m.journal.filter { seenJournal.insert($0.id).inserted }.filter { record in
+            journalPerBook[record.bookId, default: 0] += 1
+            return journalPerBook[record.bookId]! <= maxJournal
+        }.map { record in
             var r = record
             if r.text.count > maxText { r.text = String(r.text.prefix(maxText)) }
             if r.quote.count > maxQuote { r.quote = String(r.quote.prefix(maxQuote)) }
@@ -332,12 +409,16 @@ struct AnyCodable: Codable {
         else { value = nil }
     }
 
+    init(_ value: Any?) { self.value = value }
+
     func encode(to encoder: Encoder) throws {
         var c = encoder.singleValueContainer()
         switch value {
         case let b as Bool: try c.encode(b)
         case let d as Double: try c.encode(d)
         case let s as String: try c.encode(s)
+        case let a as [Any?]: try c.encode(a.map(AnyCodable.init))
+        case let o as [String: Any?]: try c.encode(o.mapValues(AnyCodable.init))
         default: try c.encodeNil()
         }
     }

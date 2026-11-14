@@ -84,7 +84,9 @@ struct ImportCommand: View {
 
     var body: some View {
         Button(model.t["addBook"]) {
-            if let book = pickAndImport(model) { openWindow(id: "reader", value: book.id) }
+            Task {
+                if let book = await pickAndImport(model) { openWindow(id: "reader", value: book.id) }
+            }
         }
         .keyboardShortcut("o")
     }

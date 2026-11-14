@@ -54,7 +54,23 @@ final class AppModel {
     /// PDF readers open now (weakly held), so a change of Gemini key or a deletion reaches their work.
     @ObservationIgnored private let openReaders = NSHashTable<ReaderModel>.weakObjects()
 
-    func register(_ reader: ReaderModel) { openReaders.add(reader) }
+    func register(_ reader: ReaderModel) {
+        openReaders.add(reader)
+        // Its threads, journal or readings file may not have decoded whole (audit recheck MA-4).
+        showUnreadableFiles()
+    }
+
+    /// How many unreadable library files the reader has been told about.
+    @ObservationIgnored private var shownUnreadable = 0
+
+    /// A library file a newer version wrote (or a damaged one) was read record by record; the
+    /// original is kept beside it. Told once per file, for any of the library's files (audit MA-4).
+    private func showUnreadableFiles() {
+        let all = store.unreadableFiles()
+        guard all.count > shownUnreadable else { return }
+        shownUnreadable = all.count
+        lastError = UIText(lang)["unreadableFiles"]
+    }
 
     var t: UIText { UIText(lang) }
 
@@ -84,9 +100,7 @@ final class AppModel {
         keychain = KeychainVault()
         settings = (defaults.object(forKey: "rememberKeys") as? Bool ?? true) ? keychain.load() : ByokSettings()
         books = store.books()
-        // A library file a newer version wrote (or a damaged one) was read record by record; the
-        // original is kept beside it (audit MA-4).
-        if !store.unreadableFiles().isEmpty { lastError = UIText(lang)["unreadableFiles"] }
+        showUnreadableFiles()
         #if DEBUG
         if DevFlags.fakeAI, settings.resolvedProvider == nil {
             // A placeholder so the interface behaves as if a key were set; it is never sent anywhere.
@@ -129,7 +143,7 @@ final class AppModel {
     func saveSettings(_ next: ByokSettings, remember: Bool) -> Bool {
         let oldGemini = settings.key(for: .gemini)
         settings = next
-        if next.key(for: .gemini) != oldGemini, ByokSettings.hasUsableKey(oldGemini) { abandonGeminiJobs(madeWith: oldGemini) }
+        if next.key(for: .gemini) != oldGemini, ByokSettings.hasUsableKey(oldGemini) { settleGeminiJobs(madeWith: oldGemini) }
         do {
             if remember { try keychain.save(next) } else { try keychain.clear() }
         } catch {
@@ -145,21 +159,42 @@ final class AppModel {
     var keychainError: String?
 
     /// The Gemini key changed or was removed: batch jobs made with the old key can no longer be asked
-    /// about, cancelled or deleted with the new one, so they are stopped and removed at Google now,
-    /// with the old key, and their pages say so and can be translated or read again (audit K-3).
-    private func abandonGeminiJobs(madeWith oldKey: String) {
-        var jobs = Set<String>()
-        var open = Set<String>()
+    /// about, cancelled or deleted with the new one. Pages on their way to a job stop now; each job
+    /// already made is asked about once with the old key: finished results are kept (saved, then the
+    /// job deleted), unfinished jobs are cancelled and removed, and their pages say so and can be sent
+    /// again (audit K-3, KR-1, KR-2). Pages translated or read directly, with any provider, carry on.
+    private func settleGeminiJobs(madeWith oldKey: String) {
+        let code = "key-changed"
+        var open: [(ReaderModel, Set<String>)] = []
+        var openIds = Set<String>()
         for reader in openReaders.allObjects {
-            open.insert(reader.book.id)
-            jobs.formUnion(reader.forgetBatchJobs(code: "key-changed"))
+            openIds.insert(reader.book.id)
+            let jobs = reader.detachBatchJobs(code: code)
+            if !jobs.isEmpty { open.append((reader, jobs)) }
         }
-        for book in store.books() where !open.contains(book.id) {
-            jobs.formUnion(store.forgetBatchJobs(bookId: book.id, code: "key-changed"))
-        }
-        guard !jobs.isEmpty else { return }
+        let store = store
         let batcher = batcher
-        pendingWork.append(Task { for job in jobs { await batcher.abandon(apiKey: oldKey, name: job) } })
+        let openBooks = openIds
+        pendingWork.append(Task { @MainActor in
+            for (reader, jobs) in open {
+                for job in jobs {
+                    let outcome = await batcher.settle(apiKey: oldKey, name: job)
+                    reader.apply(outcome, of: job, code: code)
+                    if case .done = outcome { await batcher.delete(apiKey: oldKey, name: job) }
+                }
+            }
+            // Books that are not open: their files are read off the main thread.
+            let closed = await Task.detached {
+                store.books().map(\.id).filter { !openBooks.contains($0) }.map { ($0, store.batchJobs(bookId: $0)) }.filter { !$0.1.isEmpty }
+            }.value
+            for (bookId, jobs) in closed {
+                for job in jobs {
+                    let outcome = await batcher.settle(apiKey: oldKey, name: job)
+                    await Task.detached { store.applyBatchOutcome(bookId: bookId, job: job, outcome: outcome, code: code) }.value
+                    if case .done = outcome { await batcher.delete(apiKey: oldKey, name: job) }
+                }
+            }
+        })
     }
 
     func reloadBooks() {
@@ -173,8 +208,13 @@ final class AppModel {
 
     /// Files opened with Peryda from Finder (or dropped on its Dock icon): add them and open the last.
     func open(_ urls: [URL]) {
-        if let book = importFiles(urls) { pendingOpen = book.id }
+        importTask = Task {
+            if let book = await importFiles(urls) { pendingOpen = book.id }
+        }
     }
+
+    /// The import started by `open` (tests wait for it).
+    @ObservationIgnored private(set) var importTask: Task<Void, Never>?
 
     /// The largest file Peryda adds (far above real books; it is read whole to fingerprint it).
     static let maxImportMB = 2048
@@ -185,9 +225,11 @@ final class AppModel {
             .appendingPathComponent("Peryda/epub", isDirectory: true)
     }
 
-    /// Imports PDF and EPUB files; returns the last book added.
+    /// Imports PDF and EPUB files; returns the last book added. Each file is read, checked and
+    /// unpacked off the main thread, so a large or hostile file does not freeze the app (audit recheck
+    /// MA-11).
     @discardableResult
-    func importFiles(_ urls: [URL]) -> BookRecord? {
+    func importFiles(_ urls: [URL]) async -> BookRecord? {
         var last: BookRecord?
         for url in urls {
             // Only files on this Mac: a web link dragged in is never fetched.
@@ -201,41 +243,40 @@ final class AppModel {
                 lastError = t("fileTooLarge", ["n": Self.maxImportMB])
                 continue
             }
-            do {
-                let data = try Data(contentsOf: url, options: .mappedIfSafe)
-                var title: String?
-                var author: String?
-                var pages = 0
-                if LibraryStore.format(of: url) == .pdf {
-                    guard let doc = PDFDocument(data: data) else {
-                        lastError = t["importFailed"]
-                        continue
-                    }
-                    let attrs = doc.documentAttributes ?? [:]
-                    title = (attrs[PDFDocumentAttribute.titleAttribute] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let t = title, t.range(of: "^(untitled|microsoft word|document\\d*$)", options: [.regularExpression, .caseInsensitive]) != nil { title = nil }
-                    author = attrs[PDFDocumentAttribute.authorAttribute] as? String
-                    pages = doc.pageCount
-                } else {
-                    // EPUB: read title and author from a throwaway unpack.
-                    let temp = FileManager.default.temporaryDirectory
-                    let id = "peryda-import-\(UUID().uuidString)"
-                    defer { try? EPUBBook.removeCache(parent: temp, id: id) }
-                    guard let epub = try? EPUBBook.open(url, cacheParent: temp, id: id) else {
-                        lastError = t["importFailed"]
-                        continue
-                    }
-                    title = epub.title
-                    author = epub.author
-                    pages = epub.chapters.count
-                }
-                last = try store.importBook(data: data, fileName: url.lastPathComponent, title: title, author: author, pageCount: pages)
-            } catch {
-                lastError = t["importFailed"]
-            }
+            let store = store
+            let result = await Task.detached(priority: .userInitiated) { () -> BookRecord? in
+                try? Self.importBook(url, into: store)
+            }.value
+            if let result { last = result } else { lastError = t["importFailed"] }
         }
         reloadBooks()
         return last
+    }
+
+    /// Reads one file and adds it to the library (any thread).
+    nonisolated static func importBook(_ url: URL, into store: LibraryStore) throws -> BookRecord? {
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        var title: String?
+        var author: String?
+        var pages = 0
+        if LibraryStore.format(of: url) == .pdf {
+            guard let doc = PDFDocument(data: data) else { return nil }
+            let attrs = doc.documentAttributes ?? [:]
+            title = (attrs[PDFDocumentAttribute.titleAttribute] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let t = title, t.range(of: "^(untitled|microsoft word|document\\d*$)", options: [.regularExpression, .caseInsensitive]) != nil { title = nil }
+            author = attrs[PDFDocumentAttribute.authorAttribute] as? String
+            pages = doc.pageCount
+        } else {
+            // EPUB: read title and author from a throwaway unpack.
+            let temp = FileManager.default.temporaryDirectory
+            let id = "peryda-import-\(UUID().uuidString)"
+            defer { try? EPUBBook.removeCache(parent: temp, id: id) }
+            guard let epub = try? EPUBBook.open(url, cacheParent: temp, id: id) else { return nil }
+            title = epub.title
+            author = epub.author
+            pages = epub.chapters.count
+        }
+        return try store.importBook(data: data, fileName: url.lastPathComponent, title: title, author: author, pageCount: pages)
     }
 
     /// Deletes a book and everything kept about it: its file, threads, journal and position, its

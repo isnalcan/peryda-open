@@ -58,6 +58,15 @@ public final class PageReadings {
     private var tasks: [Int: Task<Void, Never>] = [:]
     /// Bumped by Stop: planned waves and late job names are dropped.
     private var generation = 0
+    /// Bumped when pages stop going to batch jobs (Stop, or the Gemini key changed); direct reads with
+    /// any provider carry on (audit MR-8).
+    private var batchGeneration = 0
+    /// Pages on their way to a batch job (being drawn, or the job not made yet), with the request
+    /// they belong to: a page read again belongs only to its newest request.
+    private var batchBound: [Int: Int] = [:]
+    private var batchCalls = 0
+    /// Jobs being settled with an old key: polling with the new key leaves them alone.
+    private var settling = Set<String>()
     private var pollTask: Task<Void, Never>?
 
     public init(bookId: String, bookTitle: String, pageCount: Int, settings: ByokSettings, store: LibraryStore?, streamer: AnswerStreaming, batcher: PageBatching = GeminiBatch(), picture: @escaping @MainActor (Int) async -> String?) {
@@ -98,6 +107,7 @@ public final class PageReadings {
         for p in pages {
             tasks[p]?.cancel()
             tasks[p] = nil
+            batchBound[p] = nil
         }
         // Pages still in an older job are taken out of it; a job nobody waits for is removed.
         let oldJobs = Set(pages.compactMap { readings[$0]?.job })
@@ -121,6 +131,8 @@ public final class PageReadings {
     @discardableResult
     public func stop() -> Int {
         generation += 1
+        batchGeneration += 1
+        batchBound.removeAll()
         let stopped = readings.values.filter { $0.state == .waiting || $0.state == .reading }
         for r in stopped {
             tasks[r.page]?.cancel()
@@ -200,6 +212,7 @@ public final class PageReadings {
     }
 
     private func fail(_ page: Int, _ code: String) {
+        batchBound[page] = nil
         guard readings[page] != nil else { return }
         readings[page]?.state = .failed
         readings[page]?.error = code
@@ -211,14 +224,18 @@ public final class PageReadings {
     private func submitBatch(_ pages: [Int], lang: Lang) {
         let key = settings.key(for: .gemini)
         let model = settings.model(for: .gemini, task: .translation)
-        let generation = generation
+        batchCalls += 1
+        let call = batchCalls
+        for p in pages { batchBound[p] = call }
+        let generation = batchGeneration
         Task { [weak self] in
             // Pictures are drawn and sent one job at a time, each job kept under Google's size
             // limit, so a long scanned range is never held in memory all at once (audit WW-5).
             var group: [GeminiBatch.Item] = []
             var bytes = 0
             for p in pages {
-                guard let self, generation == self.generation else { return }
+                guard let self, generation == self.batchGeneration else { return }
+                guard self.batchBound[p] == call, self.readings[p]?.state == .waiting, self.readings[p]?.job == nil else { continue }
                 guard let image = await self.picture(p) else {
                     self.fail(p, "unknown")
                     continue
@@ -227,7 +244,7 @@ public final class PageReadings {
                 let item = GeminiBatch.Item(key: String(p), system: r.system, turns: r.turns)
                 let size = CardsModel.batchItemBytes(item)
                 if !group.isEmpty, bytes + size > CardsModel.batchMaxBytes {
-                    self.submitGroup(group, key: key, model: model, generation: generation)
+                    self.submitGroup(group, key: key, model: model, generation: generation, call: call)
                     group = []
                     bytes = 0
                 }
@@ -235,22 +252,27 @@ public final class PageReadings {
                 bytes += size
                 await Task.yield()
             }
-            guard let self, generation == self.generation else { return }
+            guard let self, generation == self.batchGeneration else { return }
             self.save()
-            if !group.isEmpty { self.submitGroup(group, key: key, model: model, generation: generation) }
+            if !group.isEmpty { self.submitGroup(group, key: key, model: model, generation: generation, call: call) }
         }
     }
 
-    private func submitGroup(_ items: [GeminiBatch.Item], key: String, model: String, generation: Int) {
+    private func submitGroup(_ items: [GeminiBatch.Item], key: String, model: String, generation: Int, call: Int) {
         let pages = items.compactMap { Int($0.key) }
         let batcher = batcher
         Task { [weak self] in
             do {
                 let name = try await batcher.create(apiKey: key, model: model, items: items)
-                guard let self else { return }
-                let still = pages.filter { self.readings[$0]?.state == .waiting && self.readings[$0]?.job == nil }
-                // Stopped (or read again) while the job was being made: nobody waits for it.
-                guard generation == self.generation, !still.isEmpty else {
+                guard let self else {
+                    await batcher.abandon(apiKey: key, name: name)
+                    return
+                }
+                let still = pages.filter { self.batchBound[$0] == call && self.readings[$0]?.state == .waiting && self.readings[$0]?.job == nil }
+                for p in pages where self.batchBound[p] == call { self.batchBound[p] = nil }
+                // Stopped (or read again, or the key changed) while the job was being made: nobody
+                // waits for it, and it is removed with the key that made it.
+                guard generation == self.batchGeneration, !still.isEmpty else {
                     await batcher.abandon(apiKey: key, name: name)
                     return
                 }
@@ -258,14 +280,14 @@ public final class PageReadings {
                 self.save()
                 self.ensurePolling()
             } catch let error as AIError where error.kind == .key {
-                guard let self, generation == self.generation else { return }
-                for p in pages { self.fail(p, "key") }
+                guard let self, generation == self.batchGeneration else { return }
+                for p in pages where self.batchBound[p] == call { self.fail(p, "key") }
                 self.save()
             } catch {
                 // No silent fallback to full-price requests (as with page translation): each page
                 // says the job could not be made and can be read again.
-                guard let self, generation == self.generation else { return }
-                for p in pages { self.fail(p, "batch") }
+                guard let self, generation == self.batchGeneration else { return }
+                for p in pages where self.batchBound[p] == call { self.fail(p, "batch") }
                 self.save()
             }
         }
@@ -292,7 +314,7 @@ public final class PageReadings {
         let key = settings.key(for: .gemini)
         guard ByokSettings.hasUsableKey(key) else { return }
         let now = Date().timeIntervalSince1970 * 1000
-        for job in Set(readings.values.compactMap(\.job)) {
+        for job in Set(readings.values.compactMap(\.job)).subtracting(settling) {
             let waiting = readings.values.filter { $0.job == job && $0.state == .waiting }.map(\.page)
             // Only pages still waiting on this job are changed by its answer: a page read again (or
             // stopped) while the request was out keeps its new state (audit WW-4).
@@ -322,6 +344,7 @@ public final class PageReadings {
                 continue
             case .failed(let code):
                 for p in stillWaiting() { fail(p, code) }
+                save()
                 await batcher.delete(apiKey: key, name: job)
             case .done(let texts, let errors):
                 for p in stillWaiting() {
@@ -334,19 +357,70 @@ public final class PageReadings {
                         readings[p]?.job = nil
                     }
                 }
-                // The text is kept here: Google need not keep the pages or what it read.
+                // The text is on disk first (audit WR-2): Google need not keep the pages or what it read.
+                save()
                 await batcher.delete(apiKey: key, name: job)
             }
         }
         save()
     }
 
+    /// The Gemini key changed: pages on their way to a batch job stop and say `code` (a job made
+    /// anyway is removed with the key that made it); pages already in a job keep waiting until it is
+    /// settled with the old key (`apply`). Pages read directly, with any provider, carry on (audit
+    /// KR-1, MR-8). Returns the jobs to settle.
+    @discardableResult
+    public func detachBatchJobs(code: String) -> Set<String> {
+        batchGeneration += 1
+        for p in Array(batchBound.keys) where readings[p]?.state == .waiting && readings[p]?.job == nil { fail(p, code) }
+        batchBound.removeAll()
+        let jobs = Self.jobs(in: readings.values.filter { $0.state == .waiting })
+        settling.formUnion(jobs)
+        save()
+        return jobs
+    }
+
+    /// What became of a job settled with the old key: finished pages get their text, the others say
+    /// `code`; saved before the caller deletes the job at Google (audit KR-2, WR-2).
+    public func apply(_ outcome: BatchOutcome, of job: String, code: String) {
+        settling.remove(job)
+        for r in Self.applying(outcome, of: job, code: code, to: Array(readings.values)) { readings[r.page] = r }
+        save()
+    }
+
+    /// The same for stored readings (a book that is not open).
+    public nonisolated static func applying(_ outcome: BatchOutcome, of job: String, code: String, to readings: [PageReading]) -> [PageReading] {
+        readings.map { r in
+            guard r.job == job, r.state == .waiting else { return r }
+            var copy = r
+            copy.job = nil
+            if case .done(let texts, let errors) = outcome {
+                let text = texts[String(r.page)]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if text.isEmpty {
+                    copy.state = .failed
+                    copy.error = errors[String(r.page)] ?? "unknown"
+                } else {
+                    copy.text = text
+                    copy.state = .done
+                    copy.error = nil
+                }
+            } else {
+                copy.state = .failed
+                copy.error = code
+            }
+            return copy
+        }
+    }
+
     /// Pages stop waiting on their batch jobs and say `code`; returns the jobs, for the caller to
-    /// cancel and remove with the key that made them (the Gemini key changed, or the book is being
-    /// deleted). Pages still being read directly stop too.
+    /// cancel and remove with the key that made them (the book is being deleted). Pages still being
+    /// read directly stop too.
     @discardableResult
     public func forgetBatchJobs(code: String) -> Set<String> {
         generation += 1
+        batchGeneration += 1
+        batchBound.removeAll()
+        settling.removeAll()
         let jobs = Self.jobs(in: Array(readings.values))
         for r in readings.values where r.state == .waiting || r.state == .reading {
             tasks[r.page]?.cancel()

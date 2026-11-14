@@ -23,6 +23,8 @@ function errorText(t: Strings, code: string): string {
       return t.noKeyBody
     case 'expired':
       return t.batchExpired
+    case 'key-changed':
+      return t.batchKeyChanged
     case 'batch':
       return t.batchFailed
     case 'network':

@@ -17,11 +17,11 @@ describe('key vault', () => {
     expect(keyRow!.key!.extractable).toBe(false)
   })
 
-  it('two first saves at once share one key, so the saved keys can be read back', async () => {
+  it('two saves at once leave a matching pair, so the saved keys can be read back', async () => {
     await db.vault.clear()
     const a = { ...settings, geminiApiKey: 'test-key-first-save-000000' }
     const b = { ...settings, geminiApiKey: 'test-key-second-save-00000' }
-    // The first save is slow to encrypt, so the second finishes in between (the order that lost keys).
+    // The first save is slow to encrypt, so the second finishes in between (the order that once lost keys).
     const subtle = crypto.subtle
     const encrypt = subtle.encrypt.bind(subtle)
     let calls = 0
@@ -35,6 +35,18 @@ describe('key vault', () => {
       spy.mockRestore()
     }
     expect([a, b]).toContainEqual(await loadSettings())
+  })
+
+  it('makes a new device key with every save, so an older encrypted copy cannot be opened (KR-4)', async () => {
+    await saveSettings({ ...settings, geminiApiKey: 'AIza-old-key-that-is-removed-0000' })
+    const oldData = await db.vault.get('byok')
+    const oldKey = (await db.vault.get('aes-key'))!.key!
+    await saveSettings({ ...settings, geminiApiKey: '' })
+    const newKey = (await db.vault.get('aes-key'))!.key!
+    expect(newKey).not.toBe(oldKey)
+    // The stale record (still in the browser's files for a while) does not open with the key that is left.
+    await expect(crypto.subtle.decrypt({ name: 'AES-GCM', iv: oldData!.iv as BufferSource }, newKey, oldData!.data!)).rejects.toThrow()
+    expect((await loadSettings()).geminiApiKey).toBe('')
   })
 
   it('forgets the settings on request', async () => {

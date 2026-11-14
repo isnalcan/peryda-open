@@ -154,7 +154,7 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
   const clampTo = (first: number, last: number) => Math.min(Math.max(last, first), first + RANGE_LIMIT - 1, pages)
   const count = Math.max(0, to - from + 1)
   const errorText = (code?: string) =>
-    code === 'no-key' ? t.noKeyBody : code === 'key' ? t.errorKey : code === 'quota' ? t.errorQuota : code === 'blocked' ? t.errorBlocked : code === 'network' ? t.errorNetwork : code === 'expired' ? t.batchExpired : code === 'batch' ? t.batchFailed : t.errorUnknown
+    code === 'no-key' ? t.noKeyBody : code === 'key' ? t.errorKey : code === 'quota' ? t.errorQuota : code === 'blocked' ? t.errorBlocked : code === 'network' ? t.errorNetwork : code === 'expired' ? t.batchExpired : code === 'key-changed' ? t.batchKeyChanged : code === 'batch' ? t.batchFailed : t.errorUnknown
   const empty = !streaming && reading?.state !== 'done' && own !== null && own.trim().length < 40
 
   return (
@@ -291,13 +291,22 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
 const EMPTY_READINGS: PageReading[] = []
 
 /**
- * A book title as a file name: no path separators, characters Windows refuses or control characters, no
- * reserved device name, no leading or trailing dots and spaces, at most 120 characters (audit 15 Nov, WW-8).
+ * A book title as a file name: no path separators, characters Windows refuses, control characters or
+ * invisible direction and joining marks (which can make "txt.exe" read as "exe.txt"), no reserved device
+ * name even with an extension ("CON.tar" is reserved too), no leading or trailing dots and spaces, at most
+ * 120 characters, never cutting a character in half (audit 15 Nov, WW-8).
  */
 export function safeFileName(title: string): string {
-  let name = title.replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 120)
+  let name = title
+    .replace(/[\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f\u007f-\u009f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+  name = Array.from(name).slice(0, 120).join('')
   name = name.replace(/^[.\s]+|[.\s]+$/g, '')
-  if (!name || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name)) return 'Peryda'
+  if (!name) return 'Peryda'
+  const base = name.split('.')[0]!.trim()
+  if (/^(con|prn|aux|nul|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\u00b2\u00b3]|conin\$|conout\$)$/i.test(base)) return `Peryda ${name}`
   return name
 }
 

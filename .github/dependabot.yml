@@ -1,0 +1,55 @@
+# Dependency updates as pull requests, once a week, grouped so each part opens at most a few at a time
+# (audit 15 Nov, WW-12). Dependabot itself costs nothing; the only workflow here ("Windows build") is
+# started by hand, so these pull requests start no Windows runs. Review each one like any other change.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /windows
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      windows-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /windows/e2e
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      e2e-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /windows/src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      tauri-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: swift
+    directory: /mac/PerydaKit
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      actions:
+        patterns: ['*']

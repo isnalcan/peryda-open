@@ -24,4 +24,9 @@ describe('Hosting rules (firebase.json)', () => {
   it('has no catch-all rewrite (the app has no routes)', () => {
     expect(hosting.rewrites ?? []).toEqual([])
   })
+
+  it('does not cache pdf.js files beyond no-cache: their decoders must match the hashed worker (WR-3)', () => {
+    const rules = hosting.headers.filter((r) => r.source.startsWith('/pdfjs'))
+    expect(rules).toEqual([])
+  })
 })

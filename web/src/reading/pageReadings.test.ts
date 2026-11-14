@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db, getPref } from '../data/db'
 import type { AiRequest } from '../ai/client'
-import type { BatchItem, BatchStatus, PageBatching } from '../ai/batch'
+import { KEY_CHANGED, type BatchItem, type BatchStatus, type PageBatching } from '../ai/batch'
 import { DEFAULT_SETTINGS, type ByokSettings } from '../ai/provider'
 import { pageTranscriptionSystem } from '../ai/compose'
 import { PageReadingsStore, readingJobs, readingsKey, type PageReading } from './pageReadings'
@@ -13,17 +13,29 @@ class FakeBatcher implements PageBatching {
   state: BatchStatus = { state: 'waiting' }
   cancelled: string[] = []
   deleted: string[] = []
-  async create(_key: string, model: string, items: BatchItem[]) {
+  /** Every request with the key it was made with. */
+  calls: string[] = []
+  /** Holds `create` until released, to change the key while a job is being made. */
+  gate: Promise<void> | null = null
+  /** The stored readings when a job was deleted (a result must be saved first). */
+  storedAtDelete: PageReading[] | null = null
+  async create(key: string, model: string, items: BatchItem[]) {
+    this.calls.push(`create ${key}`)
+    if (this.gate) await this.gate
     this.created.push({ model, items })
     return `batches/job-${this.created.length}`
   }
-  async status() {
+  async status(key: string, name: string) {
+    this.calls.push(`status ${key} ${name}`)
     return this.state
   }
-  async cancel(_key: string, name: string) {
+  async cancel(key: string, name: string) {
+    this.calls.push(`cancel ${key} ${name}`)
     this.cancelled.push(name)
   }
-  async delete(_key: string, name: string) {
+  async delete(key: string, name: string) {
+    this.calls.push(`delete ${key} ${name}`)
+    this.storedAtDelete = await getPref<PageReading[]>(readingsKey('book'), [])
     this.deleted.push(name)
   }
 }
@@ -38,6 +50,7 @@ function recorder() {
 }
 
 const keyed: ByokSettings = { ...DEFAULT_SETTINGS, geminiApiKey: 'AIza-placeholder-000000' }
+const NEW_KEY = 'AIza-another-key-000000'
 const picture = async () => 'data:image/jpeg;base64,' + 'QUJD'.repeat(400)
 
 function readings(settings = keyed, streamer = recorder().streamer, batcher = new FakeBatcher()) {
@@ -77,10 +90,12 @@ describe('Read with Pery (pages and ranges)', () => {
     expect(rec.requests).toHaveLength(0)
     expect(batcher.created[0]!.items.map((i) => i.key)).toEqual(['2', '3', '4', '5'])
     batcher.state = { state: 'done', texts: { '2': 'İki', '3': 'Üç', '5': 'Beş' }, errors: { '4': 'blocked' } }
-    await until(() => r.pending === 0)
+    await until(() => r.pending === 0 && batcher.deleted.length > 0)
     expect(r.done.map((x) => x.page)).toEqual([2, 3, 5])
     expect(r.reading(4)).toMatchObject({ state: 'failed', error: 'blocked' })
     expect(batcher.deleted).toEqual(['batches/job-1'])
+    // Saved before the job was deleted at Google (WR-2).
+    expect(batcher.storedAtDelete?.filter((x) => x.state === 'done').map((x) => x.page)).toEqual([2, 3, 5])
     r.close()
   })
 
@@ -206,17 +221,65 @@ describe('Read with Pery (pages and ranges)', () => {
     r.close()
   })
 
-  it('lets go of its jobs when the Gemini key changes (K-3)', async () => {
+  it('lets go of an unfinished job with the old key when the Gemini key changes (K-3)', async () => {
     const batcher = new FakeBatcher()
     const r = readings(keyed, recorder().streamer, batcher)
     await r.ready
     r.read(2, 4, 'tr')
     await until(() => r.inBatch === 3)
-    r.settings = { ...keyed, geminiApiKey: 'AIza-another-key-000000' }
+    r.settings = { ...keyed, geminiApiKey: NEW_KEY }
     await until(() => batcher.cancelled.length > 0)
     expect(batcher.cancelled).toEqual(['batches/job-1'])
     expect(r.pending).toBe(0)
-    expect(r.reading(2)).toMatchObject({ state: 'failed', error: 'expired' })
+    expect(r.reading(2)).toMatchObject({ state: 'failed', error: KEY_CHANGED })
+    expect(batcher.calls.some((c) => c.includes(NEW_KEY))).toBe(false)
+    r.close()
+  })
+
+  it('keeps the pages of a finished job when the key changes, saved before the job is deleted (KR-2, WR-2)', async () => {
+    const batcher = new FakeBatcher()
+    const r = new PageReadingsStore({ bookId: 'book', bookTitle: 'Freud', pageCount: 20, settings: keyed, picture, streamer: recorder().streamer, batcher, pollStart: 60_000 })
+    await r.ready
+    r.read(2, 4, 'tr')
+    await until(() => r.inBatch === 3)
+    batcher.state = { state: 'done', texts: { '2': 'İki', '3': 'Üç', '4': 'Dört' }, errors: {} }
+    r.settings = { ...keyed, geminiApiKey: NEW_KEY }
+    await until(() => batcher.deleted.length > 0)
+    expect(r.done.map((x) => x.text)).toEqual(['İki', 'Üç', 'Dört'])
+    expect(batcher.cancelled).toEqual([])
+    expect(batcher.calls).toContain(`status ${keyed.geminiApiKey} batches/job-1`)
+    expect(batcher.storedAtDelete?.map((x) => x.state)).toEqual(['done', 'done', 'done'])
+    r.close()
+  })
+
+  it('a job still being made when the key changes is removed with the key that made it (KR-1)', async () => {
+    const batcher = new FakeBatcher()
+    let release!: () => void
+    batcher.gate = new Promise((done) => (release = done))
+    const r = readings(keyed, recorder().streamer, batcher)
+    await r.ready
+    r.read(1, 6, 'tr')
+    await until(() => batcher.calls.length > 0)
+    r.settings = { ...keyed, geminiApiKey: NEW_KEY }
+    release()
+    await until(() => batcher.cancelled.length > 0)
+    expect(batcher.calls).toEqual([`create ${keyed.geminiApiKey}`, `cancel ${keyed.geminiApiKey} batches/job-1`, `delete ${keyed.geminiApiKey} batches/job-1`])
+    for (let p = 1; p <= 6; p++) expect(r.reading(p)).toMatchObject({ state: 'failed', error: KEY_CHANGED })
+    expect(r.pending).toBe(0)
+    r.close()
+  })
+
+  it('saving the same Gemini key again lets go of nothing', async () => {
+    const batcher = new FakeBatcher()
+    const r = readings(keyed, recorder().streamer, batcher)
+    await r.ready
+    r.read(2, 4, 'tr')
+    await until(() => r.inBatch === 3)
+    const before = batcher.calls.length
+    r.settings = { ...keyed, geminiModel: 'gemini-other' }
+    await new Promise((done) => setTimeout(done, 20))
+    expect(batcher.calls.slice(before).filter((c) => !c.startsWith('status'))).toEqual([])
+    expect(r.inBatch).toBe(3)
     r.close()
   })
 })

@@ -22,9 +22,13 @@ export function useCards(ctx: CardsContext) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ctx.bookId, fake],
   )
-  store.settings = ctx.settings
   store.lang = ctx.lang
   store.bookTitle = ctx.bookTitle
+  // A changed Gemini key makes the store collect or let go of its jobs: that happens in an effect, never
+  // while rendering (audit 15 Nov, WR-5).
+  useEffect(() => {
+    store.settings = ctx.settings
+  }, [store, ctx.settings])
 
   useEffect(() => {
     void store.load()

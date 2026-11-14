@@ -21,14 +21,21 @@ describe('Markdown on hostile text', () => {
     f()
     return performance.now() - start
   }
+  /** The faster of two runs, so a busy machine's pause does not count. */
+  const best = (f: () => unknown) => Math.min(time(f), time(f))
+  // Four times the text takes about four times as long when parsing is linear, sixteen times when it is
+  // quadratic. Comparing growth instead of wall-clock time keeps this test right on a loaded machine
+  // (audit 15 Nov, WR-4); the floor ignores timings too small to measure.
+  const linear = (small: number, large: number) => expect(large).toBeLessThan(Math.max(small * 8, 60))
 
   it('reads unclosed links and images in linear time', () => {
-    expect(time(() => parseInline('![a]('.repeat(40_000)))).toBeLessThan(1500)
-    expect(time(() => parseInline('[a'.repeat(40_000)))).toBeLessThan(1500)
+    for (const unit of ['![a](', '[a']) {
+      linear(best(() => parseInline(unit.repeat(10_000))), best(() => parseInline(unit.repeat(40_000))))
+    }
   })
 
   it('reads a heading line full of spaces in linear time', () => {
-    expect(time(() => parseBlocks(`# a${' '.repeat(40_000)}b`))).toBeLessThan(500)
+    linear(best(() => parseBlocks(`# a${' '.repeat(10_000)}b`)), best(() => parseBlocks(`# a${' '.repeat(40_000)}b`)))
     expect(parseBlocks(`# a${' '.repeat(10)}b`)).toEqual([{ type: 'h', text: `a${' '.repeat(10)}b` }])
   })
 

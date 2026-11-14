@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS, clearSettings, loadSettings, saveSettings } from '../
 import { keyFor, type ByokSettings } from '../ai/provider'
 import { abandonBatchJobs } from '../ai/batch'
 import { releaseJobsOfOldKey } from '../ai/oldKeyJobs'
+import { announceKeysChanged, onKeysChanged } from '../data/keysChannel'
 import { Library } from '../library/Library'
 // Readers load only when a book opens, so the library appears quickly.
 const PdfReader = lazy(() => import('../reader/PdfReader').then((m) => ({ default: m.PdfReader })))
@@ -108,16 +109,34 @@ export function App() {
   // Jobs a deleted book's page translations were waiting on are cancelled, so they are not billed.
   const onBookDeleted = useCallback((jobs: string[]) => void abandonBatchJobs(keyFor(settings, 'gemini'), jobs), [settings])
 
+  /**
+   * The keys are written first: if this device refuses the write (storage full, blocked), nothing changes
+   * and the Settings dialog says so, instead of showing a removed key that comes back at the next start
+   * (audit 15 Nov, KR-3). Other open tabs then load the new keys.
+   */
   const onSave = async (next: ByokSettings, keep: boolean) => {
-    // Jobs made with a Gemini key that is changed or removed are let go with that key (K-3).
-    const oldGemini = keyFor(settings, 'gemini')
-    if (oldGemini && oldGemini !== keyFor(next, 'gemini')) void releaseJobsOfOldKey(oldGemini)
-    setSettings(next)
-    setRemember(keep)
     await setPref('rememberKeys', keep)
     if (keep) await saveSettings(next)
     else await clearSettings()
+    // Jobs made with a Gemini key that is changed or removed are collected or let go with that key (K-3).
+    // The open book's own stores do this for what they hold; the rest of the library is done here.
+    const oldGemini = keyFor(settings, 'gemini')
+    if (oldGemini && oldGemini !== keyFor(next, 'gemini')) void releaseJobsOfOldKey(oldGemini, { except: book?.id }).catch(() => undefined)
+    setSettings(next)
+    setRemember(keep)
+    announceKeysChanged()
   }
+
+  // Keys saved or removed in another tab of this site take effect here too (audit 15 Nov, KR-3).
+  useEffect(() => {
+    return onKeysChanged(() => {
+      void (async () => {
+        const keep = (await getPref<unknown>('rememberKeys', true)) !== false
+        setRemember(keep)
+        setSettings(keep ? await loadSettings() : { ...DEFAULT_SETTINGS })
+      })()
+    })
+  }, [])
 
   // An error while starting is shown by the root boundary (with its way out) instead of a blank page.
   if (fatal) throw fatal

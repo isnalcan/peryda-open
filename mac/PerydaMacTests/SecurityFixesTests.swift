@@ -56,14 +56,16 @@ final class SecurityFixesTests: XCTestCase {
 
     // MARK: M-14 and M-4 imports
 
-    func testOnlyFilesOnThisMacAreImported() throws {
+    func testOnlyFilesOnThisMacAreImported() async throws {
         let app = AppModel(store: try tempStore("import"), settings: ByokSettings(), lang: .en)
-        XCTAssertNil(app.importFiles([try XCTUnwrap(URL(string: "https://evil.example/book.pdf"))]))
+        let link = try XCTUnwrap(URL(string: "https://evil.example/book.pdf"))
+        let imported = await app.importFiles([link])
+        XCTAssertNil(imported)
         XCTAssertEqual(app.lastError, UIText(.en)["unsupportedFile"])
         XCTAssertTrue(app.books.isEmpty)
     }
 
-    func testAFileOverTheLimitIsNotRead() throws {
+    func testAFileOverTheLimitIsNotRead() async throws {
         // A sparse file: over 2 GB long, taking no room on the disk.
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("huge-\(UUID().uuidString).pdf")
         XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: Data("%PDF-1.7".utf8)))
@@ -72,7 +74,8 @@ final class SecurityFixesTests: XCTestCase {
         try handle.truncate(atOffset: UInt64(AppModel.maxImportMB) * 1024 * 1024 + 1)
         try handle.close()
         let app = AppModel(store: try tempStore("huge"), settings: ByokSettings(), lang: .en)
-        XCTAssertNil(app.importFiles([url]))
+        let imported = await app.importFiles([url])
+        XCTAssertNil(imported)
         XCTAssertEqual(app.lastError, UIText(.en)("fileTooLarge", ["n": 2048]))
         XCTAssertTrue(app.books.isEmpty)
     }

@@ -92,8 +92,14 @@ public final class LibraryStore: @unchecked Sendable {
     /// Names of files that did not decode whole; each was copied aside (`<name>.unreadable-<hash>`)
     /// before anything could write over it. For the app to tell the reader once.
     private var unreadable: [String] = []
+    /// Files that did not decode and could not be copied aside: never written over in this run, so
+    /// nothing in them is lost (audit recheck MA-4).
+    private var protected = Set<String>()
 
     public func unreadableFiles() -> [String] { queue.sync { unreadable } }
+
+    /// A file a write refused because the original could not be kept aside first.
+    public struct Protected: Error {}
 
     /// A list read record by record: one record a build does not understand (written by a later
     /// version, or damaged) no longer makes the whole list read as empty and then get written over
@@ -119,7 +125,18 @@ public final class LibraryStore: @unchecked Sendable {
     private func keepAside(_ url: URL, _ data: Data) {
         let tag = SHA256.hash(data: data).prefix(6).map { String(format: "%02x", $0) }.joined()
         let copy = url.deletingLastPathComponent().appendingPathComponent("\(url.lastPathComponent).unreadable-\(tag)")
-        if !fm.fileExists(atPath: copy.path) { try? data.write(to: copy, options: [.atomic]) }
+        var isFolder: ObjCBool = false
+        var kept = fm.fileExists(atPath: copy.path, isDirectory: &isFolder) && !isFolder.boolValue
+        if !kept {
+            do {
+                try data.write(to: copy, options: [.atomic])
+                kept = true
+            } catch {
+                kept = false
+            }
+        }
+        // Without its copy the original must not be written over (audit recheck MA-4).
+        if !kept { protected.insert(url.standardizedFileURL.path) }
         let name = url.lastPathComponent
         if !unreadable.contains(name) { unreadable.append(name) }
     }
@@ -131,6 +148,7 @@ public final class LibraryStore: @unchecked Sendable {
     }
 
     private func write<T: Encodable>(_ value: T, _ url: URL) throws {
+        guard !protected.contains(url.standardizedFileURL.path) else { throw Protected() }
         let data = try encoder.encode(value)
         try data.write(to: url, options: [.atomic])
     }
@@ -203,14 +221,50 @@ public final class LibraryStore: @unchecked Sendable {
         }
     }
 
+    /// What a backup brings for one book besides its file.
+    public struct RestoredData: Sendable {
+        public var cards: [YarnCard]
+        public var journal: [JournalRecord]
+        public var position: ReadingPosition?
+        public var readings: [PageReading]
+
+        public init(cards: [YarnCard] = [], journal: [JournalRecord] = [], position: ReadingPosition? = nil, readings: [PageReading] = []) {
+            self.cards = cards
+            self.journal = journal
+            self.position = position
+            self.readings = readings
+        }
+    }
+
     /// Adds a book from a backup, keeping its id so its threads and journal still belong to it. The
     /// file (already checked, its fingerprint and size worked out from its bytes) is moved into place.
     /// Returns false when the library already has this book.
+    ///
+    /// The book's threads, journal, readings and position are written first and its library record
+    /// last, so quitting in the middle never leaves a book without its threads (a later restore
+    /// writes them again: audit recheck MR-6). A book deleted earlier in this run saves normally
+    /// again (MR-1).
     @discardableResult
-    public func restoreBook(_ book: BookRecord, movingFile file: URL) throws -> Bool {
+    public func restoreBook(_ book: BookRecord, movingFile file: URL, with data: RestoredData = RestoredData()) throws -> Bool {
         try queue.sync {
             var list = storedBooks()
             guard !list.contains(where: { $0.id == book.id || $0.fingerprint == book.fingerprint }) else { return false }
+            deleted.remove(book.id)
+            let cards = data.cards.filter { $0.bookId == book.id }
+            let journal = data.journal.filter { $0.bookId == book.id }
+            // Left by an earlier restore that was cut short: replaced, never added to.
+            for (dir, items) in [("cards", cards.isEmpty), ("journal", journal.isEmpty), ("readings", data.readings.isEmpty)] where items {
+                try? fm.removeItem(at: path(dir, book.id, "json"))
+            }
+            if !cards.isEmpty { try write(cards, path("cards", book.id, "json")) }
+            if !journal.isEmpty { try write(journal, path("journal", book.id, "json")) }
+            if !data.readings.isEmpty { try write(data.readings, path("readings", book.id, "json")) }
+            if var position = data.position {
+                position.bookId = book.id
+                var all = read([String: ReadingPosition].self, positionsFile, default: [:])
+                all[book.id] = position
+                try write(all, positionsFile)
+            }
             let target = try fileURL(for: book)
             if fm.fileExists(atPath: target.path) { try fm.removeItem(at: target) }
             try fm.moveItem(at: file, to: target)
@@ -261,6 +315,15 @@ public final class LibraryStore: @unchecked Sendable {
             try? fm.removeItem(at: cards)
             try? fm.removeItem(at: journal)
             try? fm.removeItem(at: readings)
+            // Copies kept aside of the book's files go too (audit recheck MR-3).
+            for url in [cards, journal, readings] {
+                let folder = url.deletingLastPathComponent()
+                let prefix = "\(url.lastPathComponent).unreadable-"
+                for name in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] where name.hasPrefix(prefix) {
+                    try? fm.removeItem(at: folder.appendingPathComponent(name))
+                }
+                protected.remove(url.standardizedFileURL.path)
+            }
             var positions = read([String: ReadingPosition].self, positionsFile, default: [:])
             positions[bookId] = nil
             try write(positions, positionsFile)
@@ -299,6 +362,42 @@ public final class LibraryStore: @unchecked Sendable {
                 if !found.isEmpty { try? write(readings, readingsURL); jobs.formUnion(found) }
             }
             return jobs
+        }
+    }
+
+    /// The Gemini batch jobs a book that is not open still waits on (its page translations and
+    /// readings as stored).
+    public func batchJobs(bookId: String) -> Set<String> {
+        queue.sync {
+            guard !deleted.contains(bookId), let cardsURL = try? path("cards", bookId, "json"), let readingsURL = try? path("readings", bookId, "json") else { return [] }
+            var jobs = Set<String>()
+            if fm.fileExists(atPath: cardsURL.path) {
+                for card in read([YarnCard].self, cardsURL, default: []) where card.messages.last?.state == .streaming {
+                    if let job = card.batchJob { jobs.insert(job) }
+                }
+            }
+            if fm.fileExists(atPath: readingsURL.path) {
+                jobs.formUnion(PageReadings.jobs(in: read([PageReading].self, readingsURL, default: []).filter { $0.state == .waiting }))
+            }
+            return jobs
+        }
+    }
+
+    /// What became of a job when its key went away, for a book that is not open: finished pages are
+    /// filled in, the rest say `code`. Written before the job is deleted at Google (audit KR-2, WR-2).
+    public func applyBatchOutcome(bookId: String, job: String, outcome: BatchOutcome, code: String) {
+        queue.sync {
+            guard !deleted.contains(bookId), let cardsURL = try? path("cards", bookId, "json"), let readingsURL = try? path("readings", bookId, "json") else { return }
+            if fm.fileExists(atPath: cardsURL.path) {
+                let cards = read([YarnCard].self, cardsURL, default: [])
+                let next = CardsModel.applying(outcome, of: job, code: code, to: cards)
+                if next != cards { try? write(next, cardsURL) }
+            }
+            if fm.fileExists(atPath: readingsURL.path) {
+                let readings = read([PageReading].self, readingsURL, default: [])
+                let next = PageReadings.applying(outcome, of: job, code: code, to: readings)
+                if next != readings { try? write(next, readingsURL) }
+            }
         }
     }
 

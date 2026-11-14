@@ -485,6 +485,12 @@
     "de": "Der Schlüsselbund konnte nicht geändert werden; die Änderung wurde auf diesem Mac nicht gespeichert. Entsperre den Mac und versuche es erneut.",
     "es": "No se pudo escribir en el llavero; el cambio no se guardó en este Mac. Desbloquea el Mac y vuelve a intentarlo."
   },
+  "keysSaveFailed": {
+    "tr": "Anahtarlar bu cihaza kaydedilemedi; değişiklik olmadı. Yeniden dene.",
+    "en": "The keys could not be saved on this device; nothing changed. Try again.",
+    "de": "Die Schlüssel konnten auf diesem Gerät nicht gespeichert werden; nichts wurde geändert. Versuche es erneut.",
+    "es": "No se pudieron guardar las claves en este dispositivo; no cambió nada. Vuelve a intentarlo."
+  },
   "keysStoredLocal": {
     "tr": "Anahtarların bu cihazda şifrelenmiş olarak saklanır; yedeklere ve dışa aktarılan dosyalara hiç girmez. Bu şifreleme cihaza erişebilen birine karşı tam koruma değildir: ortak bir bilgisayardaysan \"Anahtarları bu cihazda hatırla\" seçeneğini kapat.",
     "en": "Your keys are kept on this device, encrypted; they never go into backups or exported files. The encryption does not fully protect them from someone who can use this device: on a shared computer, turn off \"Remember keys on this device\".",
@@ -1126,6 +1132,12 @@
     "en": "Some records in your library could not be read. Everything readable is open; the original file was kept, copied next to it.",
     "de": "Einige Einträge deiner Bibliothek konnten nicht gelesen werden. Alles Lesbare ist geöffnet; die ursprüngliche Datei wurde daneben aufbewahrt.",
     "es": "No se pudieron leer algunos registros de tu biblioteca. Todo lo legible está abierto; el archivo original se conservó, copiado a su lado."
+  },
+  "unsavedKeys": {
+    "tr": "Kaydedilmemiş anahtar değişiklikleri var; kaydetmeden kapatırsan kaybolur.",
+    "en": "You have unsaved key changes; they are lost if you close without saving.",
+    "de": "Es gibt nicht gesicherte Schlüsseländerungen; sie gehen verloren, wenn du ohne Sichern schließt.",
+    "es": "Hay cambios de claves sin guardar; se pierden si cierras sin guardar."
   },
   "unsupportedFile": {
     "tr": "Yalnız PDF ve EPUB dosyaları eklenebilir.",

@@ -18,6 +18,26 @@ extension PageBatching {
         await cancel(apiKey: apiKey, name: name)
         await delete(apiKey: apiKey, name: name)
     }
+
+    /// The key a job was made with is going away (the reader changed or removed it): asks Google once
+    /// with that key. A finished job's results come back to be kept (the caller saves them, then
+    /// calls `delete`); an unfinished one is cancelled and removed now (audit KR-2, 15 Nov).
+    public func settle(apiKey: String, name: String) async -> BatchOutcome {
+        guard GeminiBatch.isValidName(name) else { return .unfinished }
+        if case .done(let texts, let errors)? = try? await status(apiKey: apiKey, name: name) {
+            return .done(texts: texts, errors: errors)
+        }
+        await abandon(apiKey: apiKey, name: name)
+        return .unfinished
+    }
+}
+
+/// What became of a batch job when the key that made it went away.
+public enum BatchOutcome: Sendable, Equatable {
+    /// Finished: results by key, and error codes for keys that failed.
+    case done(texts: [String: String], errors: [String: String])
+    /// Not finished (or unknown): cancelled and removed; its pages are to be sent again.
+    case unfinished
 }
 
 public struct GeminiBatch: PageBatching {

@@ -6,6 +6,12 @@ struct SettingsView: View {
     @State private var draft = ByokSettings()
     @State private var remember = true
     @State private var saved = false
+    @State private var loaded = false
+
+    /// Keys or "remember" changed here and not saved yet.
+    private var hasUnsavedChanges: Bool {
+        loaded && (draft != model.settings || remember != model.rememberKeys)
+    }
 
     var body: some View {
         let t = model.t
@@ -38,6 +44,14 @@ struct SettingsView: View {
                 Section {
                     Toggle(t["rememberKeys"], isOn: $remember)
                     HStack {
+                        // Key edits apply only when saved; while they are not, the window says so, so
+                        // closing it does not silently drop them (audit KR-5).
+                        if hasUnsavedChanges {
+                            Label(t["unsavedKeys"], systemImage: "exclamationmark.circle")
+                                .font(.callout)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         Spacer()
                         Button(saved ? t["saved"] : t["save"]) {
                             // "Saved" only when the Keychain took it (audit K-4); otherwise the reason,
@@ -86,6 +100,7 @@ struct SettingsView: View {
         .onAppear {
             draft = model.settings
             remember = model.rememberKeys
+            loaded = true
         }
     }
 }

@@ -37,7 +37,9 @@ describe('zip limits', () => {
     const zip = await openZip(lying)
     await expect(readEntry(zip.file('OEBPS/ch.xhtml')!, 1_000_000)).rejects.toBeInstanceOf(ZipLimitError)
     await expect(checkEpubArchive(lieAboutSize(await zipOf({ 'x.xhtml': 'a'.repeat(ZIP_LIMITS.text + 1) }), 'x.xhtml', 10))).rejects.toBeInstanceOf(ZipLimitError)
-  })
+    // Real work (a large archive is made and unpacked): about 1 s alone, longer when the machine is busy
+    // with the whole suite in parallel (audit 15 Nov, WR-4).
+  }, 20_000)
 
   it('reads the entry count from the end record and refuses a zip with too many entries before parsing it', async () => {
     expect(endRecordEntryCount(await zipOf({ a: '1', b: '2', c: '3' }))).toBe(3)
@@ -61,7 +63,9 @@ describe('zip limits', () => {
     const honest = await zipOf({ 'META-INF/container.xml': container, 'c.opf': opf, 'cover.jpg': big })
     expect(await findEpubCover(honest)).toBeNull()
     expect(await findEpubCover(lieAboutSize(honest, 'cover.jpg', 100))).toBeNull()
-  })
+    // Real work (a large archive is made and unpacked): about 1 s alone, longer when the machine is busy
+    // with the whole suite in parallel (audit 15 Nov, WR-4).
+  }, 20_000)
 })
 
 describe('package file scanning', () => {

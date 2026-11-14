@@ -1,6 +1,6 @@
 import { AiError, streamAnswer, type AiRequest } from '../ai/client'
 import { fakeStream } from '../ai/fake'
-import { JobGone, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type PageBatching } from '../ai/batch'
+import { JobGone, KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type BatchStatus, type PageBatching } from '../ai/batch'
 import { pageTranscriptionSystem, pageTranscriptionTurns } from '../ai/compose'
 import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
 import { db, getPref } from '../data/db'
@@ -13,7 +13,7 @@ export interface PageReading {
   text: string
   /** waiting: its turn, or a Gemini batch job (`job`); reading: streaming in; failed: `error` says why. */
   state: 'waiting' | 'reading' | 'done' | 'failed'
-  /** "no-key", "key", "quota", "network", "blocked", "batch", "expired", "interrupted", "unknown". */
+  /** "no-key", "key", "quota", "network", "blocked", "batch", "expired", "key-changed", "interrupted", "unknown". */
   error?: string
   job?: string
   createdAt: number
@@ -58,6 +58,15 @@ export class PageReadingsStore {
   private listeners = new Set<() => void>()
   private controllers = new Map<number, AbortController>()
   private generation = 0
+  /**
+   * Bumped when a batch being drawn and sent must not go on: stopped, closed, or the Gemini key it started
+   * with changed (audit 15 Nov, KR-1). Pages read directly with any provider are not affected by a key change.
+   */
+  private batchGeneration = 0
+  /** Pages of a batch not yet given a job name (drawn, waiting their group, or in a create request). */
+  private sending = new Set<number>()
+  /** Jobs being collected or let go with an old Gemini key; polling with the new key leaves them alone. */
+  private releasing = new Set<string>()
   private pollTimer: ReturnType<typeof setTimeout> | null = null
   private pollWait: number
   private closed = false
@@ -81,20 +90,64 @@ export class PageReadingsStore {
   }
 
   /**
-   * A new or removed Gemini key cannot ask about jobs made with the old one: those jobs are cancelled and
-   * removed at Google with the old key, and their pages can be read again (audit 15 Nov, K-3).
+   * A new or removed Gemini key cannot ask about jobs made with the old one. A batch still being drawn
+   * and sent stops, and its pages not sent yet say the key changed (a job whose request is already on its
+   * way is removed with the key that made it). Jobs that have a name are asked about once with the old
+   * key: finished pages are kept and saved before the job is deleted at Google; unfinished jobs are
+   * cancelled and removed with the old key (audit 15 Nov, K-3, KR-1, KR-2, WR-2).
    */
   set settings(settings: ByokSettings) {
     const before = keyFor(this.options.settings, 'gemini')
     this.options = { ...this.options, settings }
     if (!before || before === keyFor(settings, 'gemini')) return
-    const waiting = [...this.readings.values()].filter((r) => r.job)
-    if (!waiting.length) return
-    const batcher = this.options.batcher ?? geminiBatch
-    for (const job of new Set(waiting.map((r) => r.job!))) void abandonBatchJob(before, job, batcher).catch(() => undefined)
-    for (const r of waiting) this.fail(r.page, 'expired')
+    this.batchGeneration++
+    for (const p of this.sending) {
+      const r = this.readings.get(p)
+      if (r?.state === 'waiting' && !r.job) this.fail(p, KEY_CHANGED)
+    }
+    this.sending.clear()
+    const jobs = new Set([...this.readings.values()].filter((r) => r.job && r.state === 'waiting').map((r) => r.job!))
+    for (const job of jobs) {
+      this.releasing.add(job)
+      void this.collectOrRelease(before, job).finally(() => this.releasing.delete(job))
+    }
     this.emit()
-    this.save()
+    void this.save()
+  }
+
+  /** One question to Google with the key that made the job: keep what finished, let go of the rest. */
+  private async collectOrRelease(oldKey: string, job: string) {
+    const batcher = this.options.batcher ?? geminiBatch
+    let status: BatchStatus | null = null
+    if (isBatchName(job)) {
+      try {
+        status = await batcher.status(oldKey, job)
+      } catch {
+        status = null
+      }
+    }
+    const pages = [...this.readings.values()].filter((r) => r.job === job && r.state === 'waiting').map((r) => r.page)
+    if (status?.state === 'done') {
+      this.collect(pages, job, status)
+      this.emit()
+      await this.save()
+      await batcher.delete(oldKey, job).catch(() => undefined)
+      return
+    }
+    for (const p of pages) if (this.readings.get(p)?.job === job) this.fail(p, KEY_CHANGED)
+    this.emit()
+    await this.save()
+    await abandonBatchJob(oldKey, job, batcher).catch(() => undefined)
+  }
+
+  /** Copies a finished job's texts into the pages still waiting on it. */
+  private collect(pages: number[], job: string, status: Extract<BatchStatus, { state: 'done' }>) {
+    for (const p of pages) {
+      if (this.readings.get(p)?.job !== job) continue
+      const text = (status.texts[String(p)] ?? '').trim()
+      if (text) this.update(p, { text, state: 'done', job: undefined })
+      else this.fail(p, status.errors[String(p)] ?? 'unknown')
+    }
   }
 
   subscribe = (listener: () => void) => {
@@ -114,10 +167,10 @@ export class PageReadingsStore {
    * finished (paid) result, which an older wait or failure here never replaces. Nothing is written once
    * the book is gone, so a deleted book leaves no readings behind (audit 15 Nov, WW-4).
    */
-  private save() {
+  private save(): Promise<void> {
     const bookId = this.options.bookId
     const key = readingsKey(bookId)
-    void db
+    return db
       .transaction('rw', [db.books, db.prefs], async () => {
         if (!(await db.books.get(bookId))) {
           await db.prefs.delete(key)
@@ -194,11 +247,11 @@ export class PageReadingsStore {
     if (!provider) {
       for (const p of pages) this.fail(p, 'no-key')
       this.emit()
-      this.save()
+      void this.save()
       return
     }
     this.emit()
-    this.save()
+    void this.save()
     if (provider === 'gemini' && pages.length > DIRECT_LIMIT && !this.options.fake) void this.submitBatch(pages, lang)
     else void this.runWaves(pages, provider, lang)
   }
@@ -206,6 +259,7 @@ export class PageReadingsStore {
   /** Stops every page still on its way (a batch job is cancelled and removed at Google); pages already read stay. */
   stop(): number {
     this.generation++
+    this.batchGeneration++
     const stopped = this.snapshot.filter((r) => r.state === 'waiting' || r.state === 'reading')
     for (const r of stopped) {
       this.controllers.get(r.page)?.abort()
@@ -213,8 +267,9 @@ export class PageReadingsStore {
       this.readings.delete(r.page)
     }
     this.abandonUnwaited(new Set(stopped.map((r) => r.job).filter((j): j is string => !!j)))
+    this.sending.clear()
     this.emit()
-    this.save()
+    void this.save()
     return stopped.length
   }
 
@@ -228,6 +283,7 @@ export class PageReadingsStore {
   close() {
     this.closed = true
     this.generation++
+    this.batchGeneration++
     for (const c of this.controllers.values()) c.abort()
     this.controllers.clear()
     if (this.pollTimer) clearTimeout(this.pollTimer)
@@ -290,7 +346,7 @@ export class PageReadingsStore {
       if (this.controllers.get(page) === ac) this.controllers.delete(page)
     }
     this.emit()
-    if (!this.closed) this.save()
+    if (!this.closed) void this.save()
   }
 
   /**
@@ -298,7 +354,8 @@ export class PageReadingsStore {
    * scanned range never holds every page's picture in memory at once (audit 15 Nov, WW-5).
    */
   private async submitBatch(pages: number[], lang: Lang) {
-    const generation = this.generation
+    const generation = this.batchGeneration
+    for (const p of pages) this.sending.add(p)
     const { settings } = this.options
     const key = keyFor(settings, 'gemini')
     const model = modelFor(settings, 'gemini', 'translation')
@@ -312,9 +369,11 @@ export class PageReadingsStore {
       await this.submitGroup(items, key, model, generation)
     }
     for (const p of pages) {
-      if (generation !== this.generation) return
+      if (generation !== this.batchGeneration) return
       const image = await this.options.picture(p).catch(() => null)
+      if (generation !== this.batchGeneration) return
       if (!image) {
+        this.sending.delete(p)
         this.fail(p, 'unknown')
         continue
       }
@@ -327,7 +386,7 @@ export class PageReadingsStore {
     }
     await send()
     this.emit()
-    this.save()
+    void this.save()
   }
 
   private async submitGroup(items: BatchItem[], key: string, model: string, generation: number) {
@@ -335,23 +394,27 @@ export class PageReadingsStore {
     const pages = items.map((i) => Number(i.key))
     try {
       const name = await batcher.create(key, model, items)
-      const still = pages.filter((p) => this.readings.get(p)?.state === 'waiting' && !this.readings.get(p)?.job)
-      // Stopped (or read again) while the job was being made: nobody waits for it.
-      if (generation !== this.generation || still.length === 0) {
+      const still = pages.filter((p) => this.sending.has(p) && this.readings.get(p)?.state === 'waiting' && !this.readings.get(p)?.job)
+      for (const p of pages) this.sending.delete(p)
+      // Stopped, read again, or the key changed while the job was being made: nobody waits for it, and it is
+      // removed with the key that made it (audit 15 Nov, KR-1).
+      if (generation !== this.batchGeneration || still.length === 0) {
         await abandonBatchJob(key, name, batcher)
         return
       }
       for (const p of still) this.update(p, { job: name })
       this.emit()
-      this.save()
+      void this.save()
       this.ensurePolling()
     } catch (e) {
-      if (generation !== this.generation) return
+      const mine = pages.filter((p) => this.sending.has(p))
+      for (const p of pages) this.sending.delete(p)
+      if (generation !== this.batchGeneration) return
       // No silent fallback to full-price requests (as with page translation): each page says so.
       const code = e instanceof AiError && e.kind === 'key' ? 'key' : 'batch'
-      for (const p of pages) this.fail(p, code)
+      for (const p of mine) this.fail(p, code)
       this.emit()
-      this.save()
+      void this.save()
     }
   }
 
@@ -373,6 +436,8 @@ export class PageReadingsStore {
     if (!key) return
     const now = Date.now()
     for (const job of new Set(this.snapshot.map((r) => r.job).filter((j): j is string => !!j))) {
+      // Being collected or let go with an old key (the key changed): not asked with the new one.
+      if (this.releasing.has(job)) continue
       const waiting = this.snapshot.filter((r) => r.job === job && r.state === 'waiting').map((r) => r.page)
       // A page read again meanwhile waits on another job: only pages still on this one are touched.
       const failAll = (code: string) => {
@@ -397,21 +462,16 @@ export class PageReadingsStore {
       }
       if (this.closed) return
       if (status.state === 'waiting') continue
-      if (status.state === 'failed') {
-        failAll(status.code)
-      } else {
-        for (const p of waiting) {
-          if (this.readings.get(p)?.job !== job) continue
-          const text = (status.texts[String(p)] ?? '').trim()
-          if (text) this.update(p, { text, state: 'done', job: undefined })
-          else this.fail(p, status.errors[String(p)] ?? 'unknown')
-        }
-      }
-      // The text is kept here: Google need not keep the pages or what it read.
-      await batcher.delete(key, job)
+      if (status.state === 'failed') failAll(status.code)
+      else this.collect(waiting, job, status)
+      // Saved first, even if the reader left the book meanwhile; only then need Google not keep the pages
+      // or what it read (audit 15 Nov, WR-2).
+      this.emit()
+      await this.save()
+      await batcher.delete(key, job).catch(() => undefined)
     }
     this.emit()
-    if (!this.closed) this.save()
+    if (!this.closed) void this.save()
   }
 
   /** Removes jobs no page waits for any more. */

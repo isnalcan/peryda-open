@@ -46,6 +46,10 @@ fi
 # A release is built from a committed tree, and says which commit (audit MA-15).
 if [ "$mode" = "release" ]; then
   [ -z "$(git -C "$here/.." status --porcelain --untracked-files=no)" ] || fail "Commit or stash changes first: a release is built from a committed tree."
+  # XcodeGen and SwiftPM compile every file in these folders, committed or not (audit recheck MR-5).
+  untracked=$(git -C "$here/.." status --porcelain --untracked-files=all -- mac/PerydaMac mac/PerydaKit/Sources mac/PerydaKit/Package.swift mac/project.yml shared | grep '^??' || true)
+  [ -z "$untracked" ] || fail "Untracked files would be built into the release; commit or remove them first:
+$untracked"
   echo "› Commit $(git -C "$here/.." rev-parse HEAD)"
 fi
 

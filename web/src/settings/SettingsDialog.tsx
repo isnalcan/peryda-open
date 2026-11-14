@@ -79,7 +79,7 @@ function ModelPicker(props: { title: string; provider: ProviderId; task: AiTask;
 }
 
 /** One provider: its key, then (with a key) a model for threads and one for page translation. */
-function ProviderField(props: { provider: ProviderId; settings: ByokSettings; onChange: (s: ByokSettings) => void; onRemove: (p: ProviderId) => void }) {
+function ProviderField(props: { provider: ProviderId; settings: ByokSettings; onChange: (s: ByokSettings) => void; onRemove: (p: ProviderId) => Promise<boolean> }) {
   const { t } = useI18n()
   const id = useId()
   const apiKey = chosenKey(props.settings, props.provider)
@@ -122,8 +122,9 @@ function ProviderField(props: { provider: ProviderId; settings: ByokSettings; on
             type="button"
             className="text-button"
             onClick={() => {
-              props.onRemove(props.provider)
-              setEditing(true)
+              void props.onRemove(props.provider).then((removed) => {
+                if (removed) setEditing(true)
+              })
             }}
           >
             {t.removeKey}
@@ -149,6 +150,7 @@ export function SettingsDialog(props: Props) {
   const [draft, setDraft] = useState<ByokSettings>(props.settings)
   const [remember, setRemember] = useState(props.remember)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -163,15 +165,29 @@ export function SettingsDialog(props: Props) {
    * "Remove" takes the key away at once: from the stored keys and from what the app uses, not only from
    * this dialog's draft (audit 15 Nov, K-5). Other unsaved changes in the dialog stay unsaved.
    */
-  const remove = (p: ProviderId) => {
-    setDraft((d) => withKey(d, p, ''))
-    void props.onSave(withKey(props.settings, p, ''), props.remember)
+  const remove = async (p: ProviderId): Promise<boolean> => {
+    setSaveError(false)
+    try {
+      await props.onSave(withKey(props.settings, p, ''), props.remember)
+      setDraft((d) => withKey(d, p, ''))
+      return true
+    } catch {
+      // The device refused the write: the key is still stored, so it stays shown (audit 15 Nov, KR-3).
+      setSaveError(true)
+      return false
+    }
   }
 
   const save = async () => {
     let clean = draft
     for (const p of PROVIDERS) clean = withKey(clean, p, chosenKey(clean, p).trim())
-    await props.onSave(clean, remember)
+    setSaveError(false)
+    try {
+      await props.onSave(clean, remember)
+    } catch {
+      setSaveError(true)
+      return
+    }
     setSaved(true)
     window.setTimeout(() => setSaved(false), 1600)
   }
@@ -207,6 +223,7 @@ export function SettingsDialog(props: Props) {
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           {t.rememberKeys}
         </label>
+        {saveError && <p className="field-error" role="alert">{t.keysSaveFailed}</p>}
         <div className="dialog-actions">
           <button type="button" className="primary-button" onClick={() => void save()}>{saved ? t.saved : t.save}</button>
         </div>

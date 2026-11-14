@@ -296,6 +296,20 @@ final class ReaderModel {
         return jobs
     }
 
+    /// The Gemini key changed: pages on their way to a batch job stop; returns the jobs to settle
+    /// with the old key (`apply` then fills in what had finished). Direct work carries on.
+    func detachBatchJobs(code: String) -> Set<String> {
+        var jobs = cards.detachBatchJobs(code: code)
+        if let readings { jobs.formUnion(readings.detachBatchJobs(code: code)) }
+        return jobs
+    }
+
+    /// What became of a job settled with the old key.
+    func apply(_ outcome: BatchOutcome, of job: String, code: String) {
+        cards.apply(outcome, of: job, code: code)
+        readings?.apply(outcome, of: job, code: code)
+    }
+
     /// Text that surrounds a selection on a page: the start of the page's text.
     func pageContext(_ number: Int) -> String? {
         guard let text = document?.page(at: number - 1)?.readingText.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }

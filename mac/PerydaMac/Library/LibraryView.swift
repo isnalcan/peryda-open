@@ -78,14 +78,18 @@ struct LibraryView: View {
             // A link dragged from a browser is not a book on this Mac.
             let files = urls.filter(\.isFileURL)
             guard !files.isEmpty else { return false }
-            let book = model.importFiles(files)
-            if files.count == 1, let book { openWindow(id: "reader", value: book.id) }
+            Task {
+                let book = await model.importFiles(files)
+                if files.count == 1, let book { openWindow(id: "reader", value: book.id) }
+            }
             return true
         } isTargeted: { dropTargeted = $0 }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    if let book = pickAndImport(model) { openWindow(id: "reader", value: book.id) }
+                    Task {
+                        if let book = await pickAndImport(model) { openWindow(id: "reader", value: book.id) }
+                    }
                 } label: {
                     Label(t["addBook"], systemImage: "plus")
                 }

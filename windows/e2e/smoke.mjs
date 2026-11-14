@@ -150,6 +150,8 @@ await step(page, 'policy-on-every-file', async () => {
   })
   const files = Object.entries(found.files)
   if (files.length < 2) throw new Error('found no script to check')
+  // The worker is the file this step exists for: not finding it is a failure, not a pass.
+  if (found.worker !== true || files.length < 3) throw new Error('found no pdf.js worker to check')
   for (const [path, h] of files) {
     if (!h.csp?.includes("connect-src 'self' https://generativelanguage.googleapis.com") || h.nosniff !== 'nosniff') throw new Error(`no policy header on ${path}`)
   }
