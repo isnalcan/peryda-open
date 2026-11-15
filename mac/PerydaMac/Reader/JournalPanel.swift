@@ -43,7 +43,7 @@ struct JournalPanel: View {
                 .foregroundStyle(Color(nsColor: TranslatedPageView.ink))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: Theme.highlighter)))
+                .background(RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: Theme.highlighter(entry.highlightColor))))
                 .background(RoundedRectangle(cornerRadius: 3).fill(Color.white))
         } else {
             Text(entry.quote)

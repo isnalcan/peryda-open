@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, getPref, newId, setPref, type JournalRecord } from '../data/db'
 import { useI18n } from '../i18n/I18n'
+import { highlightColorOf } from '../reader/highlightColors'
 import { Markdown } from '../ui/Markdown'
 import { journalSummarySystem, pageTitle } from '../ai/compose'
 import { AiError, streamAnswer } from '../ai/client'
@@ -242,7 +243,7 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
                 </>
               ) : (
                 e.quote && (
-                  <blockquote className={`journal-quote${e.source === 'highlight' ? ' is-highlight' : ''}`}>
+                  <blockquote className={`journal-quote${e.source === 'highlight' ? ' is-highlight' : ''}`} data-hl={e.source === 'highlight' ? highlightColorOf(e) : undefined}>
                     {e.source === 'highlight' ? <mark>{e.quote}</mark> : e.quote}
                   </blockquote>
                 )

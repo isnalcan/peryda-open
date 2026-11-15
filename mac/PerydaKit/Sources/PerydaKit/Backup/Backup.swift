@@ -416,6 +416,7 @@ public enum Backup {
         var r = record
         r.pageNumber = min(max(r.pageNumber, 0), 100_000)
         r.createdAt = finite(r.createdAt, 1e15)
+        r.highlightColor = r.source == .highlight ? HighlightColor.stored(r.highlightColor) : nil
         guard r.source == .highlight, let marks = r.marks else {
             r.marks = nil
             return r

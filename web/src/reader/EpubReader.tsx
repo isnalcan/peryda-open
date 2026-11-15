@@ -18,6 +18,7 @@ import { ReaderTopBar } from './ReaderTopBar'
 import { EyeIcon, EyeOffIcon, ZoomInIcon, ZoomOutIcon } from '../ui/icons'
 import { useThreadSelection } from './useThreadSelection'
 import { ignoreStrayDrops } from '../app/drops'
+import { BookInfoDialog } from '../library/BookInfoDialog'
 
 interface Props {
   book: BookRecord
@@ -55,6 +56,7 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
   const [hideThreads, setHideThreads] = useState(false)
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set())
   const [showJournal, setShowJournal] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
   const [fontScale, setFontScale] = useState(100)
   const [bounds, setBounds] = useState({ width: 800, height: 600 })
   const { cards, create, ask, retry, stop, remove, update } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
@@ -317,6 +319,7 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
         onOpenSettings={onOpenSettings}
         onOpenJournal={() => setShowJournal((v) => !v)}
         journalOpen={showJournal}
+        onBookInfo={() => setShowInfo(true)}
       >
         <span className="reader-page-label">{chapter ? chapterTitle(lang, chapter) : ''}</span>
         <div className="camera-capsule" role="group">
@@ -431,6 +434,7 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
           />
         )}
       </div>
+      {showInfo && <BookInfoDialog book={book} onClose={() => setShowInfo(false)} />}
       {actions.toast && <div className="toast" role="status">{actions.toast}</div>}
     </div>
   )

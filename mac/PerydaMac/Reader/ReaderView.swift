@@ -52,9 +52,33 @@ struct ReaderSurface: View {
 
     var body: some View {
         let t = app.t
+        HStack(spacing: 0) {
+            // Page thumbnails, as in Preview (owner, 16 Nov): the reading surface makes room for them.
+            if reader.showThumbnails, reader.document != nil {
+                ThumbnailSidebar(reader: reader, lang: app.lang)
+                    .frame(width: 168)
+                    .transition(.move(edge: .leading))
+                Divider()
+            }
+            surface(t)
+        }
+        .animation(.spring(duration: 0.22, bounce: 0), value: reader.showThumbnails)
+        .sheet(isPresented: $reader.showingInfo) {
+            BookInfoSheet(book: reader.book, store: app.store, lang: app.lang)
+        }
+    }
+
+    private func surface(_ t: UIText) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 WorldRepresentable(reader: reader, lang: app.lang, openSettings: { openSettings() })
+                if reader.finding {
+                    FindBar(reader: reader, t: t)
+                        .frame(maxWidth: .infinity, alignment: .topTrailing)
+                        .padding(.top, 10)
+                        .padding(.trailing, 14)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 if let pending = reader.pending {
                     SelectionMenuView(reader: reader, lang: app.lang)
                         .id(pending.anchors.first?.id)
@@ -111,6 +135,12 @@ struct ReaderSurface: View {
         .focusedSceneValue(\.reader, reader)
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
+                if reader.document != nil {
+                    Toggle(isOn: $reader.showThumbnails) {
+                        Label(t["thumbnails"], systemImage: "sidebar.left")
+                    }
+                    .help(t["thumbnails"])
+                }
                 ToolSwitcher(tool: $reader.tool, t: t)
             }
             ToolbarItemGroup(placement: .primaryAction) {
@@ -159,6 +189,10 @@ struct ReaderSurface: View {
                         TranslateOptions(reader: reader, app: app, t: t) { translateOptions = false }
                     }
                 }
+                Button { reader.showingInfo = true } label: {
+                    Label(t["bookInfo"], systemImage: "info.circle")
+                }
+                .help(t["bookInfo"])
                 Toggle(isOn: $reader.showJournal) {
                     Label(t["journal"], systemImage: "book.closed")
                 }
@@ -408,11 +442,32 @@ struct ReaderCommands: Commands {
                 .disabled(reader?.document == nil)
             Toggle(t["explainTerms"], isOn: Binding(get: { model.explainTerms }, set: { model.explainTerms = $0 }))
             Button(t["extractText"]) { if let reader { reader.extractingPage = .init(page: reader.currentPage) } }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(reader?.document == nil)
             Button(t["stopTranslating"]) { reader?.stopTranslating(lang: model.lang) }
                 .keyboardShortcut(".", modifiers: [.command])
                 .disabled((reader?.pendingTranslations ?? 0) == 0)
-                .keyboardShortcut("e", modifiers: [.command, .shift])
+            Divider()
+            // Owner, 16 Nov: page thumbnails (⌥⌘2, as in Preview) and the book's details (⌘I).
+            Toggle(t["thumbnails"], isOn: Binding(get: { reader?.showThumbnails ?? false }, set: { reader?.showThumbnails = $0 }))
+                .keyboardShortcut("2", modifiers: [.command, .option])
                 .disabled(reader?.document == nil)
+            Button(t["bookInfo"]) { reader?.showingInfo = true }
+                .keyboardShortcut("i", modifiers: [.command])
+                .disabled(reader == nil)
+        }
+        // Find in the document (owner, 16 Nov: "ctrl f"): ⌘F, then ⌘G and ⇧⌘G.
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Button(t["find"] + "…") { reader?.startFind() }
+                .keyboardShortcut("f", modifiers: [.command])
+                .disabled(reader?.document == nil)
+            Button(t["findNext"]) { reader?.stepFind(1) }
+                .keyboardShortcut("g", modifiers: [.command])
+                .disabled((reader?.findHits.isEmpty ?? true))
+            Button(t["findPrevious"]) { reader?.stepFind(-1) }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled((reader?.findHits.isEmpty ?? true))
         }
         CommandMenu(t["menuGo"]) {
             Button(t["previousPage"]) { reader?.cameraCommand = .previousPage }
@@ -541,6 +596,9 @@ struct WorldRepresentable: NSViewRepresentable {
         _ = reader.tool
         _ = reader.pagedReading
         _ = reader.currentPage
+        _ = reader.findHits.count
+        _ = reader.findIndex
+        _ = reader.pages.first?.width
         view.lang = lang
         view.sync()
         view.window?.invalidateCursorRects(for: view)

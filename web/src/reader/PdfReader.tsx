@@ -18,7 +18,7 @@ import { PdfPageView, type PageHighlight, type PageKnot, type Tool } from './Pdf
 import { ReaderTopBar } from './ReaderTopBar'
 import { anchorsFromSelection, expandToWords, normalizeText, selectionScreenRect, type PageElement } from './selection'
 import { cameraForTranslation, constrainToBand, useCamera, type Camera } from './useCamera'
-import { EyeIcon, EyeOffIcon, LinkIcon } from '../ui/icons'
+import { EyeIcon, EyeOffIcon, LinkIcon, SidebarIcon } from '../ui/icons'
 import { JournalPanel } from '../journal/JournalPanel'
 import { useThreadActions } from '../ilmek/useThreadActions'
 import { useThreadMarks } from '../ilmek/threadMarks'
@@ -30,6 +30,12 @@ import { PageTextCache, pageSource, renderPageJpeg, translationPicture } from '.
 import { PageReadingsStore } from '../reading/pageReadings'
 import { useFakeAi } from '../ai/fake'
 import { cardText } from './useThreadSelection'
+import { BookInfoDialog } from '../library/BookInfoDialog'
+import { highlightColorOf, useHighlightColor, type HighlightColor } from './highlightColors'
+import { FindBar } from './FindBar'
+import { foldQuery, searchDocument, type FindHit, type PageText } from './find'
+import type { PageFindMark } from './PdfPageView'
+import { SIDEBAR_WIDTH, ThumbnailSidebar } from './ThumbnailSidebar'
 
 interface Props {
   book: BookRecord
@@ -62,6 +68,8 @@ interface Opened {
   target: Lang
   /** Translations explain hard terms in brackets (a reader preference, on unless turned off). */
   explainTerms: boolean
+  /** The page thumbnails sidebar is open (kept for the whole app). */
+  thumbnails: boolean
 }
 
 export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: Props) {
@@ -78,12 +86,13 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
         if (!file) throw new Error('missing file')
         doc = await openPdf(await file.blob.arrayBuffer())
         const sizes = await pageSizes(doc)
-        const [saved, paged, target, explainTerms, pageScale] = await Promise.all([
+        const [saved, paged, target, explainTerms, pageScale, thumbnails] = await Promise.all([
           db.positions.get(book.id),
           getPref<boolean>('pagedReading', false),
           getPref<Lang | null>(`translateLang:${book.id}`, null),
           getPref<boolean>('explainTerms', true),
           getPref<unknown>(`pageScale:${book.id}`, 1),
+          getPref<unknown>('thumbnailsOpen', false),
         ])
         if (cancelled) return
         setOpened({
@@ -95,6 +104,7 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
           paged,
           target: target ?? lang,
           explainTerms,
+          thumbnails: thumbnails === true,
         })
         void db.books.update(book.id, { openedAt: Date.now() })
       } catch {
@@ -202,6 +212,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   useEffect(() => () => cancelAnimationFrame(animation.current), [])
 
   const [tool, setTool] = useState<Tool>('select')
+  const [highlightColor, setHighlightColor] = useHighlightColor()
+  const [thumbnailsOpen, setThumbnailsOpen] = useState(opened.thumbnails)
+  const [showInfo, setShowInfo] = useState(false)
   const pageResizing = useRef<PageResizeDrag | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [bridgeHeld, setBridgeHeld] = useState<PdfYarnAnchor[] | null>(null)
@@ -314,7 +327,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     for (const entry of actions.highlightMarks) {
       for (const [i, m] of (entry.marks ?? []).entries()) {
         const list = highlights.get(m.pageNumber) ?? []
-        list.unshift({ key: `hl-${entry.id}-${i}`, cardId: '', color: 'amber', area: false, rects: m.lineRects, highlighter: true })
+        list.unshift({ key: `hl-${entry.id}-${i}`, cardId: '', color: 'amber', area: false, rects: m.lineRects, highlighter: true, highlightColor: highlightColorOf(entry) })
         highlights.set(m.pageNumber, list)
       }
     }
@@ -396,6 +409,181 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     [pages, pagedReading, pagedPage, bandFor, constrainFor, cameraRef, setCamera, animateCamera],
   )
   const turnPage = useCallback((delta: number) => goToPage(currentPage + delta), [goToPage, currentPage])
+
+  // ---- Find in the document (Ctrl/Cmd+F, owner 16 Nov) ----
+  const [findOpen, setFindOpen] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [findHits, setFindHits] = useState<FindHit[]>([])
+  const [findIndex, setFindIndex] = useState(-1)
+  const [findSearching, setFindSearching] = useState(false)
+  const findInputRef = useRef<HTMLInputElement>(null)
+  const findTexts = useRef(new Map<number, PageText>())
+  const findHitsRef = useRef(findHits)
+  findHitsRef.current = findHits
+  const findIndexRef = useRef(findIndex)
+  findIndexRef.current = findIndex
+  const currentPageRef = useRef(currentPage)
+  currentPageRef.current = currentPage
+
+  /**
+   * Brings a match into view at the reader's zoom: centred up and down, moved sideways only when it is
+   * outside the view. Page by page, it turns to the match's page.
+   */
+  const revealHit = (hit: FindHit) => {
+    const box = pages[hit.page - 1]
+    if (!box || !hit.rects.length) return
+    const left = Math.min(...hit.rects.map((r) => r.x))
+    const right = Math.max(...hit.rects.map((r) => r.x + r.width))
+    const top = Math.min(...hit.rects.map((r) => r.y))
+    const bottom = Math.max(...hit.rects.map((r) => r.y + r.height))
+    const c = cameraRef.current
+    const wx0 = box.x + left * box.width
+    const wx1 = box.x + right * box.width
+    const wy = box.y + ((top + bottom) / 2) * box.height
+    const margin = 24
+    const outside = c.x + wx0 * c.s < margin || c.x + wx1 * c.s > viewport.width - margin
+    const target: Camera = { x: outside ? viewport.width / 2 - ((wx0 + wx1) / 2) * c.s : c.x, y: viewport.height / 2 - wy * c.s, s: c.s }
+    if (pagedReading && hit.page !== pagedPage) {
+      fadePage()
+      setPagedPage(hit.page)
+      constrainRef.current = constrainFor(bandFor(hit.page))
+      cameraReady.current = true
+      cancelAnimationFrame(animation.current)
+      setCamera(target)
+    } else {
+      animateCamera(target)
+    }
+  }
+  const revealRef = useRef(revealHit)
+  revealRef.current = revealHit
+
+  const chooseHit = useCallback((i: number) => {
+    const hit = findHitsRef.current[i]
+    if (!hit) return
+    setFindIndex(i)
+    revealRef.current(hit)
+  }, [])
+
+  /** The next (+1) or previous (−1) match, going round at either end. */
+  const stepFind = useCallback(
+    (delta: number) => {
+      const n = findHitsRef.current.length
+      if (!n) return
+      const here = findIndexRef.current
+      chooseHit(here < 0 ? (delta > 0 ? 0 : n - 1) : (here + delta + n) % n)
+    },
+    [chooseHit],
+  )
+
+  const openFind = useCallback(() => {
+    setFindOpen(true)
+    requestAnimationFrame(() => {
+      findInputRef.current?.focus({ preventScroll: true })
+      findInputRef.current?.select()
+    })
+  }, [])
+  const closeFind = useCallback(() => {
+    setFindOpen(false)
+    setFindQuery('')
+  }, [])
+
+  // ---- Page thumbnails beside the surface (owner, 16 Nov) ----
+  /** Opens or closes the sidebar; the surface narrows or widens by its width and keeps its middle. */
+  const thumbnailsRef = useRef(thumbnailsOpen)
+  thumbnailsRef.current = thumbnailsOpen
+  const toggleThumbnails = useCallback(() => {
+    const next = !thumbnailsRef.current
+    thumbnailsRef.current = next
+    setThumbnailsOpen(next)
+    void setPref('thumbnailsOpen', next)
+    const c = cameraRef.current
+    setCamera({ ...c, x: c.x + (next ? -SIDEBAR_WIDTH / 2 : SIDEBAR_WIDTH / 2) })
+  }, [cameraRef, setCamera])
+
+  // Looks through the whole book a moment after typing stops; the counter fills in page by page, and the
+  // first match on or after the page being read becomes the current one.
+  useEffect(() => {
+    if (!findOpen || !foldQuery(findQuery)) {
+      setFindHits([])
+      setFindIndex(-1)
+      setFindSearching(false)
+      return
+    }
+    const controller = new AbortController()
+    const startPage = currentPageRef.current
+    const timer = window.setTimeout(() => {
+      const all: FindHit[] = []
+      let chosen = -1
+      setFindHits([])
+      setFindIndex(-1)
+      setFindSearching(true)
+      void searchDocument(doc, findQuery, {
+        signal: controller.signal,
+        cache: findTexts.current,
+        onHits: (hits) => {
+          if (controller.signal.aborted) return
+          all.push(...hits)
+          const snapshot = [...all]
+          findHitsRef.current = snapshot
+          setFindHits(snapshot)
+          if (chosen === -1) {
+            const i = snapshot.findIndex((h) => h.page >= startPage)
+            if (i !== -1) {
+              chosen = i
+              chooseHit(i)
+            }
+          }
+        },
+      }).then(() => {
+        if (controller.signal.aborted) return
+        setFindSearching(false)
+        if (chosen === -1 && all.length) chooseHit(0)
+      })
+    }, 250)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [findOpen, findQuery, doc, chooseHit])
+
+  const findMarksByPage = useMemo(() => {
+    const map = new Map<number, PageFindMark[]>()
+    findHits.forEach((hit, i) => {
+      const list = map.get(hit.page) ?? []
+      list.push({ key: `find-${i}`, rects: hit.rects, current: i === findIndex })
+      map.set(hit.page, list)
+    })
+    return map
+  }, [findHits, findIndex])
+
+  // Ctrl/Cmd+F opens find (instead of the browser's own, which cannot see pages not drawn yet);
+  // Ctrl/Cmd+G and Shift+Ctrl/Cmd+G go to the next and previous match.
+  const findOpenRef = useRef(findOpen)
+  findOpenRef.current = findOpen
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const target = e.target instanceof Element ? e.target : null
+      if (e.altKey) {
+        if (e.code === 'Digit2' && !target?.closest('textarea, input, select, [contenteditable="true"]')) {
+          // Alt+Ctrl/Cmd+2: the thumbnails, as in Preview (⌥⌘2).
+          e.preventDefault()
+          toggleThumbnails()
+        }
+        return
+      }
+      const key = e.key.toLowerCase()
+      if (key === 'f') {
+        e.preventDefault()
+        openFind()
+      } else if (key === 'g' && findOpenRef.current) {
+        e.preventDefault()
+        stepFind(e.shiftKey ? -1 : 1)
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [openFind, stepFind, toggleThumbnails])
 
   // ---- Resizing the pages from a page's bottom-right corner (owner, 16 Nov) ----
   // The pages keep their proportions; threads, highlights and translations follow them, and cards the
@@ -879,8 +1067,10 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     await actions.clip(anchors)
   }
 
-  const onHighlight = async () => {
+  const onHighlight = async (color: HighlightColor) => {
     if (!pending) return
+    // Choosing a colour makes it the one "Vurgula" uses from now on.
+    if (color !== highlightColor) setHighlightColor(color)
     // A highlight covers whole words: the live selection is widened to word boundaries first.
     let anchors = pending.anchors
     const selection = window.getSelection()
@@ -894,7 +1084,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       if (whole.length) anchors = whole
     }
     finish()
-    await actions.highlight(anchors)
+    await actions.highlight(anchors, color)
   }
 
   // ---- Card callbacks (stable, so cards re-render only when their own data changes) ----
@@ -985,7 +1175,22 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         onOpenSettings={onOpenSettings}
         onOpenJournal={() => setShowJournal((v) => !v)}
         journalOpen={showJournal}
-        leading={<ToolSwitcher tool={tool} onTool={setTool} />}
+        onBookInfo={() => setShowInfo(true)}
+        leading={
+          <>
+            <button
+              type="button"
+              className="icon-button"
+              aria-pressed={thumbnailsOpen}
+              title={t.thumbnails}
+              aria-label={t.thumbnails}
+              onClick={toggleThumbnails}
+            >
+              <SidebarIcon size={18} />
+            </button>
+            <ToolSwitcher tool={tool} onTool={setTool} />
+          </>
+        }
       >
         <PageNav
           page={currentPage}
@@ -1030,6 +1235,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         </div>
       )}
       <div className="reader-main">
+        {thumbnailsOpen && <ThumbnailSidebar doc={doc} sizes={sizes} current={currentPage} onGoTo={goToPage} />}
         <div
           ref={viewportRef}
           className={`reader-viewport tool-${tool}`}
@@ -1063,6 +1269,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                   renderWidth={pageResize?.renderWidth}
                   renderScale={settledScale}
                   highlights={highlightsByPage.get(i + 1) ?? EMPTY}
+                  findMarks={findMarksByPage.get(i + 1)}
                   knots={knotsByPage.get(i + 1) ?? EMPTY}
                   tool={tool}
                   register={registerPage}
@@ -1140,6 +1347,19 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
             ))}
           </div>
 
+          {findOpen && (
+            <FindBar
+              ref={findInputRef}
+              query={findQuery}
+              onQuery={setFindQuery}
+              count={findHits.length}
+              index={findIndex}
+              searching={findSearching}
+              onNext={() => stepFind(1)}
+              onPrevious={() => stepFind(-1)}
+              onClose={closeFind}
+            />
+          )}
           {pending && (
             <SelectionMenu
               anchorRect={pending.rect}
@@ -1163,7 +1383,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
               onClip={() => void onClip()}
               // A highlight is for text on the PDF page only (not a page area, nor text in a card or translation).
               canHighlight={!pending.parentCardId && pending.anchors.every((a) => a.sourceType === 'pdf_text')}
-              onHighlight={() => void onHighlight()}
+              highlightColor={highlightColor}
+              onHighlight={(color) => void onHighlight(color)}
               onTranslate={() => createFromPending('sky', 'translate')}
               onClose={finish}
             />
@@ -1208,6 +1429,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       {extractingPage !== null && (
         <ExtractTextDialog doc={doc} page={extractingPage} bookTitle={book.title} readings={readings} onOpenSettings={onOpenSettings} onClose={() => setExtractingPage(null)} />
       )}
+      {showInfo && <BookInfoDialog book={book} onClose={() => setShowInfo(false)} />}
       {actions.toast && <div className="toast" role="status">{actions.toast}</div>}
     </div>
   )

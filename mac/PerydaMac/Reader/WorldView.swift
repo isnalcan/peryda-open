@@ -180,12 +180,19 @@ final class WorldView: NSView {
             let highlights = model.highlights(onPage: number)
             let knots = model.knots(onPage: number, lang: lang)
             let marks = model.highlighterMarks(onPage: number)
+            let hits = model.findHitsByPage[number] ?? []
+            let current = model.findIndex.flatMap { i in hits.contains { $0.index == i } ? i : nil }
             if view.highlights != highlights || view.knots != knots || view.marks != marks {
                 view.highlights = highlights
                 view.knots = knots
                 view.marks = marks
                 view.needsDisplay = true
                 view.syncKnots()
+            }
+            if view.findHits != hits || view.currentFind != current {
+                view.findHits = hits
+                view.currentFind = current
+                view.needsDisplay = true
             }
         }
 
@@ -421,6 +428,17 @@ final class WorldView: NSView {
             zoom(to: scrollView.magnification * 1.2, animated: animated)
         case .zoomOut:
             zoom(to: scrollView.magnification / 1.2, animated: animated)
+        case .reveal(let number, let rect):
+            // At the zoom in use: the page in page-by-page reading, then the place, centred up and down
+            // and moved sideways only when it is out of view.
+            guard number >= 1, number <= model.pages.count else { break }
+            if model.pagedReading, number != model.currentPage { turnPage(number - model.currentPage) }
+            let page = model.pages[number - 1]
+            let target = CGRect(x: page.x + rect.x * page.width, y: page.y + rect.y * page.height, width: rect.width * page.width, height: rect.height * page.height)
+            let visible = scrollView.contentView.bounds
+            var x = visible.minX
+            if target.minX < visible.minX || target.maxX > visible.maxX { x = target.midX - visible.width / 2 }
+            scroll(to: CGPoint(x: x, y: target.midY - visible.height / 2), animated: animated)
         case .show(let cardId):
             guard let p = model.placements[cardId] else { return }
             let visible = scrollView.contentView.bounds.size
@@ -869,7 +887,10 @@ final class PageView: NSView {
     weak var world: WorldView?
     var highlights: [ReaderModel.Highlight] = []
     /// The reader's own highlights ("Vurgula"), drawn in yellow under everything else.
-    var marks: [[NormalizedRect]] = []
+    var marks: [ReaderModel.Mark] = []
+    /// Find in the document: the matches on this page, and which one is current.
+    var findHits: [ReaderModel.FindHit] = []
+    var currentFind: Int?
     var knots: [ReaderModel.Knot] = []
     var selectionRects: [CGRect] = []
     var areaRect: CGRect? = nil {
@@ -922,11 +943,13 @@ final class PageView: NSView {
         // Highlights multiply like a real highlighter, so black text never fades.
         ctx.saveGState()
         ctx.setBlendMode(.multiply)
-        if !marks.isEmpty {
-            ctx.setFillColor(Theme.highlighter.cgColor)
-            for rects in marks {
-                for rect in rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
-            }
+        for mark in marks {
+            ctx.setFillColor(Theme.highlighter(mark.color).cgColor)
+            for rect in mark.rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
+        }
+        for hit in findHits {
+            ctx.setFillColor(Theme.findMatch(current: hit.index == currentFind).cgColor)
+            for rect in hit.rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
         }
         for hl in highlights where !hl.area {
             ctx.setFillColor(hl.pending ? NSColor(srgbRed: 0.2, green: 0.376, blue: 0.31, alpha: 0.16).cgColor : Theme.highlight(hl.color).cgColor)

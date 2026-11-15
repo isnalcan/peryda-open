@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, getPref, newId, setPref, type JournalRecord } from '../data/db'
 import type { Strings } from '../i18n/strings'
 import type { PdfYarnAnchor, YarnCard } from './types'
+import type { HighlightColor } from '../reader/highlightColors'
 
 interface Options {
   bookId: string
@@ -77,16 +78,27 @@ export function useThreadActions({ bookId, cards, t }: Options) {
   )
 
   /**
-   * "Vurgula": the passage is highlighted on its page in yellow and goes into the journal as a
-   * highlight; deleting that entry removes the highlight (owner test 15 Nov). PDF text only.
+   * "Vurgula": the passage is highlighted on its page in the chosen colour (yellow unless another was
+   * chosen, owner 16 Nov) and goes into the journal as a highlight; deleting that entry removes the
+   * highlight (owner test 15 Nov). PDF text only.
    */
   const highlight = useCallback(
-    async (anchors: readonly PdfYarnAnchor[]) => {
+    async (anchors: readonly PdfYarnAnchor[], color: HighlightColor = 'yellow') => {
       const text = anchors.filter((a) => a.sourceType === 'pdf_text' && a.lineRects.length)
       if (!text.length) return
       const quote = text.map((a) => a.selectedText).filter(Boolean).join(' … ')
       const marks = text.map((a) => ({ pageNumber: a.pageNumber, lineRects: a.lineRects.map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height })) }))
-      await db.journal.put({ id: newId(), bookId, source: 'highlight', quote, text: '', pageNumber: text[0]!.pageNumber, marks, createdAt: Date.now() })
+      await db.journal.put({
+        id: newId(),
+        bookId,
+        source: 'highlight',
+        quote,
+        text: '',
+        pageNumber: text[0]!.pageNumber,
+        marks,
+        ...(color === 'yellow' ? {} : { highlightColor: color }),
+        createdAt: Date.now(),
+      })
       showToast(t.highlighted)
     },
     [bookId, showToast, t.highlighted],

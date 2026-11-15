@@ -37,6 +37,8 @@ enum CameraCommand: Equatable {
     /// A page and its translation side by side (after the reader asks for a translation).
     case showTranslation(page: Int)
     case show(cardId: String)
+    /// A place on a page brought into view at the zoom in use (find in the document).
+    case reveal(page: Int, rect: NormalizedRect)
 }
 
 @MainActor
@@ -848,12 +850,125 @@ final class ReaderModel {
 
     /// "Highlight" (Vurgula): the selected passage is marked in yellow on its page and goes into the Book
     /// Journal as a highlight; deleting that entry takes the mark away (owner test 15 Nov).
-    func highlight(lang: Lang) {
+    /// The page thumbnails beside the book (owner, 16 Nov, as in Preview); open or closed for every book.
+    var showThumbnails = UserDefaults.standard.bool(forKey: "thumbnailsOpen") {
+        didSet { UserDefaults.standard.set(showThumbnails, forKey: "thumbnailsOpen") }
+    }
+    /// The book's details are shown.
+    var showingInfo = false
+    @ObservationIgnored private var thumbnails: [Int: NSImage] = [:]
+
+    /// A page's thumbnail, drawn the first time it is asked for and kept while the book is open.
+    func thumbnail(_ number: Int) -> NSImage? {
+        if let cached = thumbnails[number] { return cached }
+        guard let page = document?.page(at: number - 1) else { return nil }
+        let image = page.thumbnail(of: CGSize(width: 240, height: 360), for: .cropBox)
+        thumbnails[number] = image
+        return image
+    }
+
+    // MARK: Find in the document (owner, 16 Nov)
+
+    struct FindHit: Hashable {
+        var index: Int
+        var page: Int
+        var rects: [NormalizedRect]
+    }
+
+    /// The find bar is open.
+    var finding = false
+    private(set) var findHits: [FindHit] = []
+    /// The matches on each page (what the pages draw).
+    private(set) var findHitsByPage: [Int: [FindHit]] = [:]
+    /// The match in view.
+    private(set) var findIndex: Int?
+    /// Pages are still being searched.
+    private(set) var findSearching = false
+    private var findTask: Task<Void, Never>?
+
+    /// Opens the find bar (PDFs only).
+    func startFind() {
+        guard document != nil else { return }
+        finding = true
+    }
+
+    /// Closes the find bar; the matches go.
+    func closeFind() {
+        finding = false
+        findTask?.cancel()
+        findTask = nil
+        findSearching = false
+        setFindHits([])
+    }
+
+    private func setFindHits(_ hits: [FindHit]) {
+        findHits = hits
+        findHitsByPage = Dictionary(grouping: hits, by: \.page)
+        if hits.isEmpty { findIndex = nil }
+    }
+
+    /// Searches the whole book, a moment after the reader stops typing. The first match on or after
+    /// the page being read comes into view.
+    func find(_ query: String) {
+        findTask?.cancel()
+        setFindHits([])
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty, document != nil, let url = try? store.fileURL(for: book) else {
+            findSearching = false
+            return
+        }
+        findSearching = true
+        let start = currentPage
+        findTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            for await batch in DocumentFind.search(url: url, query: q) {
+                guard let self, !Task.isCancelled else { return }
+                var hits = self.findHits
+                for hit in batch { hits.append(FindHit(index: hits.count, page: hit.page, rects: hit.rects)) }
+                self.setFindHits(hits)
+                if self.findIndex == nil, let first = hits.firstIndex(where: { $0.page >= start }) {
+                    self.findIndex = first
+                    self.revealFind()
+                }
+            }
+            guard let self, !Task.isCancelled else { return }
+            if self.findIndex == nil, !self.findHits.isEmpty {
+                self.findIndex = 0
+                self.revealFind()
+            }
+            self.findSearching = false
+        }
+    }
+
+    /// The next (+1) or previous (−1) match, going round at the ends.
+    func stepFind(_ delta: Int) {
+        guard !findHits.isEmpty else { return }
+        let n = findHits.count
+        findIndex = ((findIndex ?? (delta > 0 ? -1 : 0)) + delta + n) % n
+        revealFind()
+    }
+
+    private func revealFind() {
+        guard let i = findIndex, i < findHits.count else { return }
+        let hit = findHits[i]
+        cameraCommand = .reveal(page: hit.page, rect: Geometry.union(hit.rects))
+    }
+
+    /// The highlighter in use: one of four colours, chosen by holding "Vurgula" (owner, 16 Nov); kept
+    /// for every book.
+    var highlightColor: String = HighlightColor.id(UserDefaults.standard.string(forKey: "highlightColor")) {
+        didSet { UserDefaults.standard.set(highlightColor, forKey: "highlightColor") }
+    }
+
+    /// With `color`, that colour becomes the one in use.
+    func highlight(lang: Lang, color: String? = nil) {
         guard canHighlight, let pending else { return }
+        if let color { highlightColor = HighlightColor.id(color) }
         let anchors = wholeWords(pending.anchors)
         let marks = anchors.map { JournalMark(pageNumber: $0.pageNumber, lineRects: $0.lineRects) }
         let quote = anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
-        try? store.addJournal(JournalRecord(bookId: book.id, source: .highlight, quote: quote, text: "", pageNumber: pending.anchors.first?.pageNumber ?? 0, marks: marks))
+        try? store.addJournal(JournalRecord(bookId: book.id, source: .highlight, quote: quote, text: "", pageNumber: pending.anchors.first?.pageNumber ?? 0, marks: marks, highlightColor: highlightColor))
         self.pending = nil
         reloadJournal()
         flash(UIText(lang)["highlighted"])
@@ -892,9 +1007,15 @@ final class ReaderModel {
     }
 
     /// The reader's own highlights on a page: one list of line rectangles per highlight.
-    func highlighterMarks(onPage page: Int) -> [[NormalizedRect]] {
+    /// A highlight's lines on one page, in its colour.
+    struct Mark: Hashable {
+        var color: String
+        var rects: [NormalizedRect]
+    }
+
+    func highlighterMarks(onPage page: Int) -> [Mark] {
         journal.filter { $0.source == .highlight }.flatMap { entry in
-            (entry.marks ?? []).filter { $0.pageNumber == page }.map(\.lineRects)
+            (entry.marks ?? []).filter { $0.pageNumber == page }.map { Mark(color: HighlightColor.id(entry.highlightColor), rects: $0.lineRects) }
         }
     }
 

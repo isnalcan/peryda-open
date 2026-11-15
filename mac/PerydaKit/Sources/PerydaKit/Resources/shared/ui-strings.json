@@ -137,6 +137,12 @@
     "de": "Autor",
     "es": "Autor"
   },
+  "bookInfo": {
+    "tr": "Kitap bilgisi",
+    "en": "Book info",
+    "de": "Buchinformationen",
+    "es": "Información del libro"
+  },
   "bookTitleField": {
     "tr": "Başlık",
     "en": "Title",
@@ -401,6 +407,36 @@
     "de": "Diese Datei ist zu groß (höchstens {n} MB).",
     "es": "Este archivo es demasiado grande (como máximo {n} MB)."
   },
+  "find": {
+    "tr": "Bul",
+    "en": "Find",
+    "de": "Suchen",
+    "es": "Buscar"
+  },
+  "findNext": {
+    "tr": "Sonraki",
+    "en": "Next",
+    "de": "Nächster Treffer",
+    "es": "Siguiente"
+  },
+  "findNone": {
+    "tr": "Bulunamadı",
+    "en": "Not found",
+    "de": "Nicht gefunden",
+    "es": "No encontrado"
+  },
+  "findPlaceholder": {
+    "tr": "Belgede ara",
+    "en": "Search the document",
+    "de": "Im Dokument suchen",
+    "es": "Buscar en el documento"
+  },
+  "findPrevious": {
+    "tr": "Önceki",
+    "en": "Previous",
+    "de": "Vorheriger Treffer",
+    "es": "Anterior"
+  },
   "fitWidth": {
     "tr": "%100",
     "en": "100%",
@@ -467,6 +503,36 @@
     "de": "Markieren",
     "es": "Resaltar"
   },
+  "highlightBlue": {
+    "tr": "Mavi",
+    "en": "Blue",
+    "de": "Blau",
+    "es": "Azul"
+  },
+  "highlightGreen": {
+    "tr": "Yeşil",
+    "en": "Green",
+    "de": "Grün",
+    "es": "Verde"
+  },
+  "highlightHold": {
+    "tr": "Vurgula (rengi seçmek için basılı tut)",
+    "en": "Highlight (hold to choose the colour)",
+    "de": "Markieren (gedrückt halten, um die Farbe zu wählen)",
+    "es": "Subrayar (mantén pulsado para elegir el color)"
+  },
+  "highlightPink": {
+    "tr": "Pembe",
+    "en": "Pink",
+    "de": "Rosa",
+    "es": "Rosa"
+  },
+  "highlightYellow": {
+    "tr": "Sarı",
+    "en": "Yellow",
+    "de": "Gelb",
+    "es": "Amarillo"
+  },
   "highlighted": {
     "tr": "Vurgulandı ve Kitap Günlüğü'ne eklendi",
     "en": "Highlighted and added to the Book Journal",
@@ -514,6 +580,66 @@
     "en": "Saved in the journal",
     "de": "Steht im Journal",
     "es": "Ya está en el diario"
+  },
+  "infoAdded": {
+    "tr": "Eklendi",
+    "en": "Added",
+    "de": "Hinzugefügt",
+    "es": "Añadido"
+  },
+  "infoChapters": {
+    "tr": "Bölüm",
+    "en": "Chapters",
+    "de": "Kapitel",
+    "es": "Capítulos"
+  },
+  "infoFormat": {
+    "tr": "Biçim",
+    "en": "Format",
+    "de": "Format",
+    "es": "Formato"
+  },
+  "infoHighlights": {
+    "tr": "Vurgu",
+    "en": "Highlights",
+    "de": "Markierungen",
+    "es": "Subrayados"
+  },
+  "infoJournal": {
+    "tr": "Günlük kaydı",
+    "en": "Journal entries",
+    "de": "Journaleinträge",
+    "es": "Entradas del diario"
+  },
+  "infoNeverOpened": {
+    "tr": "Henüz açılmadı",
+    "en": "Not opened yet",
+    "de": "Noch nicht geöffnet",
+    "es": "Aún no abierto"
+  },
+  "infoOpened": {
+    "tr": "Son açılış",
+    "en": "Last opened",
+    "de": "Zuletzt geöffnet",
+    "es": "Última apertura"
+  },
+  "infoPages": {
+    "tr": "Sayfa",
+    "en": "Pages",
+    "de": "Seiten",
+    "es": "Páginas"
+  },
+  "infoSize": {
+    "tr": "Boyut",
+    "en": "Size",
+    "de": "Größe",
+    "es": "Tamaño"
+  },
+  "infoThreads": {
+    "tr": "İlmek",
+    "en": "Threads",
+    "de": "Fäden",
+    "es": "Hilos"
   },
   "journal": {
     "tr": "Kitap Günlüğü",
@@ -1120,6 +1246,12 @@
     "en": "Thread model",
     "de": "Modell für Fäden",
     "es": "Modelo para hilos"
+  },
+  "thumbnails": {
+    "tr": "Küçük resimler",
+    "en": "Thumbnails",
+    "de": "Miniaturen",
+    "es": "Miniaturas"
   },
   "toPage": {
     "tr": "Son sayfa",

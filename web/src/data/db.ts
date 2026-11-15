@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { YarnCard } from '../ilmek/types'
+import type { HighlightColor } from '../reader/highlightColors'
 
 export type BookFormat = 'pdf' | 'epub'
 
@@ -52,6 +53,8 @@ export interface JournalRecord {
   cardId?: string
   /** For a highlight: the lines to draw on the page. Deleting the entry removes them. */
   marks?: HighlightMark[]
+  /** For a highlight: its colour when not yellow (owner, 16 Nov; absent = yellow). */
+  highlightColor?: Exclude<HighlightColor, 'yellow'>
   createdAt: number
 }
 

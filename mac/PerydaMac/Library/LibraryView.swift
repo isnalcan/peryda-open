@@ -9,6 +9,8 @@ struct LibraryView: View {
     @State private var dropTargeted = false
     @State private var confirmDelete: BookRecord?
     @State private var editing: BookRecord?
+    /// The book whose details are shown (owner, 16 Nov).
+    @State private var info: BookRecord?
     @State private var query = ""
 
     /// Most recently read first; the search matches title and author.
@@ -39,6 +41,7 @@ struct LibraryView: View {
                         ForEach(shown) { book in
                             BookTile(book: book) { openWindow(id: "reader", value: book.id) }
                                 .contextMenu {
+                                    Button(t["bookInfo"]) { info = book }
                                     Button(t["editInfo"]) { editing = book }
                                     Divider()
                                     Button(t["deleteBook"], role: .destructive) { confirmDelete = book }
@@ -98,6 +101,7 @@ struct LibraryView: View {
         .navigationTitle("Peryda")
         .searchable(text: $query, placement: .toolbar, prompt: t["searchBooks"])
         .sheet(item: $editing) { book in EditBookSheet(book: book) }
+        .sheet(item: $info) { book in BookInfoSheet(book: book, store: model.store, lang: model.lang) }
         .onChange(of: model.pendingOpen) { _, id in
             if let id {
                 openWindow(id: "reader", value: id)

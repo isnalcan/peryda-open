@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useI18n } from '../i18n/I18n'
-import { BackIcon, BookIcon, GearIcon } from '../ui/icons'
+import { BackIcon, BookIcon, GearIcon, InfoIcon } from '../ui/icons'
 
 /** The reader's bar: back to the library, the tools, the title, the reader's controls, journal and settings. */
 export function ReaderTopBar({
@@ -9,6 +9,7 @@ export function ReaderTopBar({
   onOpenSettings,
   onOpenJournal,
   journalOpen,
+  onBookInfo,
   leading,
   children,
 }: {
@@ -17,6 +18,8 @@ export function ReaderTopBar({
   onOpenSettings: () => void
   onOpenJournal?: () => void
   journalOpen?: boolean
+  /** The book's info (owner, 16 Nov). */
+  onBookInfo?: () => void
   leading?: ReactNode
   children?: ReactNode
 }) {
@@ -29,6 +32,11 @@ export function ReaderTopBar({
       {leading}
       <h1 className="reader-title" title={title}>{title}</h1>
       <div className="reader-controls">{children}</div>
+      {onBookInfo && (
+        <button type="button" className="icon-button" aria-label={t.bookInfo} title={t.bookInfo} onClick={onBookInfo}>
+          <InfoIcon size={18} />
+        </button>
+      )}
       {onOpenJournal && (
         <button type="button" className="icon-button" aria-pressed={journalOpen} aria-label={t.journal} title={t.journal} onClick={onOpenJournal}>
           <BookIcon size={18} />

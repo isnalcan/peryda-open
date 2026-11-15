@@ -91,6 +91,16 @@ public struct Tokens: Decodable, Sendable {
     public struct Highlighter: Decodable, Sendable {
         public let color: String
         public let alpha: Double
+        /// The colours the reader can choose, in the order they are offered (owner, 16 Nov).
+        public let order: [String]
+        public let colors: [String: String]
+    }
+
+    /// Find in the document: matches tinted, the current one stronger.
+    public struct Find: Decodable, Sendable {
+        public let color: String
+        public let alpha: Double
+        public let currentAlpha: Double
     }
 
     public let palette: [String: Palette]
@@ -98,6 +108,7 @@ public struct Tokens: Decodable, Sendable {
     public let geometry: GeometryTokens
     public let yarnStroke: YarnStroke
     public let highlighter: Highlighter
+    public let find: Find
 
     public func tone(_ color: YarnColor) -> YarnTone { yarn[color.rawValue]! }
 }

@@ -42,8 +42,10 @@ public struct JournalRecord: Codable, Hashable, Identifiable, Sendable {
     public var createdAt: Double
     /// A highlight's place on its page(s); nil for every other entry.
     public var marks: [JournalMark]?
+    /// A highlight's colour (`green`, `pink`, `blue`); nil is yellow (owner, 16 Nov).
+    public var highlightColor: String?
 
-    public init(id: String = UUID().uuidString.lowercased(), bookId: String, source: Source, quote: String, text: String, pageNumber: Int, cardId: String? = nil, createdAt: Double = Date().timeIntervalSince1970 * 1000, marks: [JournalMark]? = nil) {
+    public init(id: String = UUID().uuidString.lowercased(), bookId: String, source: Source, quote: String, text: String, pageNumber: Int, cardId: String? = nil, createdAt: Double = Date().timeIntervalSince1970 * 1000, marks: [JournalMark]? = nil, highlightColor: String? = nil) {
         self.id = id
         self.bookId = bookId
         self.source = source
@@ -53,6 +55,29 @@ public struct JournalRecord: Codable, Hashable, Identifiable, Sendable {
         self.cardId = cardId
         self.createdAt = createdAt
         self.marks = marks
+        self.highlightColor = HighlightColor.stored(highlightColor)
+    }
+}
+
+/// The reader's highlighter colours (shared/tokens.json `highlighter`): yellow, green, pink, blue.
+public enum HighlightColor {
+    public static var ids: [String] { SharedContract.tokens.highlighter.order }
+    public static let standard = "yellow"
+
+    /// One of the colours, or yellow.
+    public static func id(_ value: String?) -> String {
+        guard let value, ids.contains(value) else { return standard }
+        return value
+    }
+
+    /// As kept in a journal entry: nil for yellow (and anything unknown), else the colour's name.
+    public static func stored(_ value: String?) -> String? {
+        let id = id(value)
+        return id == standard ? nil : id
+    }
+
+    public static func hex(_ value: String?) -> String {
+        SharedContract.tokens.highlighter.colors[id(value)] ?? SharedContract.tokens.highlighter.color
     }
 }
 

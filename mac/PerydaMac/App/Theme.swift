@@ -43,10 +43,18 @@ enum Theme {
     }
 
     /// The reader's own highlights ("Vurgula"): a yellow highlighter, multiplied into the page.
-    static let highlighter: NSColor = {
-        let h = SharedContract.tokens.highlighter
-        return hex(h.color).withAlphaComponent(h.alpha)
-    }()
+    static let highlighter: NSColor = highlighter(nil)
+
+    /// A highlighter of one of the four colours (nil or unknown: yellow).
+    static func highlighter(_ id: String?) -> NSColor {
+        hex(HighlightColor.hex(id)).withAlphaComponent(SharedContract.tokens.highlighter.alpha)
+    }
+
+    /// Find in the document: a match, or the current one.
+    static func findMatch(current: Bool) -> NSColor {
+        let f = SharedContract.tokens.find
+        return hex(f.color).withAlphaComponent(current ? f.currentAlpha : f.alpha)
+    }
 
     /// Highlights sit on paper-coloured pages in both themes, so they use the light tone.
     static func highlight(_ color: YarnColor) -> NSColor {

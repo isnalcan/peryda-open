@@ -3,6 +3,7 @@ import { pdfjs, pageCharacterCount, type PDFDocumentProxy } from '../pdf/pdfjs'
 import { GEOMETRY, areaAccepted, rectFromCorners } from '../ilmek/geometry'
 import { cappedScale } from '../pdf/canvasLimit'
 import type { NormalizedRect, PageBox, YarnColor } from '../ilmek/types'
+import type { HighlightColor } from './highlightColors'
 
 export interface PageHighlight {
   key: string
@@ -10,8 +11,17 @@ export interface PageHighlight {
   color: YarnColor
   area: boolean
   rects: NormalizedRect[]
-  /** The reader's own yellow highlight ("Vurgula"): drawn like a highlighter, not clickable, text under it stays selectable. */
+  /** The reader's own highlight ("Vurgula"): drawn like a highlighter, not clickable, text under it stays selectable. */
   highlighter?: boolean
+  /** The highlighter's colour (yellow when not given). */
+  highlightColor?: HighlightColor
+}
+
+/** A match of "Find in the document" on this page; the current one is drawn stronger. */
+export interface PageFindMark {
+  key: string
+  rects: readonly NormalizedRect[]
+  current: boolean
 }
 
 export interface PageKnot {
@@ -43,6 +53,8 @@ interface Props {
   renderWidth?: number
   renderScale: number
   highlights: readonly PageHighlight[]
+  /** Matches of "Find in the document" on this page. */
+  findMarks?: readonly PageFindMark[]
   knots: readonly PageKnot[]
   tool: Tool
   register: (pageNumber: number, element: HTMLElement | null, textLayer: HTMLElement | null) => void
@@ -193,12 +205,15 @@ function PdfPageViewImpl(props: Props) {
           ) : (
             h.rects.map((r, i) =>
               h.highlighter ? (
-                <div key={`${h.key}-${i}`} className="highlight-line is-highlighter" style={pct(r)} />
+                <div key={`${h.key}-${i}`} className="highlight-line is-highlighter" data-hl={h.highlightColor ?? 'yellow'} style={pct(r)} />
               ) : (
                 <div key={`${h.key}-${i}`} className="highlight-line" data-yarn={h.color} style={pct(r)} onClick={() => props.onHighlightClick(h.cardId)} />
               ),
             )
           ),
+        )}
+        {props.findMarks?.map((m) =>
+          m.rects.map((r, i) => <div key={`${m.key}-${i}`} className={`find-match${m.current ? ' is-current' : ''}`} style={pct(r)} />),
         )}
       </div>
       <div ref={textRef} className="textLayer" />

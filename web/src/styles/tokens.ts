@@ -18,10 +18,16 @@ export function yarnHighlight(color: YarnColor, alphaScale = 1): string {
   return `rgba(${r}, ${g}, ${b}, ${(tokens.yarn[color].highlightAlpha * alphaScale).toFixed(3)})`
 }
 
-/** The reader's highlight ("Vurgula"): a yellow highlighter, multiplied into the page. */
-export function highlighter(): string {
-  const [r, g, b] = hexToRgb(tokens.highlighter.color)
+/** The reader's highlight ("Vurgula"): a highlighter in one of four colours, multiplied into the page. */
+export function highlighter(color: keyof typeof tokens.highlighter.colors = 'yellow'): string {
+  const [r, g, b] = hexToRgb(tokens.highlighter.colors[color] ?? tokens.highlighter.color)
   return `rgba(${r}, ${g}, ${b}, ${tokens.highlighter.alpha})`
+}
+
+/** Find in the document: every match tinted, the current one stronger. */
+export function findTint(current: boolean): string {
+  const [r, g, b] = hexToRgb(tokens.find.color)
+  return `rgba(${r}, ${g}, ${b}, ${current ? tokens.find.currentAlpha : tokens.find.alpha})`
 }
 
 function block(theme: Theme): string {
@@ -40,8 +46,12 @@ function block(theme: Theme): string {
     `--line-strong: ${p.lineStrong}`,
     `--error-text: ${p.errorText}`,
     `--page-sheet: ${tokens.pageSheet[theme]}`,
-    // The reader's highlights are the same yellow on paper in both themes.
+    // The reader's highlights are the same colours on paper in both themes.
     `--highlighter: ${highlighter()}`,
+    ...(Object.keys(tokens.highlighter.colors) as (keyof typeof tokens.highlighter.colors)[]).map((c) => `--highlighter-${c}: ${highlighter(c)}`),
+    ...(Object.keys(tokens.highlighter.colors) as (keyof typeof tokens.highlighter.colors)[]).map((c) => `--highlighter-${c}-solid: ${tokens.highlighter.colors[c]}`),
+    `--find-match: ${findTint(false)}`,
+    `--find-current: ${findTint(true)}`,
   ]
   for (const color of Object.keys(tokens.yarn) as YarnColor[]) {
     lines.push(`--yarn-${color}: ${tokens.yarn[color][theme]}`)

@@ -2,6 +2,7 @@ import { LANGS } from '../i18n/strings'
 import { GEOMETRY } from '../ilmek/geometry'
 import { PROVIDERS } from '../ai/provider'
 import { isBatchName } from '../ai/batch'
+import { isHighlightColor } from '../reader/highlightColors'
 import { YARN_COLORS, type AnchorSource, type ArchiveLink, type NormalizedRect, type PdfYarnAnchor, type YarnCard, type YarnMessage } from '../ilmek/types'
 import type { BookFormat, BookRecord, JournalRecord, PrefRecord, ReadingPosition } from './db'
 
@@ -175,6 +176,8 @@ export function validJournal(raw: unknown, pageCounts?: ReadonlyMap<string, numb
   if (entry.source === 'highlight') {
     const marks = validMarks(raw.marks, pageCounts?.get(entry.bookId))
     if (marks) entry.marks = marks
+    // One of the four highlighter colours; yellow (and anything unknown) is kept as no colour.
+    if (isHighlightColor(raw.highlightColor) && raw.highlightColor !== 'yellow') entry.highlightColor = raw.highlightColor
   }
   return entry
 }
@@ -208,6 +211,8 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     case 'pagedReading':
     case 'explainTerms':
       return typeof value === 'boolean' ? { key, value } : null
+    case 'highlightColor':
+      return isHighlightColor(value) ? { key, value } : null
     case 'epubFontScale':
       return typeof value === 'number' && value >= 70 && value <= 180 ? { key, value } : null
     case 'extractedTextSize':

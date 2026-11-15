@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type SVGProps } f
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, deleteBook, type BookRecord, type ReadingPosition } from '../data/db'
 import { useI18n } from '../i18n/I18n'
-import { GearIcon, PlusIcon, TrashIcon } from '../ui/icons'
+import { GearIcon, InfoIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { coverFit, forgetCover, loadCover, peekCover, type CoverImage } from './covers'
 import { bookDetail, shelf } from './libraryModel'
 import { isImageFile } from './imagePdf'
 import { EditBookDialog } from './EditBookDialog'
+import { BookInfoDialog } from './BookInfoDialog'
 import './library.css'
 import { LibraryArt } from './LibraryArt'
 
@@ -59,6 +60,8 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
   const positions = useLiveQuery(() => db.positions.toArray(), [], [] as ReadingPosition[])
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<BookRecord | null>(null)
+  const [info, setInfo] = useState<BookRecord | null>(null)
+  const [menu, setMenu] = useState<{ book: BookRecord; x: number; y: number } | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(notice ?? null)
   const [dragging, setDragging] = useState(false)
@@ -188,12 +191,25 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
               detail={bookDetail(book, pageOf.get(book.id), t, lang, now)}
               onOpen={onOpen}
               onEdit={setEditing}
+              onInfo={setInfo}
               onDelete={remove}
+              onMenu={(x, y) => setMenu({ book, x, y })}
             />
           ))}
         </ul>
       )}
       {editing && <EditBookDialog key={editing.id} book={editing} onClose={() => setEditing(null)} />}
+      {info && <BookInfoDialog key={info.id} book={info} onClose={() => setInfo(null)} />}
+      {menu && (
+        <BookMenu
+          x={menu.x}
+          y={menu.y}
+          onInfo={() => setInfo(menu.book)}
+          onEdit={() => setEditing(menu.book)}
+          onDelete={() => remove(menu.book)}
+          onClose={() => setMenu(null)}
+        />
+      )}
       {dragging && <div className="drop-overlay">{t.dropHere}</div>}
       {message && <div className="toast" role="status">{message}</div>}
     </div>
@@ -205,17 +221,66 @@ interface TileProps {
   detail: string
   onOpen: (book: BookRecord) => void
   onEdit: (book: BookRecord) => void
+  onInfo: (book: BookRecord) => void
   onDelete: (book: BookRecord) => void
+  /** A right-click: the book's menu at that point of the window. */
+  onMenu: (x: number, y: number) => void
 }
 
-function BookTile({ book, detail, onOpen, onEdit, onDelete }: TileProps) {
+/** A right-click on a book: its info, its title and author, deleting it. */
+function BookMenu(props: { x: number; y: number; onInfo: () => void; onEdit: () => void; onDelete: () => void; onClose: () => void }) {
+  const { t } = useI18n()
+  const ref = useRef<HTMLDivElement>(null)
+  const close = useRef(props.onClose)
+  close.current = props.onClose
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) close.current()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close.current()
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('keydown', onKey)
+    ref.current?.querySelector('button')?.focus({ preventScroll: true })
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
+  const pick = (fn: () => void) => () => {
+    props.onClose()
+    fn()
+  }
+  // Kept inside the window.
+  const left = Math.min(props.x, window.innerWidth - 230)
+  const top = Math.min(props.y, window.innerHeight - 140)
+  return (
+    <div ref={ref} className="popover menu book-menu" role="menu" style={{ left: Math.max(8, left), top: Math.max(8, top) }}>
+      <button type="button" role="menuitem" onClick={pick(props.onInfo)}>
+        <span className="menu-check"><InfoIcon size={14} /></span>
+        {t.bookInfo}
+      </button>
+      <button type="button" role="menuitem" onClick={pick(props.onEdit)}>
+        <span className="menu-check"><PencilIcon size={14} /></span>
+        {t.editInfo}
+      </button>
+      <button type="button" role="menuitem" onClick={pick(props.onDelete)}>
+        <span className="menu-check"><TrashIcon size={14} /></span>
+        {t.deleteBook}
+      </button>
+    </div>
+  )
+}
+
+function BookTile({ book, detail, onOpen, onEdit, onInfo, onDelete, onMenu }: TileProps) {
   const { t } = useI18n()
   return (
     <li
       className="book-tile"
       onContextMenu={(e) => {
         e.preventDefault()
-        onEdit(book)
+        onMenu(e.clientX, e.clientY)
       }}
     >
       <button type="button" className="book-open" onClick={() => onOpen(book)}>
@@ -226,6 +291,9 @@ function BookTile({ book, detail, onOpen, onEdit, onDelete }: TileProps) {
         </span>
       </button>
       <div className="book-tools">
+        <button type="button" className="icon-button book-tool" aria-label={t.bookInfo} title={t.bookInfo} onClick={() => onInfo(book)}>
+          <InfoIcon size={15} />
+        </button>
         <button type="button" className="icon-button book-tool" aria-label={t.editInfo} title={t.editInfo} onClick={() => onEdit(book)}>
           <PencilIcon size={15} />
         </button>

@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import yarnKinds from '@shared/yarn-kinds.json'
 import { useI18n } from '../i18n/I18n'
 import { ClipIcon, HighlighterIcon, LinkIcon, NoteIcon, SendIcon, TranslateIcon } from '../ui/icons'
 import type { YarnColor } from './types'
+import { HIGHLIGHT_COLORS, HIGHLIGHT_HOLD_MS, highlightColorName, type HighlightColor } from '../reader/highlightColors'
 
 export interface ScreenRect {
   left: number
@@ -24,7 +25,9 @@ interface Props {
   onClip: () => void
   /** "Vurgula", between "Özete kırp" and "Notum": offered for text on a PDF page only. */
   canHighlight?: boolean
-  onHighlight?: () => void
+  /** The colour "Vurgula" uses now; holding it (or a right-click) offers the four (owner, 16 Nov). */
+  highlightColor?: HighlightColor
+  onHighlight?: (color: HighlightColor) => void
   onTranslate: () => void
   canBridge?: boolean
   onClose: () => void
@@ -41,6 +44,28 @@ export function SelectionMenu(props: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [pos, setPos] = useState({ left: props.anchorRect.left, top: props.anchorRect.bottom + 10 })
+  const currentColor = props.highlightColor ?? 'yellow'
+  // "Vurgula" held for two seconds opens the colours; the press shows how long is left.
+  const [holding, setHolding] = useState(false)
+  const [swatches, setSwatches] = useState(false)
+  const holdTimer = useRef<number | undefined>(undefined)
+  const heldOpen = useRef(false)
+  const endHold = () => {
+    window.clearTimeout(holdTimer.current)
+    setHolding(false)
+  }
+  const startHold = (e: PointerEvent<HTMLButtonElement>) => {
+    if (e.button !== 0) return
+    heldOpen.current = false
+    setHolding(true)
+    window.clearTimeout(holdTimer.current)
+    holdTimer.current = window.setTimeout(() => {
+      heldOpen.current = true
+      setHolding(false)
+      setSwatches(true)
+    }, HIGHLIGHT_HOLD_MS)
+  }
+  useEffect(() => () => window.clearTimeout(holdTimer.current), [])
 
   // Below the selection when it fits, else above it. While a long question makes the field taller, the
   // menu keeps its side: below it grows down (as far as the window allows), above it grows up, so the
@@ -66,7 +91,7 @@ export function SelectionMenu(props: Props) {
     const observer = new ResizeObserver(() => place(false))
     observer.observe(el)
     return () => observer.disconnect()
-  }, [props.anchorRect, props.bounds, noteMode, props.bridgeHeld])
+  }, [props.anchorRect, props.bounds, noteMode, props.bridgeHeld, swatches])
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
@@ -132,8 +157,35 @@ export function SelectionMenu(props: Props) {
           </button>
         )}
         {props.canHighlight && props.onHighlight && (
-          <button type="button" className="menu-tool menu-highlight" title={t.highlight} aria-label={t.highlight} onClick={props.onHighlight}>
+          <button
+            type="button"
+            className={`menu-tool menu-highlight${holding ? ' is-holding' : ''}`}
+            data-hl={currentColor}
+            title={t.highlightHold}
+            aria-label={t.highlight}
+            aria-haspopup="menu"
+            aria-expanded={swatches}
+            onPointerDown={startHold}
+            onPointerUp={endHold}
+            onPointerLeave={endHold}
+            onPointerCancel={endHold}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              endHold()
+              setSwatches(true)
+            }}
+            onClick={() => {
+              // A press held until the colours opened is not also a click.
+              if (heldOpen.current) {
+                heldOpen.current = false
+                return
+              }
+              props.onHighlight?.(currentColor)
+            }}
+          >
             <HighlighterIcon size={17} />
+            <span className="highlight-current" aria-hidden="true" />
+            <span className="hold-progress" aria-hidden="true" style={{ ['--hold-ms' as string]: `${HIGHLIGHT_HOLD_MS}ms` }} />
           </button>
         )}
         <button
@@ -151,6 +203,29 @@ export function SelectionMenu(props: Props) {
           <NoteIcon size={17} />
         </button>
       </div>
+      {swatches && props.onHighlight && (
+        <div className="highlight-swatches" role="menu" aria-label={t.highlight}>
+          {HIGHLIGHT_COLORS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              role="menuitemradio"
+              aria-checked={color === currentColor}
+              className="highlight-swatch"
+              data-hl={color}
+              title={highlightColorName(color, t)}
+              aria-label={highlightColorName(color, t)}
+              onClick={() => {
+                setSwatches(false)
+                props.onHighlight?.(color)
+              }}
+            >
+              <span className="highlight-swatch-dot" aria-hidden="true" />
+              <span className="highlight-swatch-name">{highlightColorName(color, t)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className={`selection-menu-ask${noteMode ? ' is-note' : ''}`}>
         <textarea
           ref={inputRef}

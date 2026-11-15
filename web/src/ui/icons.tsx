@@ -152,3 +152,9 @@ export const TextIcon = (p: IconProps) => (
   </Svg>
 )
 export const CheckIcon = (p: IconProps) => <Svg {...p}><path d="M5 12.5l4.5 4.5L19 7.5" /></Svg>
+/** Find in the document. */
+export const SearchIcon = (p: IconProps) => <Svg {...p}><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></Svg>
+/** Book info. */
+export const InfoIcon = (p: IconProps) => <Svg {...p}><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5M12 7.8v.2" /></Svg>
+/** The page thumbnails sidebar (as in Preview). */
+export const SidebarIcon = (p: IconProps) => <Svg {...p}><rect x="3.5" y="4.5" width="17" height="15" rx="2" /><path d="M9.5 4.5v15M5.8 8h1.6M5.8 11h1.6M5.8 14h1.6" /></Svg>

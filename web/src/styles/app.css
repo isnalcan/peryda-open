@@ -448,6 +448,25 @@ button:disabled {
   cursor: auto;
 }
 
+/* Find in the document: every match tinted, the current one stronger (owner, 16 Nov). */
+.find-match {
+  position: absolute;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  border-radius: 2px;
+  background: var(--find-match);
+}
+
+.find-match.is-current {
+  background: var(--find-current);
+  box-shadow: 0 0 0 1.5px var(--find-current);
+}
+
+/* The four highlighter colours (owner, 16 Nov); an entry without one is yellow. */
+.highlight-line.is-highlighter[data-hl='green'] { background: var(--highlighter-green); }
+.highlight-line.is-highlighter[data-hl='pink'] { background: var(--highlighter-pink); }
+.highlight-line.is-highlighter[data-hl='blue'] { background: var(--highlighter-blue); }
+
 /* Passages threads were opened from inside cards and translated pages (threadMarks.ts): the card's
    colour on the card, the page highlight on the translated paper. */
 ::highlight(yarn-card-coral) { background-color: color-mix(in srgb, var(--yarn-coral) 26%, transparent); }
@@ -910,6 +929,94 @@ button:disabled {
   color: var(--stroke);
 }
 
+/* "Vurgula": a stripe under the pen shows the colour it uses; holding the button fills a bar along its
+   foot for two seconds, then the four colours open (owner, 16 Nov). */
+.menu-highlight {
+  position: relative;
+  --hl-solid: var(--highlighter-yellow-solid);
+}
+.menu-highlight[data-hl='green'] { --hl-solid: var(--highlighter-green-solid); }
+.menu-highlight[data-hl='pink'] { --hl-solid: var(--highlighter-pink-solid); }
+.menu-highlight[data-hl='blue'] { --hl-solid: var(--highlighter-blue-solid); }
+
+.highlight-current {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 5px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hl-solid);
+}
+
+.hold-progress {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+}
+
+.menu-highlight.is-holding .hold-progress {
+  opacity: 1;
+  transform: scaleX(1);
+  transition: transform var(--hold-ms, 2000ms) linear, opacity 120ms ease;
+}
+
+.highlight-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--line);
+  animation: menu-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.highlight-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  --hl-solid: var(--highlighter-yellow-solid);
+}
+.highlight-swatch[data-hl='green'] { --hl-solid: var(--highlighter-green-solid); }
+.highlight-swatch[data-hl='pink'] { --hl-solid: var(--highlighter-pink-solid); }
+.highlight-swatch[data-hl='blue'] { --hl-solid: var(--highlighter-blue-solid); }
+
+.highlight-swatch:hover {
+  background: color-mix(in srgb, var(--hl-solid) 22%, transparent);
+}
+
+.highlight-swatch[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--hl-solid) 70%, var(--ink) 20%);
+}
+
+.highlight-swatch-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--hl-solid);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .highlight-swatches {
+    animation: none;
+  }
+}
+
 .menu-bridge-compare {
   color: var(--yarn-sky);
   background: color-mix(in srgb, var(--yarn-sky) 10%, transparent);
@@ -1343,13 +1450,18 @@ button:disabled {
   color: var(--accent);
 }
 
-/* A highlight reads as a yellow highlighter stroke, as on the page. */
+/* A highlight reads as a highlighter stroke in its colour, as on the page. */
 .journal-quote.is-highlight {
-  border-left-color: color-mix(in srgb, var(--highlighter) 100%, #8a6d00 30%);
+  --hl-mark: var(--highlighter);
+  --hl-edge: var(--highlighter-yellow-solid);
+  border-left-color: color-mix(in srgb, var(--hl-edge) 70%, #000 18%);
 }
+.journal-quote.is-highlight[data-hl='green'] { --hl-mark: var(--highlighter-green); --hl-edge: var(--highlighter-green-solid); }
+.journal-quote.is-highlight[data-hl='pink'] { --hl-mark: var(--highlighter-pink); --hl-edge: var(--highlighter-pink-solid); }
+.journal-quote.is-highlight[data-hl='blue'] { --hl-mark: var(--highlighter-blue); --hl-edge: var(--highlighter-blue-solid); }
 
 .journal-quote.is-highlight mark {
-  background: var(--highlighter);
+  background: var(--hl-mark, var(--highlighter));
   color: inherit;
   padding: 0 1px;
   border-radius: 2px;
@@ -2685,4 +2797,141 @@ p.extract-status {
   .translating-count {
     display: none;
   }
+}
+
+/* ---------- Find in the document ---------- */
+.find-bar {
+  position: absolute;
+  top: 10px;
+  right: 16px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-raised);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 12px 30px rgb(0 0 0 / 0.12);
+  animation: menu-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.find-bar .find-icon {
+  flex: none;
+  color: var(--ink-faint);
+}
+
+.find-bar input {
+  width: 200px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.find-count {
+  min-width: 54px;
+  padding: 0 6px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.find-count.is-none {
+  color: var(--error-text);
+}
+
+.find-bar .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+@media (max-width: 640px) {
+  .find-bar {
+    left: 12px;
+    right: 12px;
+  }
+  .find-bar input {
+    flex: 1;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .find-bar {
+    animation: none;
+  }
+}
+
+/* ---------- Page thumbnails (owner, 16 Nov: like Preview's sidebar) ---------- */
+.thumbnail-sidebar {
+  flex: none;
+  width: 164px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0 24px;
+  border-right: 1px solid var(--line);
+  background: var(--paper-sunken);
+}
+
+.thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.thumb-frame {
+  display: block;
+  width: 116px;
+  background: var(--page-sheet, #fff);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgb(0 0 0 / 0.08);
+  overflow: hidden;
+}
+
+.thumb-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.thumb-number {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.thumb:hover .thumb-frame {
+  box-shadow: 0 0 0 1px var(--line-strong), 0 2px 6px rgb(0 0 0 / 0.12);
+}
+
+.thumb.is-current .thumb-frame {
+  box-shadow: 0 0 0 2.5px var(--accent), 0 2px 6px rgb(0 0 0 / 0.12);
+}
+
+.thumb.is-current .thumb-number {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
