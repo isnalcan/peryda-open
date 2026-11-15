@@ -2,12 +2,12 @@ import { memo, useEffect, useRef, useState, type KeyboardEvent, type PointerEven
 import { useI18n } from '../i18n/I18n'
 import { kindTitle } from '../ai/compose'
 import { Markdown } from '../ui/Markdown'
-import { AsterismIcon, ChevronDownIcon, ChevronUpIcon, ClipIcon, ClipSavedIcon, CloseIcon, MagnetIcon, MinimizeIcon, RetryIcon, SendIcon, StopIcon, TextLargerIcon, TextSmallerIcon } from '../ui/icons'
+import { AsterismIcon, ClipIcon, ClipSavedIcon, CloseIcon, MagnetIcon, MinimizeIcon, RetryIcon, SendIcon, StopIcon, TextLargerIcon, TextSmallerIcon } from '../ui/icons'
 import type { Strings } from '../i18n/strings'
 import { CARD_HEIGHT_RANGE, CARD_WIDTH_RANGE } from './cardsStore'
 import { GEOMETRY } from './geometry'
 import type { YarnCard } from './types'
-import { CARD_TEXT_SCALES, isPictureArea, type JournalState } from './useThreadActions'
+import { CARD_TEXT_SCALES, type JournalState } from './useThreadActions'
 
 interface Props {
   /** 'world' cards float on the reading surface; 'column' cards sit in a list beside an EPUB. */
@@ -17,9 +17,6 @@ interface Props {
   y: number
   /** The camera's current zoom (read during a drag or resize, so zooming never re-renders cards). */
   scale: () => number
-  /** The quote is shortened to its first lines. */
-  shortQuote: boolean
-  onToggleQuote: (id: string) => void
   onHeight: (id: string, height: number) => void
   onAsk: (id: string, text: string) => void
   onRetry: (id: string) => void
@@ -42,12 +39,9 @@ interface Props {
   /** This book's card text size, and its − and + (every card of the book follows it). */
   textScale?: number
   onTextSize?: (delta: number) => void
-  /** When given, the quote is a link back to the passage. */
+  /** When given (cards in a column beside an EPUB), the card's title is a link back to its passage. */
   onQuoteClick?: (id: string) => void
 }
-
-/** About three lines of a card's quote; longer passages get the shorten toggle. */
-export const LONG_QUOTE = 160
 
 function errorText(t: Strings, code: string): string {
   switch (code) {
@@ -227,15 +221,10 @@ function YarnCardViewImpl(props: Props) {
     }
   }
 
+  // A page area shows its picture only (owner test 15 Nov). A passage of text is not quoted in the card:
+  // it is marked where it was chosen (on the page, in a card or a translation), so the card is the
+  // conversation alone (owner test 16 Nov).
   const image = card.anchors.find((a) => a.croppedImage)?.croppedImage
-  // A page area shows its picture only: the text read from a scan is often garbled, and the picture
-  // already says what was chosen (owner test 15 Nov).
-  const quote = card.anchors
-    .filter((a) => !isPictureArea(a))
-    .map((a) => a.selectedText.trim())
-    .filter(Boolean)
-    .join(' · ')
-  const longQuote = quote.length > LONG_QUOTE
   const x = drag?.x ?? props.x
   const y = drag?.y ?? props.y
   const width = size?.w ?? card.width
@@ -259,7 +248,13 @@ function YarnCardViewImpl(props: Props) {
         onPointerCancel={onHeaderUp}
       >
         <span className="yarn-dot" aria-hidden="true" />
-        <span className="yarn-card-title">{kindTitle(lang, card)}</span>
+        {props.onQuoteClick ? (
+          <button type="button" className="yarn-card-title is-link" onPointerDown={(e) => e.stopPropagation()} onClick={() => props.onQuoteClick!(card.id)}>
+            {kindTitle(lang, card)}
+          </button>
+        ) : (
+          <span className="yarn-card-title">{kindTitle(lang, card)}</span>
+        )}
         <span className="yarn-card-actions">
           {props.onTextSize && (
             <>
@@ -331,23 +326,6 @@ function YarnCardViewImpl(props: Props) {
 
       <div className="yarn-card-middle">
         {image && <img className="yarn-card-image" src={image} alt={t.areaSelection} draggable={false} />}
-        {quote && (
-          <div className="yarn-card-quote-box">
-            {props.onQuoteClick ? (
-              <button type="button" className={`yarn-card-quote is-link${props.shortQuote ? ' is-short' : ''}`} onClick={() => props.onQuoteClick!(card.id)}>
-                {quote}
-              </button>
-            ) : (
-              <p className={`yarn-card-quote${props.shortQuote ? ' is-short' : ''}`}>{quote}</p>
-            )}
-            {longQuote && (
-              <button type="button" className="quote-toggle" onClick={() => props.onToggleQuote(card.id)}>
-                {props.shortQuote ? <ChevronDownIcon size={12} /> : <ChevronUpIcon size={12} />}
-                {props.shortQuote ? t.quoteShowAll : t.quoteShorten}
-              </button>
-            )}
-          </div>
-        )}
 
         <div className="yarn-card-body">
           {card.messages.map((m, i) => {

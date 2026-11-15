@@ -54,7 +54,6 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
   const [chapter, setChapter] = useState(0)
   const [hideThreads, setHideThreads] = useState(false)
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set())
-  const [shortQuotes, setShortQuotes] = useState<ReadonlySet<string>>(() => new Set())
   const [showJournal, setShowJournal] = useState(false)
   const [fontScale, setFontScale] = useState(100)
   const [bounds, setBounds] = useState({ width: 800, height: 600 })
@@ -303,14 +302,6 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
   )
   const noop = useCallback(() => undefined, [])
   const onCollapse = useCallback((id: string) => update(id, { collapsed: true }), [update])
-  const onToggleQuote = useCallback((id: string) => {
-    setShortQuotes((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
   const one = useCallback(() => 1, [])
   const changeFont = (delta: number) => {
     const next = Math.min(180, Math.max(70, fontScale + delta))
@@ -384,8 +375,6 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
                   x={0}
                   y={0}
                   scale={one}
-                  shortQuote={shortQuotes.has(card.id)}
-                  onToggleQuote={onToggleQuote}
                   onHeight={noop}
                   onAsk={ask}
                   onRetry={retry}

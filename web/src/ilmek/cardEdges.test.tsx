@@ -53,8 +53,6 @@ async function render(scale: number) {
           x={card.x}
           y={card.y}
           scale={() => scale}
-          shortQuote={false}
-          onToggleQuote={noop}
           onHeight={noop}
           onAsk={noop}
           onRetry={noop}

@@ -213,9 +213,11 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     case 'extractedTextSize':
       return typeof value === 'number' && value >= 14 && value <= 28 ? { key, value } : null
   }
-  const perBook = /^(translateLang|journalSummary|cardTextScale|translationTextScale|readings|pageScale):(.+)$/.exec(key)
+  const perBook = /^(translateLang|journalSummary|summaryCollapsed|cardTextScale|translationTextScale|readings|pageScale):(.+)$/.exec(key)
   if (!perBook || !restoredBooks.has(perBook[2]!)) return null
   if (perBook[1] === 'translateLang') return oneOf(value, LANGS) ? { key, value } : null
+  // Pery's summary folded to its title row (owner test 16 Nov).
+  if (perBook[1] === 'summaryCollapsed') return typeof value === 'boolean' ? { key, value } : null
   if (perBook[1] === 'readings') {
     // Pages Pery read: only finished text comes back, never a job name (audit 15 Nov, WW-11).
     const pages = new Set<number>()

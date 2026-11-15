@@ -93,19 +93,24 @@ struct ExtractedTextSheet: View {
             .help(t["readWithPeryHint"])
             .disabled(readings == nil || reading?.state == .reading)
             .popover(isPresented: $askingRange, arrowEdge: .bottom) { rangeForm }
-            Menu {
-                Button(t["copyAll"]) { copy(shown) }
-                if (readings?.done.count ?? 0) > 1 {
+            // "Copy" copies the page shown (owner, 16 Nov: its menu only repeated "Copy all"). Once Pery
+            // has read more than one page, its arrow offers copying or saving them all.
+            if (readings?.done.count ?? 0) > 1 {
+                Menu {
                     Button(t["copyAllRead"]) { copy(allRead) }
                     Button(t["saveAllRead"]) { saveAllRead() }
+                } label: {
+                    Text(copied ? t["copied"] : t["copy"])
+                } primaryAction: {
+                    copy(shown)
                 }
-            } label: {
-                Text(copied ? t["copied"] : t["copyAll"])
-            } primaryAction: {
-                copy(shown)
+                .fixedSize()
+                .disabled(shown?.isEmpty ?? true)
+            } else {
+                Button { copy(shown) } label: { Text(copied ? t["copied"] : t["copy"]) }
+                    .fixedSize()
+                    .disabled(shown?.isEmpty ?? true)
             }
-            .fixedSize()
-            .disabled(shown?.isEmpty ?? true)
             Button(t["close"]) { dismiss() }.keyboardShortcut(.cancelAction)
         }
         .padding(16)

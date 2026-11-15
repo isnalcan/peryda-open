@@ -239,6 +239,12 @@
     "de": "Kopiert",
     "es": "Copiado"
   },
+  "copy": {
+    "tr": "Kopyala",
+    "en": "Copy",
+    "de": "Kopieren",
+    "es": "Copiar"
+  },
   "copyAll": {
     "tr": "Tümünü kopyala",
     "en": "Copy all",
@@ -286,6 +292,18 @@
     "en": "Delete this entry from the Book Journal? This cannot be undone.",
     "de": "Diesen Eintrag aus dem Buchjournal löschen? Das lässt sich nicht rückgängig machen.",
     "es": "¿Eliminar esta entrada del Diario del libro? No se puede deshacer."
+  },
+  "deleteSummary": {
+    "tr": "Özeti sil",
+    "en": "Delete the summary",
+    "de": "Zusammenfassung löschen",
+    "es": "Borrar el resumen"
+  },
+  "deleteSummaryConfirm": {
+    "tr": "Pery'nin özeti silinsin mi? Günlükteki kayıtlar kalır.",
+    "en": "Delete Pery's summary? The journal entries stay.",
+    "de": "Perys Zusammenfassung löschen? Die Einträge im Journal bleiben.",
+    "es": "¿Borrar el resumen de Pery? Las entradas del diario se quedan."
   },
   "dropHere": {
     "tr": "Dosyayı bırak",
@@ -1174,6 +1192,12 @@
     "en": "Translation · {language} · Page {page}",
     "de": "Übersetzung · {language} · Seite {page}",
     "es": "Traducción · {language} · Página {page}"
+  },
+  "translationOptions": {
+    "tr": "Çeviri seçenekleri",
+    "en": "Translation options",
+    "de": "Übersetzungsoptionen",
+    "es": "Opciones de traducción"
   },
   "translationsPending": {
     "tr": "{n} sayfa çevriliyor",

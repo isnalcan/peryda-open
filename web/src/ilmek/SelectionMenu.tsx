@@ -42,16 +42,30 @@ export function SelectionMenu(props: Props) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [pos, setPos] = useState({ left: props.anchorRect.left, top: props.anchorRect.bottom + 10 })
 
+  // Below the selection when it fits, else above it. While a long question makes the field taller, the
+  // menu keeps its side: below it grows down (as far as the window allows), above it grows up, so the
+  // menu never jumps across the selection while typing (owner test 16 Nov).
+  const above = useRef(false)
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const { width, height } = el.getBoundingClientRect()
     const margin = 12
-    let top = props.anchorRect.bottom + 10
-    if (top + height > props.bounds.height - margin) top = Math.max(margin, props.anchorRect.top - height - 10)
-    const center = (props.anchorRect.left + props.anchorRect.right) / 2
-    const left = Math.min(Math.max(margin, center - width / 2), Math.max(margin, props.bounds.width - width - margin))
-    setPos({ left, top })
+    const place = (chooseSide: boolean) => {
+      const { width, height } = el.getBoundingClientRect()
+      const below = props.anchorRect.bottom + 10
+      if (chooseSide) above.current = below + height > props.bounds.height - margin
+      const top = above.current
+        ? Math.max(margin, props.anchorRect.top - height - 10)
+        : Math.max(margin, Math.min(below, props.bounds.height - margin - height))
+      const center = (props.anchorRect.left + props.anchorRect.right) / 2
+      const left = Math.min(Math.max(margin, center - width / 2), Math.max(margin, props.bounds.width - width - margin))
+      setPos((p) => (p.left === left && p.top === top ? p : { left, top }))
+    }
+    place(true)
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => place(false))
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [props.anchorRect, props.bounds, noteMode, props.bridgeHeld])
 
   useEffect(() => {

@@ -35,5 +35,5 @@ public enum SafeID {
     }
 
     /// Every per-book preferences key the app writes; removed with the book.
-    public static let perBookDefaults = ["translateLang", "journalSummary", "cardTextScale", "translationTextScale", "pageScale"]
+    public static let perBookDefaults = ["translateLang", "journalSummary", "cardTextScale", "translationTextScale", "pageScale", "summaryCollapsed"]
 }

@@ -29,6 +29,18 @@ export function constrainToBand(c: Camera, band: { top: number; bottom: number }
 }
 
 /**
+ * Where the camera goes to show a page's new translation: the zoom and the vertical position stay as the
+ * reader left them (owner test 16 Nov: translating zoomed in to 120%). Sideways, the page and its
+ * translation are centred when both fit at this zoom (with 24 px to spare on each side); otherwise the
+ * translation's left edge comes to the middle of the window.
+ */
+export function cameraForTranslation(c: Camera, viewportWidth: number, span: { pageLeft: number; translationLeft: number; right: number }): Camera {
+  const fits = (span.right - span.pageLeft) * c.s <= viewportWidth - 48
+  const x = fits ? viewportWidth / 2 - ((span.pageLeft + span.right) / 2) * c.s : viewportWidth / 2 - span.translationLeft * c.s
+  return { x, y: c.y, s: c.s }
+}
+
+/**
  * Pan and zoom for the reading surface. The camera only changes on the reader's own input or when a
  * camera button is pressed; nothing else moves it.
  */

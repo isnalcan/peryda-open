@@ -20,8 +20,6 @@ struct YarnCardView: View {
     private var t: UIText { UIText(lang) }
     /// The book's card text size (the − and + in the header).
     private var s: CGFloat { reader.cardTextScale }
-    /// About three lines of the card's quote; longer passages get the shorten toggle.
-    static let longQuote = 160
 
     var body: some View {
         if let card = reader.cards.cards.first(where: { $0.id == cardId }) {
@@ -71,7 +69,7 @@ struct YarnCardView: View {
         }
     }
 
-    /// The quote, the conversation and archive suggestions: what scrolls when the card is resized.
+    /// A region's picture, the conversation and archive suggestions: what scrolls when the card is resized.
     @ViewBuilder
     private func middle(_ card: YarnCard, isNote: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -85,36 +83,9 @@ struct YarnCardView: View {
                     .padding(.horizontal, 14)
                     .padding(.top, 12)
             }
-            // A region of the page shows its picture alone: the text read from it is often garbled and
-            // adds nothing to the picture (owner test 15 Nov).
-            let showsPicture = card.anchors.contains { $0.sourceType == .pdfArea && $0.croppedImage != nil }
-            let quote = showsPicture ? "" : card.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " · ")
-            if !quote.isEmpty {
-                let short = reader.shortQuotes.contains(cardId)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(quote)
-                        .font(.reading(13 * s))
-                        .foregroundStyle(Color.inkSoft)
-                        .lineLimit(short ? 3 : nil)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.leading, 10)
-                        .overlay(alignment: .leading) { Rectangle().fill(Color.yarn(card.color)).frame(width: 2) }
-                    // Long passages can be shortened to their first lines, and opened again.
-                    if quote.count > Self.longQuote {
-                        Button {
-                            if short { reader.shortQuotes.remove(cardId) } else { reader.shortQuotes.insert(cardId) }
-                        } label: {
-                            Label(short ? t["quoteShowAll"] : t["quoteShorten"], systemImage: short ? "chevron.down" : "chevron.up")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(Color.inkFaint)
-                        }
-                        .buttonStyle(.borderless)
-                        .padding(.leading, 10)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
-            }
+            // The passage itself is not repeated: it is marked where it was chosen (on the page, a card or
+            // a translation), so the card is the answer alone (owner, 16 Nov). A region of the page keeps
+            // its picture.
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(card.messages.enumerated()), id: \.element.id) { index, message in
                     messageView(card, index: index, message: message, isNote: isNote)

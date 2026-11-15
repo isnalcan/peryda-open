@@ -10,6 +10,7 @@ struct JournalPanel: View {
     /// The entry waiting for "Delete": a journal entry (often the reader's own note) cannot be brought
     /// back, so it is not deleted on a single click (audit MA-9, 15 Nov).
     @State private var confirmDelete: String?
+    @State private var confirmSummaryDelete = false
     /// Entries whose answer is open (all closed when the journal opens).
     @State private var expanded: Set<String> = []
 
@@ -91,14 +92,33 @@ struct JournalPanel: View {
                     }
                     if let summary = reader.summary, !summary.text.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("⁂ " + t["summaryTitle"].uppercased(with: Locale(identifier: lang.rawValue)))
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(Color.peryda)
+                            // Folds to this row, or is deleted (owner, 16 Nov).
+                            HStack(spacing: 6) {
+                                Button { reader.summaryCollapsed.toggle() } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: reader.summaryCollapsed ? "chevron.right" : "chevron.down")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .frame(width: 12)
+                                        Text("⁂ " + t["summaryTitle"].uppercased(with: Locale(identifier: lang.rawValue)))
+                                            .font(.system(size: 11, weight: .bold))
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(Color.peryda)
+                                .help(reader.summaryCollapsed ? t["show"] : t["hide"])
+                                .accessibilityLabel(reader.summaryCollapsed ? t["show"] : t["hide"])
                                 Spacer()
                                 Text(summary.createdAt, style: .date).font(.caption).foregroundStyle(Color.inkFaint)
+                                Button { confirmSummaryDelete = true } label: { Image(systemName: "trash").font(.system(size: 11)) }
+                                    .buttonStyle(.borderless)
+                                    .foregroundStyle(Color.inkFaint)
+                                    .help(t["deleteSummary"])
+                                    .accessibilityLabel(t["deleteSummary"])
                             }
-                            SelectableAnswer(text: summary.text)
+                            if !reader.summaryCollapsed {
+                                SelectableAnswer(text: summary.text)
+                            }
                         }
                         .padding(12)
                         .background(Color.peryda.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
@@ -165,6 +185,10 @@ struct JournalPanel: View {
                 confirmDelete = nil
             }
             Button(t["cancel"], role: .cancel) { confirmDelete = nil }
+        }
+        .confirmationDialog(t["deleteSummaryConfirm"], isPresented: $confirmSummaryDelete) {
+            Button(t["deleteSummary"], role: .destructive) { reader.deleteSummary() }
+            Button(t["cancel"], role: .cancel) {}
         }
     }
 }

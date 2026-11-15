@@ -3,7 +3,7 @@ import { useI18n } from '../i18n/I18n'
 import { getPref, setPref } from '../data/db'
 import { pageTitle } from '../ai/compose'
 import type { PDFDocumentProxy } from '../pdf/pdfjs'
-import { AsterismIcon, CloseIcon, StopIcon } from '../ui/icons'
+import { AsterismIcon, ChevronDownIcon, CloseIcon, StopIcon } from '../ui/icons'
 import { RANGE_LIMIT } from '../ilmek/cardsStore'
 import type { PageReading, PageReadingsStore } from '../reading/pageReadings'
 import { cleanPageText, rawPageText } from './pageText'
@@ -217,9 +217,15 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
           >
             {t.readRange}
           </button>
-          <button type="button" className="ghost-button" disabled={!shown?.trim()} onClick={() => copy(shown)}>
-            {copied ? t.copied : t.copyAll}
-          </button>
+          {/* "Kopyala" copies the page shown. Once Pery has read more than one page, its arrow offers all of
+              them, to copy or save; nothing else is in that menu (owner test 16 Nov). */}
+          <CopyButton
+            label={copied ? t.copied : t.copy}
+            disabled={!shown?.trim()}
+            onCopy={() => copy(shown)}
+            more={done.length > 1 ? [{ label: t.copyAllRead, run: () => copy(allRead) }, { label: t.saveAllRead, run: saveAllRead }] : null}
+            moreLabel={t.copyAllRead}
+          />
           <button type="button" className="icon-button" aria-label={t.close} onClick={props.onClose}>
             <CloseIcon size={18} />
           </button>
@@ -254,12 +260,6 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
           <button type="button" className="text-button" onClick={() => store?.stop()}>
             <StopIcon size={13} /> {t.stop}
           </button>
-        </p>
-      )}
-      {done.length > 1 && (
-        <p className="extract-progress">
-          <button type="button" className="text-button" onClick={() => copy(allRead)}>{t.copyAllRead}</button>
-          <button type="button" className="text-button" onClick={saveAllRead}>{t.saveAllRead}</button>
         </p>
       )}
       {reading?.state === 'failed' && (
@@ -338,5 +338,65 @@ function ExtractedText({ text, size }: { text: string; size: number }) {
         <p key={i}>{p}</p>
       ))}
     </article>
+  )
+}
+
+/** "Copy": a plain button, or with `more`, a split button whose arrow opens those actions only. */
+function CopyButton(props: { label: string; disabled: boolean; onCopy: () => void; more: { label: string; run: () => void }[] | null; moreLabel: string }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Escape closes the menu, not the whole dialog.
+        e.stopPropagation()
+        e.preventDefault()
+        setOpen(false)
+      }
+    }
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
+  if (!props.more) {
+    return (
+      <button type="button" className="ghost-button" disabled={props.disabled} onClick={props.onCopy}>
+        {props.label}
+      </button>
+    )
+  }
+  return (
+    <div className="copy-split" ref={box}>
+      <button type="button" className="ghost-button copy-split-main" disabled={props.disabled} onClick={props.onCopy}>
+        {props.label}
+      </button>
+      <button type="button" className="ghost-button copy-split-more" aria-haspopup="menu" aria-expanded={open} aria-label={props.moreLabel} title={props.moreLabel} onClick={() => setOpen((v) => !v)}>
+        <ChevronDownIcon size={14} />
+      </button>
+      {open && (
+        <div className="popover menu" role="menu">
+          {props.more.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                item.run()
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

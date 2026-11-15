@@ -140,8 +140,6 @@ final class ReaderModel {
     var pagedReading = UserDefaults.standard.bool(forKey: "pagedReading") {
         didSet { UserDefaults.standard.set(pagedReading, forKey: "pagedReading") }
     }
-    /// Cards whose quote is shortened to its first lines.
-    var shortQuotes: Set<String> = []
     var toast: String?
     var showJournal = false
     var offscreenCard: String?
@@ -301,6 +299,7 @@ final class ReaderModel {
            let text = saved["text"] as? String, let at = saved["createdAt"] as? Double {
             summary = (text, Date(timeIntervalSince1970: at))
         }
+        if let key = SafeID.defaultsKey("summaryCollapsed", book.id) { summaryCollapsed = UserDefaults.standard.bool(forKey: key) }
     }
 
     /// EPUB readers open per book: the unpacked copy is deleted when the last one closes.
@@ -490,15 +489,20 @@ final class ReaderModel {
             candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil
         )
         summarizing = true
+        summaryCollapsed = false
         summaryTask?.cancel()
+        summaryGeneration += 1
+        let generation = summaryGeneration
         summaryTask = Task { [weak self] in
             var text = ""
             do {
                 for try await piece in (self?.streamer.stream(request) ?? AsyncThrowingStream { $0.finish() }) {
+                    // Deleted while it was being written: nothing more comes back.
+                    guard self?.summaryGeneration == generation else { return }
                     text += piece
                     self?.summary = (text, Date())
                 }
-                if let self, let key = SafeID.defaultsKey("journalSummary", self.book.id) {
+                if let self, self.summaryGeneration == generation, let key = SafeID.defaultsKey("journalSummary", self.book.id) {
                     UserDefaults.standard.set(["text": text, "createdAt": Date().timeIntervalSince1970], forKey: key)
                 }
             } catch {
@@ -512,6 +516,30 @@ final class ReaderModel {
     }
 
     func stopSummary() { summaryTask?.cancel() }
+
+    /// Bumped when the summary is deleted, so one still being written stops coming back.
+    private var summaryGeneration = 0
+
+    /// Pery's summary folded to its title row in the journal (owner, 16 Nov: it took much of the
+    /// panel). Kept per book.
+    var summaryCollapsed = false {
+        didSet {
+            guard let key = SafeID.defaultsKey("summaryCollapsed", book.id) else { return }
+            if summaryCollapsed { UserDefaults.standard.set(true, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) }
+        }
+    }
+
+    /// Removes Pery's summary of this book (the journal's entries stay); one being written stops.
+    func deleteSummary() {
+        summaryGeneration += 1
+        summaryTask?.cancel()
+        summaryTask = nil
+        summarizing = false
+        summary = nil
+        summaryError = nil
+        if let key = SafeID.defaultsKey("journalSummary", book.id) { UserDefaults.standard.removeObject(forKey: key) }
+        summaryCollapsed = false
+    }
 
     var worldSize: CGSize { worldRect.size }
 

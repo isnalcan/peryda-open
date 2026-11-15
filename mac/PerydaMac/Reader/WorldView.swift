@@ -394,16 +394,17 @@ final class WorldView: NSView {
         case .map:
             fit(width: model.centredContentWidth, maxScale: 0.45)
         case .showTranslation(let number):
-            // The page and the place its translation goes, side by side.
+            // The page and its translation side by side, at the zoom the reader chose and where they
+            // were reading (owner, 16 Nov: asking for a translation zoomed to 120%). Only sideways: the
+            // two are centred when they fit, else the translation starts mid-view.
             guard number >= 1, number <= model.pages.count else { break }
             let page = model.pages[number - 1]
             let translation = model.translation(of: number).flatMap { t in model.placements[t.id].map { CGRect(x: $0.x, y: $0.y, width: model.displayWidth(t), height: page.height) } }
-            let right = translation?.maxX ?? (page.x + page.width * 2 + 60)
-            let width = right - page.x + 80
-            let m = min(1.2, max(0.15, (viewport.width - 48) / width))
-            setMagnification(m, animated: animated)
-            let visible = scrollView.contentView.bounds.size
-            scroll(to: CGPoint(x: (page.x + right) / 2 - visible.width / 2, y: page.y - 24), animated: animated)
+            let left = translation?.minX ?? (page.x + page.width + 60)
+            let right = translation?.maxX ?? (left + page.width)
+            let visible = scrollView.contentView.bounds
+            let x = right - page.x + 48 <= visible.width ? (page.x + right) / 2 - visible.width / 2 : left - visible.width / 2
+            scroll(to: CGPoint(x: x, y: visible.minY), animated: animated)
         case .goToPage(let number):
             if number == model.currentPage, !model.pagedReading, number >= 1, number <= model.pages.count {
                 scroll(to: CGPoint(x: clipView.bounds.minX, y: model.pages[number - 1].y - 24), animated: animated)

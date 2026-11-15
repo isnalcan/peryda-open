@@ -706,24 +706,6 @@ button:disabled {
   background: #fff;
 }
 
-.yarn-card-quote {
-  margin: 10px 14px 0;
-  padding-left: 10px;
-  border-left: 2px solid var(--stroke);
-  color: var(--ink-soft);
-  font-family: 'Literata', Georgia, serif;
-  font-size: calc(13.5px * var(--card-text, 1));
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
-
-.yarn-card-quote.is-short {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .yarn-card-body {
   padding: 8px 14px 4px;
 }
@@ -834,16 +816,24 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
+/* A long question grows the field to about four lines, then scrolls inside it: the field never widens the
+   menu or the card, and nothing around it moves while typing (owner test 16 Nov). */
 .yarn-card-footer textarea,
 .selection-menu-ask textarea {
-  flex: 1;
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
   min-height: 30px;
-  max-height: 140px;
+  max-height: 100px;
+  max-height: calc(4lh + 10px);
   padding: 5px 0;
   border: 0;
   background: transparent;
   resize: none;
   outline: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   field-sizing: content;
 }
 
@@ -1429,20 +1419,18 @@ button:disabled {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--stroke) 14%, transparent), 0 10px 28px rgb(0 0 0 / 0.08);
 }
 
-.yarn-card-quote.is-link {
-  display: block;
-  width: 100%;
-  margin: 0;
-  border-top: 0;
-  border-right: 0;
-  border-bottom: 0;
+.yarn-card-title.is-link {
+  padding: 0;
+  border: 0;
   background: none;
   text-align: left;
+  font-family: inherit;
   cursor: pointer;
 }
 
-.yarn-card-quote.is-link:hover {
-  color: var(--ink);
+.yarn-card-title.is-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .epub-knot {
@@ -1545,6 +1533,21 @@ button:disabled {
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.journal-summary.is-collapsed h3 {
+  margin-bottom: 0;
+}
+
+.journal-summary .journal-summary-button {
+  width: 26px;
+  height: 26px;
+  margin: -4px -4px -4px 0;
+  color: var(--ink-faint);
+}
+
+.journal-summary .journal-summary-button:hover {
+  color: var(--ink);
 }
 
 .journal-summary p {
@@ -2064,33 +2067,6 @@ button:disabled {
   max-height: none;
 }
 
-.yarn-card-quote-box {
-  margin: 10px 14px 0;
-}
-
-.yarn-card-quote-box .yarn-card-quote {
-  margin: 0;
-}
-
-.quote-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 4px 0 0 10px;
-  padding: 2px 4px;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--ink-faint);
-  font-size: 11.5px;
-  font-weight: 600;
-}
-
-.quote-toggle:hover {
-  color: var(--ink);
-  background: var(--accent-tint);
-}
-
 .yarn-card-grip {
   position: absolute;
   right: 0;
@@ -2481,6 +2457,29 @@ button:disabled {
 
 .extract-actions .ghost-button {
   white-space: nowrap;
+}
+
+/* "Kopyala" with its arrow once Pery has read several pages: one control, as tall as its neighbours. */
+.copy-split {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.copy-split .copy-split-main {
+  padding-right: 8px;
+  border-radius: 8px 0 0 8px;
+}
+
+.copy-split .copy-split-more {
+  padding: 0 6px;
+  border-left: 1px solid var(--line-strong);
+  border-radius: 0 8px 8px 0;
+}
+
+.copy-split .popover {
+  top: calc(100% + 6px);
+  right: 0;
 }
 
 .extract-range {

@@ -17,7 +17,7 @@ import type { CardPlacement } from '../ilmek/lane'
 import { PdfPageView, type PageHighlight, type PageKnot, type Tool } from './PdfPageView'
 import { ReaderTopBar } from './ReaderTopBar'
 import { anchorsFromSelection, expandToWords, normalizeText, selectionScreenRect, type PageElement } from './selection'
-import { constrainToBand, useCamera, type Camera } from './useCamera'
+import { cameraForTranslation, constrainToBand, useCamera, type Camera } from './useCamera'
 import { EyeIcon, EyeOffIcon, LinkIcon } from '../ui/icons'
 import { JournalPanel } from '../journal/JournalPanel'
 import { useThreadActions } from '../ilmek/useThreadActions'
@@ -213,7 +213,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const [offscreenCard, setOffscreenCard] = useState<string | null>(null)
   const [pagedReading, setPagedReading] = useState(opened.paged)
   const [pagedPage, setPagedPage] = useState(opened.page)
-  const [shortQuotes, setShortQuotes] = useState<ReadonlySet<string>>(() => new Set())
   const [translationTarget, setTranslationTarget] = useState<Lang>(opened.target)
   const [explainTerms, setExplainTerms] = useState(opened.explainTerms)
   const [askingRange, setAskingRange] = useState(false)
@@ -524,7 +523,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const presetMap = () => fit(centredContentWidth(content), 0.45)
   const zoomCenter = (s: number) => zoomAround([viewport.width / 2, viewport.height / 2], s)
 
-  /** A page and its translation side by side. */
+  /** A page's new translation comes into view beside it, at the reader's own zoom and height. */
   const showTranslation = useCallback(
     (page: number) => {
       const box = pages[page - 1]
@@ -532,12 +531,10 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       const card = store.pageTranslation(page, translationTarget)
       const p = card ? placements.get(card.id) : undefined
       // A translation is drawn at its page's size.
-      const right = p ? p.x + box.width : box.x + box.width * 2 + 60
-      const width = right - box.x + 80
-      const s = Math.min(1.2, Math.max(0.15, (viewport.width - 48) / width))
-      animateCamera({ x: viewport.width / 2 - ((box.x + right) / 2) * s, y: 24 - box.y * s, s })
+      const left = p ? p.x : box.x + box.width + 60
+      animateCamera(cameraForTranslation(cameraRef.current, viewport.width, { pageLeft: box.x, translationLeft: left, right: left + box.width }))
     },
-    [pages, store, translationTarget, placements, viewport.width, animateCamera],
+    [pages, store, translationTarget, placements, viewport.width, animateCamera, cameraRef],
   )
 
   // ---- Whole-page translation ----
@@ -918,14 +915,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const onMove = useCallback((id: string, x: number, y: number) => update(id, { isPinned: true, x, y }), [update])
   const onUnpin = useCallback((id: string) => update(id, { isPinned: false }), [update])
   const onCollapse = useCallback((id: string) => update(id, { collapsed: true }), [update])
-  const onToggleQuote = useCallback((id: string) => {
-    setShortQuotes((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
   const scaleOf = useCallback(() => cameraRef.current.s, [cameraRef])
   const noop = useCallback(() => undefined, [])
   // The first page drawn means the book opened safely (see App's safe start).
@@ -1117,8 +1106,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                     x={p.x}
                     y={p.y}
                     scale={scaleOf}
-                    shortQuote={shortQuotes.has(card.id)}
-                    onToggleQuote={onToggleQuote}
                     onHeight={onHeight}
                     onAsk={ask}
                     onRetry={retry}

@@ -53,10 +53,13 @@ struct SelectionMenuView: View {
             .padding(6)
             Divider()
             HStack(alignment: .bottom, spacing: 8) {
+                // As wide as the menu's buttons, whatever is typed: a long question wraps, grows to four
+                // lines, then scrolls inside the field (owner, 16 Nov: the field grew past the window).
                 TextField(noteMode ? t["notePlaceholder"] : t["askPlaceholder"], text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(noteMode ? .reading(14) : .body)
-                    .lineLimit(1...5)
+                    .lineLimit(1...4)
+                    .frame(minWidth: 120, idealWidth: 120, maxWidth: .infinity, alignment: .leading)
                     .focused($focused)
                     .onSubmit(submit)
                 Button(action: submit) { Image(systemName: "arrow.up") }

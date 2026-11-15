@@ -45,6 +45,8 @@ struct ReaderView: View {
 
 struct ReaderSurface: View {
     @Environment(AppModel.self) private var app
+    /// The translation options panel is open.
+    @State private var translateOptions = false
     @Environment(\.openSettings) private var openSettings
     @Bindable var reader: ReaderModel
 
@@ -140,32 +142,23 @@ struct ReaderSurface: View {
                     }
                     .padding(.horizontal, 8)
                 }
-                Menu {
-                    Section(t["translateInto"]) {
-                        ForEach(Lang.allCases, id: \.self) { l in
-                            Button {
-                                reader.translationTarget = l
-                                reader.startTranslating()
-                            } label: {
-                                if l == reader.translationTarget { Label(l.languageName.capitalized, systemImage: "checkmark") } else { Text(l.languageName.capitalized) }
-                            }
-                        }
+                // "Translate" translates the page in view; the chevron opens the options in a panel that
+                // stays open while "Explain terms in parentheses" is switched (owner, 16 Nov: the menu
+                // closed on it, and the switch did not take).
+                ControlGroup {
+                    Button { reader.startTranslating() } label: {
+                        Label(t["translatePages"], systemImage: "translate")
                     }
-                    Divider()
-                    Toggle(t["explainTerms"], isOn: Binding(get: { app.explainTerms }, set: { app.explainTerms = $0 }))
-                    Divider()
-                    Button(t["translateRange"]) { reader.askingRange = true }
-                    Button(t["extractText"]) { reader.extractingPage = .init(page: reader.currentPage) }
-                    if reader.pendingTranslations > 0 {
-                        Divider()
-                        Button(t["stopTranslating"]) { reader.stopTranslating(lang: app.lang) }
+                    .help(t["translateThisPage"])
+                    Button { translateOptions.toggle() } label: {
+                        Image(systemName: "chevron.down")
                     }
-                } label: {
-                    Label(t["translatePages"], systemImage: "translate")
-                } primaryAction: {
-                    reader.startTranslating()
+                    .help(t["translationOptions"])
+                    .accessibilityLabel(t["translationOptions"])
+                    .popover(isPresented: $translateOptions, arrowEdge: .bottom) {
+                        TranslateOptions(reader: reader, app: app, t: t) { translateOptions = false }
+                    }
                 }
-                .help(t["translateThisPage"])
                 Toggle(isOn: $reader.showJournal) {
                     Label(t["journal"], systemImage: "book.closed")
                 }
@@ -176,6 +169,62 @@ struct ReaderSurface: View {
                 .help(reader.hideThreads ? t["showThreads"] : t["hideThreads"])
             }
         }
+    }
+}
+
+/// Translation options: the language (choosing one translates the page in view), whether terms are
+/// explained in parentheses (switching it leaves the panel open), a range of pages, the page's text,
+/// and stopping translations on their way.
+struct TranslateOptions: View {
+    let reader: ReaderModel
+    @Bindable var app: AppModel
+    let t: UIText
+    let close: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(t["translateInto"]).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Lang.allCases, id: \.self) { l in
+                    Button {
+                        reader.translationTarget = l
+                        reader.startTranslating()
+                        close()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark").opacity(l == reader.translationTarget ? 1 : 0).frame(width: 14)
+                            Text(l.languageName.capitalized)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .padding(.vertical, 3)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Color.ink)
+                }
+            }
+            Divider()
+            Toggle(t["explainTerms"], isOn: $app.explainTerms)
+                .toggleStyle(.checkbox)
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                Button(t["translateRange"]) {
+                    close()
+                    reader.askingRange = true
+                }
+                Button(t["extractText"]) {
+                    close()
+                    reader.extractingPage = .init(page: reader.currentPage)
+                }
+                if reader.pendingTranslations > 0 {
+                    Button(t["stopTranslating"]) { reader.stopTranslating(lang: app.lang) }
+                }
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(Color.ink)
+        }
+        .padding(14)
+        .frame(width: 280, alignment: .leading)
     }
 }
 

@@ -41,11 +41,29 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
   const controller = useRef<AbortController | null>(null)
   const fake = useFakeAi()
   const prefKey = `journalSummary:${bookId}`
+  const collapsedKey = `summaryCollapsed:${bookId}`
+  // Pery's summary can be folded to its title row, and deleted (owner test 16 Nov: it took too much room
+  // and could not be taken away). The fold is kept per book.
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     void getPref<Summary | null>(prefKey, null).then(setSummary)
+    void getPref<boolean>(collapsedKey, false).then((v) => setCollapsed(v === true))
     return () => controller.current?.abort()
-  }, [prefKey])
+  }, [prefKey, collapsedKey])
+
+  const fold = (next: boolean) => {
+    setCollapsed(next)
+    void setPref(collapsedKey, next)
+  }
+  const deleteSummary = () => {
+    if (!window.confirm(t.deleteSummaryConfirm)) return
+    controller.current?.abort()
+    controller.current = null
+    setStreaming(false)
+    setSummary(null)
+    void db.prefs.delete(prefKey)
+  }
 
   const date = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   const sourceLabel = (s: JournalRecord['source']) =>
@@ -81,6 +99,7 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
     const ac = new AbortController()
     controller.current = ac
     setStreaming(true)
+    if (collapsed) fold(false)
     let text = ''
     try {
       const stream = fake
@@ -98,9 +117,12 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
             signal: ac.signal,
           })
       for await (const piece of stream) {
+        // Deleted while it was being written: nothing more of it is shown or kept.
+        if (ac.signal.aborted) break
         text += piece
         setSummary({ text, createdAt: Date.now() })
       }
+      if (ac.signal.aborted) return
       const done = { text, createdAt: Date.now() }
       setSummary(done)
       await setPref(prefKey, done)
@@ -108,7 +130,7 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
       const kind = e instanceof AiError ? e.kind : 'unknown'
       if (kind !== 'aborted') setError(kind === 'key' ? t.errorKey : kind === 'quota' ? t.errorQuota : kind === 'browser' ? t.errorBrowser : t.errorNetwork)
     } finally {
-      setStreaming(false)
+      if (controller.current === ac) setStreaming(false)
     }
   }
 
@@ -141,12 +163,25 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
         </p>
       )}
       {summary?.text && (
-        <section className="journal-summary" aria-live={streaming ? 'polite' : undefined}>
+        <section className={`journal-summary${collapsed ? ' is-collapsed' : ''}`} aria-live={streaming ? 'polite' : undefined}>
           <h3>
             <AsterismIcon size={14} /> {t.summaryTitle}
             <span>{date.format(summary.createdAt)}</span>
+            <button
+              type="button"
+              className="icon-button journal-summary-button"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? t.show : t.hide}
+              title={collapsed ? t.show : t.hide}
+              onClick={() => fold(!collapsed)}
+            >
+              {collapsed ? <ChevronDownIcon size={14} /> : <ChevronUpIcon size={14} />}
+            </button>
+            <button type="button" className="icon-button journal-summary-button" aria-label={t.deleteSummary} title={t.deleteSummary} onClick={deleteSummary}>
+              <TrashIcon size={14} />
+            </button>
           </h3>
-          <Markdown text={summary.text} />
+          {!collapsed && <Markdown text={summary.text} />}
         </section>
       )}
       {entries.length === 0 ? (
