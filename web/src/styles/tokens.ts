@@ -18,6 +18,12 @@ export function yarnHighlight(color: YarnColor, alphaScale = 1): string {
   return `rgba(${r}, ${g}, ${b}, ${(tokens.yarn[color].highlightAlpha * alphaScale).toFixed(3)})`
 }
 
+/** The reader's highlight ("Vurgula"): a yellow highlighter, multiplied into the page. */
+export function highlighter(): string {
+  const [r, g, b] = hexToRgb(tokens.highlighter.color)
+  return `rgba(${r}, ${g}, ${b}, ${tokens.highlighter.alpha})`
+}
+
 function block(theme: Theme): string {
   const p = tokens.palette[theme]
   const lines = [
@@ -34,6 +40,8 @@ function block(theme: Theme): string {
     `--line-strong: ${p.lineStrong}`,
     `--error-text: ${p.errorText}`,
     `--page-sheet: ${tokens.pageSheet[theme]}`,
+    // The reader's highlights are the same yellow on paper in both themes.
+    `--highlighter: ${highlighter()}`,
   ]
   for (const color of Object.keys(tokens.yarn) as YarnColor[]) {
     lines.push(`--yarn-${color}: ${tokens.yarn[color][theme]}`)

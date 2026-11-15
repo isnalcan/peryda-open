@@ -28,7 +28,37 @@ const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): v is T => typeof v === 'string' && (allowed as readonly string[]).includes(v)
 
 const FORMATS: readonly BookFormat[] = ['pdf', 'epub']
-const SOURCES: readonly JournalRecord['source'][] = ['clip', 'thread', 'note']
+const SOURCES: readonly JournalRecord['source'][] = ['clip', 'thread', 'note', 'highlight']
+
+/** Limits for a highlight's marks: per entry, and lines per mark. */
+export const MAX_MARKS = 50
+export const MAX_MARK_RECTS = 200
+
+/** A line of a highlight: a part of the page (0…1 on both axes). */
+function markRect(raw: unknown): NormalizedRect | null {
+  const r = validRect(raw)
+  if (!r) return null
+  const inPage = (v: number) => v >= 0 && v <= 1
+  return inPage(r.x) && inPage(r.y) && inPage(r.width) && inPage(r.height) && r.x + r.width <= 1.0001 && r.y + r.height <= 1.0001 ? r : null
+}
+
+/**
+ * A highlight's marks (audit of 15 Nov's "Vurgula"): at most MAX_MARKS marks of MAX_MARK_RECTS lines, each
+ * on a page of the book (when its page count is known) and within the page. A mark left with no line is
+ * dropped; an entry left with no mark keeps its quote.
+ */
+function validMarks(raw: unknown, pageCount?: number): JournalRecord['marks'] {
+  const marks = list(raw)
+    .slice(0, MAX_MARKS)
+    .flatMap((m) => {
+      if (!isObject(m)) return []
+      const page = whole(m.pageNumber, 0)
+      if (page < 1 || (pageCount !== undefined && page > pageCount)) return []
+      const lineRects = list(m.lineRects).slice(0, MAX_MARK_RECTS).map(markRect).filter((r): r is NormalizedRect => r !== null)
+      return lineRects.length ? [{ pageNumber: page, lineRects }] : []
+    })
+  return marks.length ? marks : undefined
+}
 const ANCHOR_SOURCES: readonly AnchorSource[] = ['pdf_text', 'pdf_area', 'epub_text', 'card']
 const KINDS: readonly YarnCard['kind'][] = [...YARN_COLORS, 'question', 'bridge', 'translate']
 const THEMES = ['system', 'light', 'dark'] as const
@@ -129,7 +159,7 @@ export function validCard(raw: unknown): YarnCard | null {
   return card
 }
 
-export function validJournal(raw: unknown): JournalRecord | null {
+export function validJournal(raw: unknown, pageCounts?: ReadonlyMap<string, number>): JournalRecord | null {
   if (!isObject(raw) || !isId(raw.id) || !isId(raw.bookId) || !oneOf(raw.source, SOURCES)) return null
   const entry: JournalRecord = {
     id: raw.id,
@@ -141,6 +171,10 @@ export function validJournal(raw: unknown): JournalRecord | null {
     createdAt: finite(raw.createdAt, 0),
   }
   if (isId(raw.cardId)) entry.cardId = raw.cardId
+  if (entry.source === 'highlight') {
+    const marks = validMarks(raw.marks, pageCounts?.get(entry.bookId))
+    if (marks) entry.marks = marks
+  }
   return entry
 }
 
@@ -178,7 +212,7 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     case 'extractedTextSize':
       return typeof value === 'number' && value >= 14 && value <= 28 ? { key, value } : null
   }
-  const perBook = /^(translateLang|journalSummary|cardTextScale|readings):(.+)$/.exec(key)
+  const perBook = /^(translateLang|journalSummary|cardTextScale|translationTextScale|readings):(.+)$/.exec(key)
   if (!perBook || !restoredBooks.has(perBook[2]!)) return null
   if (perBook[1] === 'translateLang') return oneOf(value, LANGS) ? { key, value } : null
   if (perBook[1] === 'readings') {
@@ -191,7 +225,7 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
       .map((r) => ({ page: r.page as number, text: text(r.text, LONG_TEXT), state: 'done', createdAt: finite(r.createdAt, 0) }))
     return done.length ? { key, value: done } : null
   }
-  if (perBook[1] === 'cardTextScale') return typeof value === 'number' && value >= 0.85 && value <= 1.75 ? { key, value } : null
+  if (perBook[1] === 'cardTextScale' || perBook[1] === 'translationTextScale') return typeof value === 'number' && value >= 0.85 && value <= 1.75 ? { key, value } : null
   if (isObject(value) && typeof value.text === 'string' && typeof value.createdAt === 'number' && Number.isFinite(value.createdAt)) {
     return { key, value: { text: text(value.text, LONG_TEXT), createdAt: value.createdAt } }
   }

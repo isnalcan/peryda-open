@@ -56,6 +56,17 @@ struct TranslatedPageView: View {
                 Text("· " + t["translating"]).font(.system(size: 10))
             }
             Spacer(minLength: 8)
+            // The translation's text size, for every translated page of this book (owner test 15 Nov).
+            Button { reader.stepTranslationText(-1) } label: { Image(systemName: "textformat.size.smaller").frame(width: 22, height: 22) }
+                .buttonStyle(.borderless)
+                .help(t["textSmaller"])
+                .accessibilityLabel(t["textSmaller"])
+                .disabled(!reader.canShrinkTranslationText)
+            Button { reader.stepTranslationText(1) } label: { Image(systemName: "textformat.size.larger").frame(width: 22, height: 22) }
+                .buttonStyle(.borderless)
+                .help(t["textLarger"])
+                .accessibilityLabel(t["textLarger"])
+                .disabled(!reader.canGrowTranslationText)
             if answer?.state != .streaming {
                 Button { reader.cards.retranslate(cardId) } label: { Image(systemName: "arrow.clockwise").frame(width: 22, height: 22) }
                     .buttonStyle(.borderless)
@@ -95,6 +106,7 @@ struct TranslatedPageView: View {
         default:
             TranslationText(
                 text: answer?.content ?? "",
+                scale: reader.translationTextScale,
                 marks: reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.highlight($0.color), near: $0.rect, multiply: true) },
                 onPress: { reader.pending = nil }
             ) { text, rect in onSelectText(cardId, text, rect) }
@@ -140,6 +152,8 @@ struct TranslatedPageView: View {
 /// page without running over; selectable (selecting opens the same menu as on the PDF).
 struct TranslationText: NSViewRepresentable {
     let text: String
+    /// The reader's size on top of the size that fits the page (×1 = just fits).
+    var scale: Double = 1
     var marks: [AnswerTextView.Mark] = []
     var onPress: (() -> Void)?
     let onSelect: (String, CGRect) -> Void
@@ -152,20 +166,27 @@ struct TranslationText: NSViewRepresentable {
         view.textView.onSelect = onSelect
         view.textView.onPress = onPress
         view.textView.marks = marks
-        if view.source != text {
+        if view.source != text || view.scale != scale {
             view.source = text
+            view.scale = scale
             view.needsLayout = true
         }
     }
 }
 
 /// Picks the largest reading size (10–16 pt) at which the text fits; scrolls only if even the
-/// smallest does not.
+/// smallest does not. The reader's scale then makes that size smaller or larger (8–30 pt); text larger
+/// than the page scrolls inside it.
 final class FittingTextView: NSView {
     let scroll = NSScrollView()
     let textView = AnswerTextView(usingTextLayoutManager: false)
     var source = ""
-    private var laidOut: (String, CGSize)?
+    /// The reader's size on top of the size that fits (×1 = just fits).
+    var scale: Double = 1
+    /// The size that fits the page, and the size shown (after the reader's scale), in points.
+    private(set) var fittedSize: Double = 16
+    private(set) var shownSize: Double = 16
+    private var laidOut: (String, CGSize, Double)?
 
     override var isFlipped: Bool { true }
 
@@ -195,14 +216,22 @@ final class FittingTextView: NSView {
     override func layout() {
         super.layout()
         scroll.frame = bounds
-        guard bounds.width > 0, bounds.height > 0, laidOut.map({ $0.0 != source || $0.1 != bounds.size }) ?? true else { return }
-        laidOut = (source, bounds.size)
+        guard bounds.width > 0, bounds.height > 0, laidOut.map({ $0.0 != source || $0.1 != bounds.size || $0.2 != scale }) ?? true else { return }
+        laidOut = (source, bounds.size, scale)
         var size = 16.0
         var attributed = Self.attributed(source, size: size)
         while size > 10, Self.height(of: attributed, width: bounds.width) > bounds.height {
             size -= 0.5
             attributed = Self.attributed(source, size: size)
         }
+        if abs(scale - 1) > 0.001 {
+            fittedSize = size
+            size = min(max((size * scale * 2).rounded() / 2, 8), 30)
+            attributed = Self.attributed(source, size: size)
+        } else {
+            fittedSize = size
+        }
+        shownSize = size
         let fits = Self.height(of: attributed, width: bounds.width) <= bounds.height
         scroll.hasVerticalScroller = !fits
         textView.textStorage?.setAttributedString(attributed)

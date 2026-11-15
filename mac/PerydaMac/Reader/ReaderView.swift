@@ -491,6 +491,7 @@ struct WorldRepresentable: NSViewRepresentable {
     func updateNSView(_ view: WorldView, context: Context) {
         // Read what the surface depends on so SwiftUI updates it when any of it changes.
         _ = reader.cards.cards
+        _ = reader.journal
         _ = reader.heights
         _ = reader.pending?.anchors.count
         _ = reader.bridgeHeld?.count

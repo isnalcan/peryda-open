@@ -42,6 +42,9 @@ struct SelectionMenuView: View {
                 if !isCard {
                     tool("bookmark", t["clip"]) { reader.clip(lang: lang) }
                 }
+                if reader.canHighlight {
+                    tool("highlighter", t["highlight"]) { reader.highlight(lang: lang) }
+                }
                 tool(noteMode ? "note.text.badge.plus" : "note.text", t["myNote"], active: noteMode) {
                     noteMode.toggle()
                     focused = true

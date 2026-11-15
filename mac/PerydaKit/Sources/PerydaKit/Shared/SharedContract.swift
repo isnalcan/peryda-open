@@ -85,10 +85,17 @@ public struct Tokens: Decodable, Sendable {
         public let haloWidth, haloOpacity, mainWidth, mainOpacity, startKnotRadius, endKnotRadius: Double
     }
 
+    /// The reader's own highlights ("Vurgula"): a yellow highlighter, multiplied into the page.
+    public struct Highlighter: Decodable, Sendable {
+        public let color: String
+        public let alpha: Double
+    }
+
     public let palette: [String: Palette]
     public let yarn: [String: YarnTone]
     public let geometry: GeometryTokens
     public let yarnStroke: YarnStroke
+    public let highlighter: Highlighter
 
     public func tone(_ color: YarnColor) -> YarnTone { yarn[color.rawValue]! }
 }

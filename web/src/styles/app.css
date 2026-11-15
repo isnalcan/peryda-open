@@ -414,6 +414,14 @@ button:disabled {
   background: var(--hl);
 }
 
+/* The reader's own highlight ("Vurgula"): a yellow highlighter. Not clickable, so the text under it can
+   still be selected (owner test 15 Nov). */
+.highlight-line.is-highlighter {
+  background: var(--highlighter);
+  pointer-events: none;
+  cursor: auto;
+}
+
 /* Passages threads were opened from inside cards and translated pages (threadMarks.ts): the card's
    colour on the card, the page highlight on the translated paper. */
 ::highlight(yarn-card-coral) { background-color: color-mix(in srgb, var(--yarn-coral) 26%, transparent); }
@@ -1334,6 +1342,55 @@ button:disabled {
 .journal-text {
   font-family: 'Literata', Georgia, serif;
   line-height: 1.55;
+}
+
+/* A saved thread's passage opens and closes Pery's answer (owner test 15 Nov). */
+.journal-quote.is-toggle {
+  display: block;
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: none;
+  font: inherit;
+  font-family: 'Literata', Georgia, serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.journal-quote.is-toggle:hover {
+  color: var(--ink);
+}
+
+.journal-answer-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.journal-answer-toggle:hover {
+  color: var(--accent);
+}
+
+/* A highlight reads as a yellow highlighter stroke, as on the page. */
+.journal-quote.is-highlight {
+  border-left-color: color-mix(in srgb, var(--highlighter) 100%, #8a6d00 30%);
+}
+
+.journal-quote.is-highlight mark {
+  background: var(--highlighter);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 /* Journal text always fits the panel's width, long links and words included (owner test 14 Nov, Mac). */

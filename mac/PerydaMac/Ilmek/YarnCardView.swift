@@ -85,7 +85,10 @@ struct YarnCardView: View {
                     .padding(.horizontal, 14)
                     .padding(.top, 12)
             }
-            let quote = card.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " · ")
+            // A region of the page shows its picture alone: the text read from it is often garbled and
+            // adds nothing to the picture (owner test 15 Nov).
+            let showsPicture = card.anchors.contains { $0.sourceType == .pdfArea && $0.croppedImage != nil }
+            let quote = showsPicture ? "" : card.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " · ")
             if !quote.isEmpty {
                 let short = reader.shortQuotes.contains(cardId)
                 VStack(alignment: .leading, spacing: 2) {

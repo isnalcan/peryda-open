@@ -32,15 +32,26 @@ export interface ReadingPosition {
   updatedAt: number
 }
 
+/** Where on a page a highlight lies: its lines, as fractions of the page (0…1). */
+export interface HighlightMark {
+  pageNumber: number
+  lineRects: { x: number; y: number; width: number; height: number }[]
+}
+
 export interface JournalRecord {
   id: string
   bookId: string
-  /** 'clip' = a passage clipped from the page; 'thread' = saved from an İlmek card; 'note' = the reader's note. */
-  source: 'clip' | 'thread' | 'note'
+  /**
+   * 'clip' = a passage clipped from the page; 'thread' = saved from an İlmek card; 'note' = the reader's
+   * note; 'highlight' = a passage the reader highlighted ("Vurgula"), drawn on its page from `marks`.
+   */
+  source: 'clip' | 'thread' | 'note' | 'highlight'
   quote: string
   text: string
   pageNumber: number
   cardId?: string
+  /** For a highlight: the lines to draw on the page. Deleting the entry removes them. */
+  marks?: HighlightMark[]
   createdAt: number
 }
 
@@ -132,7 +143,7 @@ export async function setPref(key: string, value: unknown): Promise<void> {
 }
 
 /** Preferences kept per book (`<name>:<bookId>`), removed with the book. */
-export const PER_BOOK_PREFS = ['translateLang', 'journalSummary', 'cardTextScale', 'readings'] as const
+export const PER_BOOK_PREFS = ['translateLang', 'journalSummary', 'cardTextScale', 'translationTextScale', 'readings'] as const
 
 /**
  * Removes a book and everything that belongs to it, in one transaction. Returns the Gemini batch jobs its

@@ -69,6 +69,8 @@ export const ClipSavedIcon = (p: IconProps) => (
   </Svg>
 )
 /** Smaller and larger card text: an A with a minus or a plus. */
+/** A highlighter pen ("Vurgula"). */
+export const HighlighterIcon = (p: IconProps) => <Svg {...p}><path d="M14.5 4.5l5 5L11 18l-5 .5.5-5z" /><path d="M4 21h7" /><path d="M12.5 6.5l5 5" /></Svg>
 export const TextSmallerIcon = (p: IconProps) => <Svg {...p}><path d="M3.5 18l4.5-10 4.5 10M5.1 14.5h5.8M15 12h6" /></Svg>
 export const TextLargerIcon = (p: IconProps) => <Svg {...p}><path d="M2.5 19l5.5-13 5.5 13M4.5 14.8h7M15 11h6M18 8v6" /></Svg>
 export const NoteIcon = (p: IconProps) => (

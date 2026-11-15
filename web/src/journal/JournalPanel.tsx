@@ -7,7 +7,7 @@ import { journalSummarySystem, pageTitle } from '../ai/compose'
 import { AiError, streamAnswer } from '../ai/client'
 import { fakeStream, useFakeAi } from '../ai/fake'
 import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings } from '../ai/provider'
-import { AsterismIcon, CloseIcon, PlusIcon, StopIcon, TrashIcon } from '../ui/icons'
+import { AsterismIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, PlusIcon, StopIcon, TrashIcon } from '../ui/icons'
 import './journal.css'
 
 interface Props {
@@ -48,7 +48,18 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
   }, [prefKey])
 
   const date = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-  const sourceLabel = (s: JournalRecord['source']) => (s === 'clip' ? t.sourceClip : s === 'thread' ? t.sourceThread : t.sourceNote)
+  const sourceLabel = (s: JournalRecord['source']) =>
+    s === 'clip' ? t.sourceClip : s === 'thread' ? t.sourceThread : s === 'highlight' ? t.sourceHighlight : t.sourceNote
+  // Saved threads show their passage; Pery's answer opens on a click (owner test 15 Nov: passage and
+  // answer together took too much room).
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
+  const toggle = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const summarize = async () => {
     setError(null)
@@ -163,16 +174,43 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
                   className="icon-button journal-delete"
                   aria-label={t.deleteEntry}
                   title={t.deleteEntry}
-                  onClick={() => void db.journal.delete(e.id)}
+                  onClick={() => {
+                    // Deleting cannot be undone (and takes a highlight off its page), so it asks first, as on the Mac.
+                    if (window.confirm(t.deleteEntryConfirm)) void db.journal.delete(e.id)
+                  }}
                 >
                   <TrashIcon size={14} />
                 </button>
               </div>
-              {e.quote && <blockquote className="journal-quote">{e.quote}</blockquote>}
-              {e.text && (
-                <div className="journal-text">
-                  <Markdown text={e.text} />
-                </div>
+              {e.source === 'note' ? (
+                e.text && (
+                  <div className="journal-text">
+                    <Markdown text={e.text} />
+                  </div>
+                )
+              ) : e.source === 'thread' && e.text ? (
+                <>
+                  {e.quote && (
+                    <button type="button" className="journal-quote is-toggle" aria-expanded={open.has(e.id)} onClick={() => toggle(e.id)}>
+                      {e.quote}
+                    </button>
+                  )}
+                  <button type="button" className="journal-answer-toggle" aria-expanded={open.has(e.id)} onClick={() => toggle(e.id)}>
+                    {open.has(e.id) ? <ChevronUpIcon size={13} /> : <ChevronDownIcon size={13} />}
+                    {open.has(e.id) ? t.hideAnswer : t.showAnswer}
+                  </button>
+                  {open.has(e.id) && (
+                    <div className="journal-text">
+                      <Markdown text={e.text} />
+                    </div>
+                  )}
+                </>
+              ) : (
+                e.quote && (
+                  <blockquote className={`journal-quote${e.source === 'highlight' ? ' is-highlight' : ''}`}>
+                    {e.source === 'highlight' ? <mark>{e.quote}</mark> : e.quote}
+                  </blockquote>
+                )
               )}
             </li>
           ))}

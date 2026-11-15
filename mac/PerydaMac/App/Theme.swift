@@ -42,6 +42,12 @@ enum Theme {
         return adaptive(tone.light, tone.dark)
     }
 
+    /// The reader's own highlights ("Vurgula"): a yellow highlighter, multiplied into the page.
+    static let highlighter: NSColor = {
+        let h = SharedContract.tokens.highlighter
+        return hex(h.color).withAlphaComponent(h.alpha)
+    }()
+
     /// Highlights sit on paper-coloured pages in both themes, so they use the light tone.
     static func highlight(_ color: YarnColor) -> NSColor {
         let tone = SharedContract.tokens.tone(color)

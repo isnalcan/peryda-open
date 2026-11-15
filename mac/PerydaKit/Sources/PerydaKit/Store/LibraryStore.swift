@@ -16,8 +16,21 @@ public struct BookRecord: Codable, Hashable, Identifiable, Sendable {
     public var openedAt: Double
 }
 
+/// Where a highlight sits on a page: its line rectangles, normalized to the page (0…1).
+/// Same JSON as the web (`{ pageNumber, lineRects }`).
+public struct JournalMark: Codable, Hashable, Sendable {
+    public var pageNumber: Int
+    public var lineRects: [NormalizedRect]
+
+    public init(pageNumber: Int, lineRects: [NormalizedRect]) {
+        self.pageNumber = pageNumber
+        self.lineRects = lineRects
+    }
+}
+
 public struct JournalRecord: Codable, Hashable, Identifiable, Sendable {
-    public enum Source: String, Codable, Sendable { case clip, thread, note }
+    /// `highlight`: a passage the reader highlighted ("Vurgula"), drawn on its page in yellow.
+    public enum Source: String, Codable, Sendable { case clip, thread, note, highlight }
 
     public var id: String
     public var bookId: String
@@ -27,8 +40,10 @@ public struct JournalRecord: Codable, Hashable, Identifiable, Sendable {
     public var pageNumber: Int
     public var cardId: String?
     public var createdAt: Double
+    /// A highlight's place on its page(s); nil for every other entry.
+    public var marks: [JournalMark]?
 
-    public init(id: String = UUID().uuidString.lowercased(), bookId: String, source: Source, quote: String, text: String, pageNumber: Int, cardId: String? = nil, createdAt: Double = Date().timeIntervalSince1970 * 1000) {
+    public init(id: String = UUID().uuidString.lowercased(), bookId: String, source: Source, quote: String, text: String, pageNumber: Int, cardId: String? = nil, createdAt: Double = Date().timeIntervalSince1970 * 1000, marks: [JournalMark]? = nil) {
         self.id = id
         self.bookId = bookId
         self.source = source
@@ -37,6 +52,7 @@ public struct JournalRecord: Codable, Hashable, Identifiable, Sendable {
         self.pageNumber = pageNumber
         self.cardId = cardId
         self.createdAt = createdAt
+        self.marks = marks
     }
 }
 

@@ -10,12 +10,47 @@ struct JournalPanel: View {
     /// The entry waiting for "Delete": a journal entry (often the reader's own note) cannot be brought
     /// back, so it is not deleted on a single click (audit MA-9, 15 Nov).
     @State private var confirmDelete: String?
+    /// Entries whose answer is open (all closed when the journal opens).
+    @State private var expanded: Set<String> = []
 
     private var t: UIText { UIText(lang) }
 
     private func addNote() {
         reader.addNote(note)
         note = ""
+    }
+
+    static func sourceLabel(_ source: JournalRecord.Source, _ t: UIText) -> String {
+        switch source {
+        case .clip: t["sourceClip"]
+        case .thread: t["sourceThread"]
+        case .note: t["sourceNote"]
+        case .highlight: t["sourceHighlight"]
+        }
+    }
+
+    private func toggle(_ id: String) {
+        if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
+    }
+
+    /// The entry's passage: a highlight on the yellow of its highlighter, any other passage behind a bar.
+    @ViewBuilder
+    private func quote(_ entry: JournalRecord) -> some View {
+        if entry.source == .highlight {
+            Text(entry.quote)
+                .font(.reading(14))
+                .foregroundStyle(Color(nsColor: TranslatedPageView.ink))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 3).fill(Color(nsColor: Theme.highlighter)))
+                .background(RoundedRectangle(cornerRadius: 3).fill(Color.white))
+        } else {
+            Text(entry.quote)
+                .font(.reading(14))
+                .foregroundStyle(Color.inkSoft)
+                .padding(.leading, 10)
+                .overlay(alignment: .leading) { Rectangle().fill(Color.peryda).frame(width: 2) }
+        }
     }
 
     var body: some View {
@@ -74,7 +109,7 @@ struct JournalPanel: View {
                     ForEach(reader.journal) { entry in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 6) {
-                                Text(entry.source == .clip ? t["sourceClip"] : entry.source == .thread ? t["sourceThread"] : t["sourceNote"])
+                                Text(Self.sourceLabel(entry.source, t))
                                 if entry.pageNumber > 0 {
                                     // A click on the page goes there.
                                     Button("· " + Compose.pageLabel(lang, entry.pageNumber)) { reader.cameraCommand = .goToPage(entry.pageNumber) }
@@ -92,14 +127,27 @@ struct JournalPanel: View {
                             .font(.caption)
                             .foregroundStyle(Color.inkFaint)
                             if !entry.quote.isEmpty {
-                                Text(entry.quote)
-                                    .font(.reading(14))
-                                    .foregroundStyle(Color.inkSoft)
-                                    .padding(.leading, 10)
-                                    .overlay(alignment: .leading) { Rectangle().fill(Color.peryda).frame(width: 2) }
+                                // A click on a saved thread's passage opens or closes Pery's answer.
+                                quote(entry)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { if entry.source != .note, !entry.text.isEmpty { toggle(entry.id) } }
                             }
-                            if !entry.text.isEmpty {
+                            // A note is its text. A saved thread shows its passage; Pery's answer opens
+                            // on a click, so the journal stays a list of passages (owner test 15 Nov).
+                            if entry.source == .note, !entry.text.isEmpty {
                                 SelectableAnswer(text: entry.text)
+                            } else if !entry.text.isEmpty {
+                                let open = expanded.contains(entry.id)
+                                Button { toggle(entry.id) } label: {
+                                    Label(open ? t["hideAnswer"] : t["showAnswer"], systemImage: open ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundStyle(Color.inkFaint)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityIdentifier("journalAnswerToggle")
+                                if open {
+                                    SelectableAnswer(text: entry.text)
+                                }
                             }
                         }
                         .padding(.vertical, 6)

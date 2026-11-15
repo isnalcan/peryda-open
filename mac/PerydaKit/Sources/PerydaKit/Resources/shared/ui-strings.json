@@ -47,6 +47,12 @@
     "de": "Archivverbindung",
     "es": "Enlace de archivo"
   },
+  "areaQuote": {
+    "tr": "Sayfadan seçilen alan",
+    "en": "Area selected on the page",
+    "de": "Auf der Seite gewählter Bereich",
+    "es": "Área seleccionada en la página"
+  },
   "areaSelection": {
     "tr": "Seçilen bölge",
     "en": "Selected region",
@@ -413,11 +419,29 @@
     "de": "Ausblenden",
     "es": "Ocultar"
   },
+  "hideAnswer": {
+    "tr": "Yanıtı gizle",
+    "en": "Hide the answer",
+    "de": "Antwort ausblenden",
+    "es": "Ocultar la respuesta"
+  },
   "hideThreads": {
     "tr": "İlmekleri gizle",
     "en": "Hide threads",
     "de": "Fäden ausblenden",
     "es": "Ocultar hilos"
+  },
+  "highlight": {
+    "tr": "Vurgula",
+    "en": "Highlight",
+    "de": "Markieren",
+    "es": "Resaltar"
+  },
+  "highlighted": {
+    "tr": "Vurgulandı ve Kitap Günlüğü'ne eklendi",
+    "en": "Highlighted and added to the Book Journal",
+    "de": "Markiert und ins Buchjournal aufgenommen",
+    "es": "Resaltado y añadido al Diario del libro"
   },
   "importBackupFailed": {
     "tr": "Bu yedek dosyası okunamadı.",
@@ -923,6 +947,12 @@
     "de": "Zeigen",
     "es": "Mostrar"
   },
+  "showAnswer": {
+    "tr": "Pery'nin yanıtını göster",
+    "en": "Show Pery's answer",
+    "de": "Perys Antwort zeigen",
+    "es": "Mostrar la respuesta de Pery"
+  },
   "showAnswers": {
     "tr": "Yanıtları göster",
     "en": "Show answers",
@@ -940,6 +970,12 @@
     "en": "Clipped passage",
     "de": "Übernommene Stelle",
     "es": "Fragmento recortado"
+  },
+  "sourceHighlight": {
+    "tr": "Vurgu",
+    "en": "Highlight",
+    "de": "Markierung",
+    "es": "Resaltado"
   },
   "sourceNote": {
     "tr": "Not",

@@ -82,7 +82,8 @@ final class JournalTests: XCTestCase {
     func testJournalTextWrapsToThePanelsWidth() async throws {
         let (store, reader) = try makeReader()
         let long = "Metindeki somut örnekler, gelişim psikolojisinin temel taşlarını oluşturan klasik deney ve kuramsal yaklaşımların doğrudan birer yansımasıdır:\n\n- **Zihin Kuramı ve Yanlış İnanç Görevi (Alison Gopnik & Andrew Meltzoff):** Boya kalemi kutusundan mum çıkması örneği, gelişim psikolojisinde Smarties/Boya Kalemi Görevi (False-Belief Task) olarak bilinir.\n\nDüğmelerin aralığı açıldığında sayısının arttığının iddia edilmesi, Piaget'nin klasik Korunum Görevlerine (Conservation Tasks) dayanır."
-        try store.addJournal(JournalRecord(bookId: reader.book.id, source: .thread, quote: "Gelişim kuramcıları bunun gibi gözlemlerinden anlam çıkarmaya çalışırlar.", text: long, pageNumber: 1))
+        // A note: its text is always open (a thread's answer now opens on a click; the text view is the same).
+        try store.addJournal(JournalRecord(bookId: reader.book.id, source: .note, quote: "Gelişim kuramcıları bunun gibi gözlemlerinden anlam çıkarmaya çalışırlar.", text: long, pageNumber: 1))
         reader.reloadJournal()
         let window = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 320, height: 900), styleMask: [.borderless], backing: .buffered, defer: false)
         let host = NSHostingView(rootView: JournalPanel(reader: reader, lang: .tr, openSettings: {}))

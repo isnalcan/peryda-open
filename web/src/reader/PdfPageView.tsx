@@ -10,6 +10,8 @@ export interface PageHighlight {
   color: YarnColor
   area: boolean
   rects: NormalizedRect[]
+  /** The reader's own yellow highlight ("Vurgula"): drawn like a highlighter, not clickable, text under it stays selectable. */
+  highlighter?: boolean
 }
 
 export interface PageKnot {
@@ -167,9 +169,13 @@ function PdfPageViewImpl(props: Props) {
           h.area ? (
             <div key={h.key} className="highlight-area" data-yarn={h.color} style={pct(h.rects[0]!)} onClick={() => props.onHighlightClick(h.cardId)} />
           ) : (
-            h.rects.map((r, i) => (
-              <div key={`${h.key}-${i}`} className="highlight-line" data-yarn={h.color} style={pct(r)} onClick={() => props.onHighlightClick(h.cardId)} />
-            ))
+            h.rects.map((r, i) =>
+              h.highlighter ? (
+                <div key={`${h.key}-${i}`} className="highlight-line is-highlighter" style={pct(r)} />
+              ) : (
+                <div key={`${h.key}-${i}`} className="highlight-line" data-yarn={h.color} style={pct(r)} onClick={() => props.onHighlightClick(h.cardId)} />
+              ),
+            )
           ),
         )}
       </div>

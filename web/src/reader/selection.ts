@@ -98,3 +98,46 @@ export function selectionScreenRect(selection: Selection) {
     bottom: Math.max(...rects.map((r) => r.bottom)),
   }
 }
+
+/** A letter or digit, or an apostrophe or hyphen inside a word. */
+const WORD_CHAR = /[\p{L}\p{N}\p{M}'’\-]/u
+
+/**
+ * The range widened to whole words at both ends, so a highlight never starts or ends mid-word
+ * (owner test 15 Nov: "r. Bu çaba … bırakm"). pdf.js often splits one word over several spans
+ * ("YAVA" + "Ş"), so the text nodes under `root` are read in order as one stream. A range that already
+ * starts and ends on word boundaries comes back unchanged.
+ */
+export function expandToWords(range: Range, root: Node = range.commonAncestorContainer): Range {
+  const out = range.cloneRange()
+  const isWord = (c: string | undefined) => c !== undefined && WORD_CHAR.test(c)
+  const nodes: Text[] = []
+  const walker = document.createTreeWalker(root.nodeType === Node.TEXT_NODE ? root.parentNode ?? root : root, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n as Text)
+  /** The character just before / at a position, across node boundaries. */
+  const charBefore = (k: number, offset: number): [number, number] | null => {
+    for (let i = k, o = offset; i >= 0; i--, o = nodes[i]?.length ?? 0) if (o > 0) return [i, o - 1]
+    return null
+  }
+  const charAt = (k: number, offset: number): [number, number] | null => {
+    for (let i = k, o = offset; i < nodes.length; i++, o = 0) if (o < nodes[i]!.length) return [i, o]
+    return null
+  }
+  const ch = (p: [number, number] | null) => (p ? nodes[p[0]]!.data[p[1]] : undefined)
+
+  const si = nodes.indexOf(out.startContainer as Text)
+  if (si >= 0 && isWord(ch(charAt(si, out.startOffset))) && isWord(ch(charBefore(si, out.startOffset)))) {
+    let k = si
+    let o = out.startOffset
+    for (let p = charBefore(k, o); p && isWord(ch(p)); p = charBefore(k, o)) [k, o] = p
+    out.setStart(nodes[k]!, o)
+  }
+  const ei = nodes.indexOf(out.endContainer as Text)
+  if (ei >= 0 && isWord(ch(charBefore(ei, out.endOffset))) && isWord(ch(charAt(ei, out.endOffset)))) {
+    let k = ei
+    let o = out.endOffset
+    for (let p = charAt(k, o); p && isWord(ch(p)); p = charAt(k, o)) [k, o] = [p[0], p[1] + 1]
+    out.setEnd(nodes[k]!, o)
+  }
+  return out
+}

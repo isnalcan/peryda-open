@@ -15,7 +15,7 @@ import type { NormalizedRect, PageBox, PdfYarnAnchor, Point, YarnCard, YarnColor
 import { centredContentWidth, clipsFor, contentRect, isShown, pageBand, placeCards, worldRect, yarnSegments, type WorldInput } from '../ilmek/worldLayout'
 import { PdfPageView, type PageHighlight, type PageKnot, type Tool } from './PdfPageView'
 import { ReaderTopBar } from './ReaderTopBar'
-import { anchorsFromSelection, normalizeText, selectionScreenRect, type PageElement } from './selection'
+import { anchorsFromSelection, expandToWords, normalizeText, selectionScreenRect, type PageElement } from './selection'
 import { constrainToBand, useCamera, type Camera } from './useCamera'
 import { EyeIcon, EyeOffIcon, LinkIcon } from '../ui/icons'
 import { JournalPanel } from '../journal/JournalPanel'
@@ -27,6 +27,7 @@ import { TranslatedPageView } from './TranslatedPageView'
 import { RANGE_LIMIT, isUnfinishedTranslation } from '../ilmek/cardsStore'
 import { PageTextCache, pageSource, renderPageJpeg, translationPicture } from './pageText'
 import { PageReadingsStore } from '../reading/pageReadings'
+import { brushCaretAt, lastLineRight } from './brush'
 import { useFakeAi } from '../ai/fake'
 import { cardText } from './useThreadSelection'
 import yarnKinds from '@shared/yarn-kinds.json'
@@ -141,17 +142,6 @@ function snapToWords(range: Range): void {
     while (j < text.length && WORD_CHAR.test(text[j]!)) j += 1
     range.setEnd(ec, j)
   }
-}
-
-function caretAt(x: number, y: number): { node: Node; offset: number } | null {
-  const d = document as Document & {
-    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
-    caretRangeFromPoint?: (x: number, y: number) => Range | null
-  }
-  const p = d.caretPositionFromPoint?.(x, y)
-  if (p) return { node: p.offsetNode, offset: p.offset }
-  const r = d.caretRangeFromPoint?.(x, y)
-  return r ? { node: r.startContainer, offset: r.startOffset } : null
 }
 
 function prefersReducedMotion(): boolean {
@@ -325,12 +315,20 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         if (first) add(knots, first.pageNumber, { cardId: card.id, color: card.color, label, rect: first.boundingRect })
       }
     }
+    // The reader's own highlights first, under the threads' marks.
+    for (const entry of actions.highlightMarks) {
+      for (const [i, m] of (entry.marks ?? []).entries()) {
+        const list = highlights.get(m.pageNumber) ?? []
+        list.unshift({ key: `hl-${entry.id}-${i}`, cardId: '', color: 'amber', area: false, rects: m.lineRects, highlighter: true })
+        highlights.set(m.pageNumber, list)
+      }
+    }
     for (const a of [...(pending?.anchors ?? []), ...(bridgeHeld ?? [])]) {
       if (a.sourceType === 'card' || !a.lineRects.length) continue
       add(highlights, a.pageNumber, { key: `pending-${a.id}`, cardId: '', color: 'mint', area: a.sourceType === 'pdf_area', rects: a.lineRects })
     }
     return { highlightsByPage: highlights, knotsByPage: knots }
-  }, [cards, pending, bridgeHeld, lang])
+  }, [cards, pending, bridgeHeld, lang, actions.highlightMarks])
 
   // In page-by-page reading the view keeps to the current page and its threads.
   const bandFor = useCallback(
@@ -653,10 +651,12 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const onViewportPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement
     if (!target.closest('.selection-menu')) setPending((p) => (p ? null : p))
-    if (tool === 'brush' && e.button === 0 && target.closest('.pdf-page .textLayer')) {
-      const caret = caretAt(e.clientX, e.clientY)
-      if (caret && caret.node.nodeType === Node.TEXT_NODE) {
-        e.preventDefault()
+    const brushLayer = tool === 'brush' && e.button === 0 ? target.closest('.pdf-page .textLayer') : null
+    if (brushLayer) {
+      // With the brush, the page never falls back to the browser's own text selection.
+      e.preventDefault()
+      const caret = brushCaretAt(e.clientX, e.clientY, brushLayer, true)
+      if (caret) {
         try {
           e.currentTarget.setPointerCapture(e.pointerId)
         } catch {
@@ -687,10 +687,10 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         return
       }
       // Paint only while the pointer is over text of the same page; pulling far enough right makes a thread.
-      const caret = caretAt(e.clientX, e.clientY)
       const selection = window.getSelection()
       const layer = (brush.startNode.parentElement ?? null)?.closest('.textLayer')
-      if (caret && selection && caret.node.nodeType === Node.TEXT_NODE && layer?.contains(caret.node)) {
+      const caret = layer ? brushCaretAt(e.clientX, e.clientY, layer) : null
+      if (caret && selection) {
         const range = document.createRange()
         range.setStart(brush.startNode, brush.startOffset)
         range.setEnd(brush.startNode, brush.startOffset)
@@ -704,9 +704,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       const painted = brushRange.current
       if (painted && !painted.collapsed) {
         const rects = [...painted.getClientRects()].filter((r) => r.width > 0)
-        const right = Math.max(...rects.map((r) => r.right))
+        const right = lastLineRight(rects)
         const last = rects.reduce((a, r) => (r.bottom > a.bottom ? r : a), rects[0]!)
-        if (e.clientX - right >= GEOMETRY.brushPullThreshold) {
+        if (right !== null && e.clientX - right >= GEOMETRY.brushPullThreshold) {
           selection?.removeAllRanges()
           selection?.addRange(painted)
           setBrush({ ...brush, frozen: true, from: toWorld(right, last.top + last.height / 2), pointer })
@@ -856,6 +856,24 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     const anchors = pending.anchors
     finish()
     await actions.clip(anchors)
+  }
+
+  const onHighlight = async () => {
+    if (!pending) return
+    // A highlight covers whole words: the live selection is widened to word boundaries first.
+    let anchors = pending.anchors
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      const range = selection.getRangeAt(0)
+      const layer = pageList().find((pg) => pg.textLayer?.contains(range.startContainer))?.textLayer
+      const widened = expandToWords(range, layer ?? range.commonAncestorContainer)
+      selection.removeAllRanges()
+      selection.addRange(widened)
+      const whole = anchorsFromSelection(selection, pageList(), book.id)
+      if (whole.length) anchors = whole
+    }
+    finish()
+    await actions.highlight(anchors)
   }
 
   // ---- Card callbacks (stable, so cards re-render only when their own data changes) ----
@@ -1067,6 +1085,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                       onTranslateNow={store.translateNow}
                       onRemove={remove}
                       onOpenSettings={onOpenSettings}
+                      textScale={actions.translationTextScale}
+                      onTextScale={actions.stepTranslationText}
                     />
                   </div>
                 )
@@ -1134,6 +1154,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                 finish()
               }}
               onClip={() => void onClip()}
+              // A highlight is for text on the PDF page only (not a page area, nor text in a card or translation).
+              canHighlight={!pending.parentCardId && pending.anchors.every((a) => a.sourceType === 'pdf_text')}
+              onHighlight={() => void onHighlight()}
               onTranslate={() => createFromPending('sky', 'translate')}
               onClose={finish}
             />

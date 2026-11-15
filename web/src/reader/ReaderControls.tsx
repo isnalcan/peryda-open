@@ -191,7 +191,8 @@ export function TranslateMenu(props: {
             </button>
           ))}
           <hr />
-          <button type="button" role="menuitemcheckbox" aria-checked={props.explainTerms} onClick={pick(() => props.onExplainTerms(!props.explainTerms))}>
+          {/* A setting, not an action: the menu stays open so the reader sees it change (owner test 15 Nov). */}
+          <button type="button" role="menuitemcheckbox" aria-checked={props.explainTerms} onClick={() => props.onExplainTerms(!props.explainTerms)}>
             <span className="menu-check">{props.explainTerms && <CheckIcon size={14} />}</span>
             {t.explainTerms}
           </button>

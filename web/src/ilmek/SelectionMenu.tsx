@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import yarnKinds from '@shared/yarn-kinds.json'
 import { useI18n } from '../i18n/I18n'
-import { ClipIcon, LinkIcon, NoteIcon, SendIcon, TranslateIcon } from '../ui/icons'
+import { ClipIcon, HighlighterIcon, LinkIcon, NoteIcon, SendIcon, TranslateIcon } from '../ui/icons'
 import type { YarnColor } from './types'
 
 export interface ScreenRect {
@@ -22,6 +22,9 @@ interface Props {
   onBridge: () => void
   onBridgeCompare: () => void
   onClip: () => void
+  /** "Vurgula", between "Özete kırp" and "Notum": offered for text on a PDF page only. */
+  canHighlight?: boolean
+  onHighlight?: () => void
   onTranslate: () => void
   canBridge?: boolean
   onClose: () => void
@@ -112,6 +115,11 @@ export function SelectionMenu(props: Props) {
         {props.canClip && (
           <button type="button" className="menu-tool" title={t.clip} aria-label={t.clip} onClick={props.onClip}>
             <ClipIcon size={17} />
+          </button>
+        )}
+        {props.canHighlight && props.onHighlight && (
+          <button type="button" className="menu-tool menu-highlight" title={t.highlight} aria-label={t.highlight} onClick={props.onHighlight}>
+            <HighlighterIcon size={17} />
           </button>
         )}
         <button

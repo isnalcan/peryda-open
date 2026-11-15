@@ -108,9 +108,30 @@ final class ReaderModel {
     var canGrowCardText: Bool { cardTextScale < Self.cardTextScales.last! - 0.001 }
 
     private static func savedCardTextScale(_ bookId: String) -> Double {
-        let saved = SafeID.defaultsKey("cardTextScale", bookId).map { UserDefaults.standard.double(forKey: $0) } ?? 0
+        savedScale("cardTextScale", bookId)
+    }
+
+    /// A per-book text size kept under `prefix`, or ×1 when none (or an unknown value) is saved.
+    private static func savedScale(_ prefix: String, _ bookId: String) -> Double {
+        let saved = SafeID.defaultsKey(prefix, bookId).map { UserDefaults.standard.double(forKey: $0) } ?? 0
         return cardTextScales.contains(saved) ? saved : 1
     }
+
+    /// The size of the text on this book's translated pages, on top of the size that fits the page
+    /// (owner test 15 Nov). Larger than fits, the translation scrolls inside its page. Kept per book.
+    var translationTextScale: Double = 1 {
+        didSet { if let key = SafeID.defaultsKey("translationTextScale", book.id) { UserDefaults.standard.set(translationTextScale, forKey: key) } }
+    }
+
+    /// One step smaller (−1) or larger (+1) text on every translated page of this book.
+    func stepTranslationText(_ delta: Int) {
+        let steps = Self.cardTextScales
+        let here = steps.indices.min { abs(steps[$0] - translationTextScale) < abs(steps[$1] - translationTextScale) } ?? 1
+        translationTextScale = steps[min(max(here + delta, 0), steps.count - 1)]
+    }
+
+    var canShrinkTranslationText: Bool { translationTextScale > Self.cardTextScales.first! + 0.001 }
+    var canGrowTranslationText: Bool { translationTextScale < Self.cardTextScales.last! - 0.001 }
 
     /// Pages read with Pery in "Extract page text" (PDFs only).
     private(set) var readings: PageReadings?
@@ -168,6 +189,7 @@ final class ReaderModel {
         self.translationTarget = Lang(rawValue: saved ?? "") ?? lang
         self.cards.pageCount = doc.pageCount
         self.cardTextScale = Self.savedCardTextScale(book.id)
+        self.translationTextScale = Self.savedScale("translationTextScale", book.id)
         self.readings = PageReadings(bookId: book.id, bookTitle: book.title, pageCount: doc.pageCount, settings: settings, store: store, streamer: streamer, batcher: batcher) { [weak self] page in
             self?.pagePicture(page)
         }
@@ -194,6 +216,7 @@ final class ReaderModel {
         self.streamer = streamer
         self.translationTarget = lang
         self.cardTextScale = Self.savedCardTextScale(book.id)
+        self.translationTextScale = Self.savedScale("translationTextScale", book.id)
         store.markOpened(book.id)
         reloadJournal()
         loadSummary()
@@ -700,16 +723,82 @@ final class ReaderModel {
 
     func clip(lang: Lang) {
         guard let pending else { return }
-        let quote = pending.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
-        try? store.addJournal(JournalRecord(bookId: book.id, source: .clip, quote: quote, text: "", pageNumber: pending.anchors.first?.pageNumber ?? 0))
+        try? store.addJournal(JournalRecord(bookId: book.id, source: .clip, quote: journalQuote(pending.anchors, lang: lang), text: "", pageNumber: pending.anchors.first?.pageNumber ?? 0))
         self.pending = nil
         reloadJournal()
         flash(UIText(lang)["clipped"])
     }
 
+    /// A passage as the journal shows it. A region of the page is named, not quoted: the text read from
+    /// its picture is often garbled ("Hfe", "4oward"), and the card already shows the picture itself
+    /// (owner test 15 Nov).
+    func journalQuote(_ anchors: [YarnAnchor], lang: Lang) -> String {
+        if anchors.contains(where: { $0.sourceType == .pdfArea }) { return UIText(lang)["areaQuote"] }
+        return anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
+    }
+
+    /// "Highlight" (Vurgula) is offered for text selected on a PDF page, not for a region, text inside a
+    /// card or translation, or an EPUB.
+    var canHighlight: Bool {
+        guard epub == nil, let pending, pending.parentCardId == nil, !pending.anchors.isEmpty else { return false }
+        return pending.anchors.allSatisfy { $0.sourceType == .pdfText }
+    }
+
+    /// "Highlight" (Vurgula): the selected passage is marked in yellow on its page and goes into the Book
+    /// Journal as a highlight; deleting that entry takes the mark away (owner test 15 Nov).
+    func highlight(lang: Lang) {
+        guard canHighlight, let pending else { return }
+        let anchors = wholeWords(pending.anchors)
+        let marks = anchors.map { JournalMark(pageNumber: $0.pageNumber, lineRects: $0.lineRects) }
+        let quote = anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
+        try? store.addJournal(JournalRecord(bookId: book.id, source: .highlight, quote: quote, text: "", pageNumber: pending.anchors.first?.pageNumber ?? 0, marks: marks))
+        self.pending = nil
+        reloadJournal()
+        flash(UIText(lang)["highlighted"])
+    }
+
+    /// A highlight covers whole words: a selection that starts or ends inside a word is widened to the
+    /// word's edges, as the brush does (owner test 15 Nov: "r. Bu çaba … bırakm"). Each page's passage is
+    /// rebuilt from the PDF: its first and last character are joined with their whole words.
+    func wholeWords(_ anchors: [YarnAnchor]) -> [YarnAnchor] {
+        guard let document else { return anchors }
+        return anchors.map { anchor in
+            guard anchor.sourceType == .pdfText, let first = anchor.lineRects.first, let last = anchor.lineRects.last,
+                  anchor.pageNumber >= 1, let page = document.page(at: anchor.pageNumber - 1) else { return anchor }
+            let geometry = PageGeometry(page: page)
+            let a = geometry.pageRect(fromNormalized: first), b = geometry.pageRect(fromNormalized: last)
+            // The line rectangles are a point wider than the text on each side: step inside them.
+            let start = CGPoint(x: a.minX + min(2, a.width / 2), y: a.midY)
+            let end = CGPoint(x: b.maxX - min(2, b.width / 2), y: b.midY)
+            guard let selection = page.selection(from: start, to: end) else { return anchor }
+            if let word = page.selectionForWord(at: start) { selection.add(word) }
+            if let word = page.selectionForWord(at: end) { selection.add(word) }
+            let lines = selection.selectionsByLine()
+            let rects = lines.map { geometry.normalized(fromPage: $0.bounds(for: page).insetBy(dx: -1, dy: -1)) }
+                .filter { $0.width > 0 && $0.height > 0 && $0.height < 0.25 }
+            let pieces = lines.map { SelectionText.Piece(text: $0.string ?? "", bounds: $0.bounds(for: page)) }
+            let text = SelectionText.join(pieces, inLine: .space, lineBreak: " ")
+                .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !rects.isEmpty, !text.isEmpty else { return anchor }
+            var widened = anchor
+            widened.lineRects = rects
+            widened.selectedText = text
+            widened.boundingRect = Geometry.union(rects)
+            return widened
+        }
+    }
+
+    /// The reader's own highlights on a page: one list of line rectangles per highlight.
+    func highlighterMarks(onPage page: Int) -> [[NormalizedRect]] {
+        journal.filter { $0.source == .highlight }.flatMap { entry in
+            (entry.marks ?? []).filter { $0.pageNumber == page }.map(\.lineRects)
+        }
+    }
+
     /// What a card puts in the journal: its passage and its conversation (or note).
     private func journalContent(_ card: YarnCard) -> (quote: String, text: String) {
-        let quote = card.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
+        let quote = journalQuote(card.anchors, lang: cards.lang)
         let usable = card.messages.filter { $0.state != .error && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         let text = card.kind == .quick(.cream)
             ? usable.map(\.content).joined(separator: "\n\n")
@@ -725,7 +814,9 @@ final class ReaderModel {
     func journalState(_ cardId: String) -> JournalState {
         guard let card = cards.cards.first(where: { $0.id == cardId }), let entry = journal.first(where: { $0.cardId == cardId }) else { return .notSaved }
         let now = journalContent(card)
-        return entry.text == now.text && entry.quote == now.quote ? .saved : .outdated
+        // A region's quote is a name in the app's language: only its conversation decides.
+        let area = card.anchors.contains { $0.sourceType == .pdfArea }
+        return entry.text == now.text && (area || entry.quote == now.quote) ? .saved : .outdated
     }
 
     /// A card goes into the journal once (owner test 14 Nov: it could be saved again and again). Saved

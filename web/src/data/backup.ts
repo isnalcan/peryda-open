@@ -119,7 +119,8 @@ export async function importBackup(file: Blob): Promise<{ books: number }> {
     }
   }
   const cards = rawCards.map(validCard).filter((c): c is YarnCard => c !== null)
-  const journal = rawJournal.map(validJournal).filter((j): j is JournalRecord => j !== null)
+  const pageCounts = new Map(books.map((b) => [b.record.id, b.record.pageCount]))
+  const journal = rawJournal.map((j) => validJournal(j, pageCounts)).filter((j): j is JournalRecord => j !== null)
   const positions = list(m.positions).map(validPosition).filter((p): p is ReadingPosition => p !== null)
   const rawPrefs = list(m.prefs)
 

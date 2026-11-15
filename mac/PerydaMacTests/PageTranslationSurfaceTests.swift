@@ -379,6 +379,42 @@ final class PageTranslationSurfaceTests: XCTestCase {
         }
         let place = try XCTUnwrap(reader.placements[id])
         let host = try XCTUnwrap(world.documentView.subviews.first { $0 is ZoomedHostingView<AnyView> && abs($0.frame.minX - place.x) < 1 })
+
+        // A− and A+ sit left of Retranslate and size the translation's text (owner test 15 Nov).
+        func fitting() -> FittingTextView? {
+            func walk(_ v: NSView) -> FittingTextView? { (v as? FittingTextView) ?? v.subviews.lazy.compactMap(walk).first }
+            return walk(host)
+        }
+        reader.translationTextScale = 1
+        await settle()
+        let fitted = try XCTUnwrap(fitting()).shownSize
+        for m in [0.74, 1.0] {
+            world.scrollView.magnification = m
+            world.scrollView.contentView.scroll(to: CGPoint(x: place.x - 100, y: place.y - 40))
+            world.scrollView.reflectScrolledClipView(world.scrollView.contentView)
+            await settle()
+            let larger = world.documentView.convert(CGPoint(x: host.frame.maxX - 44 - 11 - 2 * (22 + 8), y: host.frame.minY + 20 + 11), to: nil)
+            let before = reader.translationTextScale
+            await click(larger)
+            XCTAssertGreaterThan(reader.translationTextScale, before, "A+ at \(Int(m * 100))%")
+        }
+        await settle()
+        host.layoutSubtreeIfNeeded()
+        let grown = try XCTUnwrap(fitting())
+        grown.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(grown.shownSize, fitted, "the text grows past the size that fits")
+        try await snapshot("peryda-mac-translation-larger.png")
+        world.scrollView.magnification = 1
+        world.scrollView.contentView.scroll(to: CGPoint(x: place.x - 100, y: place.y - 40))
+        world.scrollView.reflectScrolledClipView(world.scrollView.contentView)
+        await settle()
+        let smaller = world.documentView.convert(CGPoint(x: host.frame.maxX - 44 - 11 - 3 * (22 + 8), y: host.frame.minY + 20 + 11), to: nil)
+        await click(smaller)
+        XCTAssertEqual(reader.translationTextScale, 1.15, accuracy: 0.001, "A− takes one step back")
+        XCTAssertEqual(UserDefaults.standard.double(forKey: "translationTextScale:\(reader.book.id)"), 1.15, accuracy: 0.001, "kept per book")
+        reader.translationTextScale = 1
+        await settle()
+
         await click(world.documentView.convert(CGPoint(x: host.frame.maxX - 44 - 11, y: host.frame.minY + 20 + 11), to: nil))
         XCTAssertNil(reader.translation(of: 1), "Close removes the translation")
     }

@@ -10,9 +10,20 @@ interface Options {
   t: Strings
 }
 
-/** What a card puts in the journal: its passage and its conversation (or note). */
-export function journalContent(card: YarnCard): { quote: string; text: string } {
-  const quote = card.anchors.map((a) => a.selectedText).filter(Boolean).join(' … ')
+/** A region of a page sent as a picture: its own text (read from a scan) is not shown. */
+export function isPictureArea(anchor: PdfYarnAnchor): boolean {
+  return anchor.sourceType === 'pdf_area' && !!anchor.croppedImage
+}
+
+/**
+ * What a card puts in the journal: its passage and its conversation (or note). A page area is named by
+ * `areaQuote` ("Area selected on the page") instead of the text read from its picture (owner test 15 Nov).
+ */
+export function journalContent(card: YarnCard, areaQuote = ''): { quote: string; text: string } {
+  const quote = card.anchors
+    .map((a) => (isPictureArea(a) ? areaQuote : a.selectedText))
+    .filter(Boolean)
+    .join(' … ')
   const usable = card.messages.filter((m) => m.state !== 'error' && m.content.trim())
   const text =
     card.kind === 'cream'
@@ -27,10 +38,10 @@ export function journalContent(card: YarnCard): { quote: string; text: string } 
 export type JournalState = 'notSaved' | 'saved' | 'outdated'
 
 /** Whether a card is in the journal, and if so whether its conversation went on since. */
-export function journalState(card: YarnCard, entries: readonly JournalRecord[]): JournalState {
+export function journalState(card: YarnCard, entries: readonly JournalRecord[], areaQuote = ''): JournalState {
   const entry = entries.find((e) => e.cardId === card.id)
   if (!entry) return 'notSaved'
-  const now = journalContent(card)
+  const now = journalContent(card, areaQuote)
   return entry.text === now.text && entry.quote === now.quote ? 'saved' : 'outdated'
 }
 
@@ -65,9 +76,25 @@ export function useThreadActions({ bookId, cards, t }: Options) {
     [bookId, showToast, t.clipped],
   )
 
+  /**
+   * "Vurgula": the passage is highlighted on its page in yellow and goes into the journal as a
+   * highlight; deleting that entry removes the highlight (owner test 15 Nov). PDF text only.
+   */
+  const highlight = useCallback(
+    async (anchors: readonly PdfYarnAnchor[]) => {
+      const text = anchors.filter((a) => a.sourceType === 'pdf_text' && a.lineRects.length)
+      if (!text.length) return
+      const quote = text.map((a) => a.selectedText).filter(Boolean).join(' … ')
+      const marks = text.map((a) => ({ pageNumber: a.pageNumber, lineRects: a.lineRects.map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height })) }))
+      await db.journal.put({ id: newId(), bookId, source: 'highlight', quote, text: '', pageNumber: text[0]!.pageNumber, marks, createdAt: Date.now() })
+      showToast(t.highlighted)
+    },
+    [bookId, showToast, t.highlighted],
+  )
+
   // The book's journal entries, to show which cards are in it.
   const entries = useLiveQuery(() => db.journal.where('bookId').equals(bookId).toArray(), [bookId], NO_ENTRIES)
-  const journalStates = useMemo(() => new Map(cards.map((c) => [c.id, journalState(c, entries)])), [cards, entries])
+  const journalStates = useMemo(() => new Map(cards.map((c) => [c.id, journalState(c, entries, t.areaQuote)])), [cards, entries, t.areaQuote])
 
   // Read through refs so the callback stays the same while answers stream in.
   const cardsRef = useRef(cards)
@@ -82,7 +109,7 @@ export function useThreadActions({ bookId, cards, t }: Options) {
     (cardId: string) => {
       const card = cardsRef.current.find((c) => c.id === cardId)
       if (!card) return
-      const { quote, text } = journalContent(card)
+      const { quote, text } = journalContent(card, t.areaQuote)
       const entry = entriesRef.current.find((e) => e.cardId === cardId)
       if (entry) {
         if (entry.text === text && entry.quote === quote) return
@@ -94,7 +121,7 @@ export function useThreadActions({ bookId, cards, t }: Options) {
         .put({ id: newId(), bookId, source: card.kind === 'cream' ? 'note' : 'thread', quote, text, pageNumber, cardId, createdAt: Date.now() })
         .then(() => showToast(t.savedToJournal))
     },
-    [bookId, showToast, t.savedToJournal, t.journalUpdated],
+    [bookId, showToast, t.savedToJournal, t.journalUpdated, t.areaQuote],
   )
 
   // The size of the text in this book's cards, kept per book: some PDFs leave the cards small beside
@@ -120,5 +147,31 @@ export function useThreadActions({ bookId, cards, t }: Options) {
     [bookId],
   )
 
-  return { toast, showToast, clip, saveToJournal, journalStates, cardTextScale, stepCardText }
+  // The size of translated pages' text (×1 is the size the page fits to), kept per book like the cards'
+  // (owner test 15 Nov).
+  const [translationTextScale, setTranslationTextScale] = useState(1)
+  useEffect(() => {
+    let live = true
+    void getPref<number>(`translationTextScale:${bookId}`, 1).then((s) => {
+      if (live) setTranslationTextScale(CARD_TEXT_SCALES.includes(s) ? s : 1)
+    })
+    return () => {
+      live = false
+    }
+  }, [bookId])
+  const stepTranslationText = useCallback(
+    (delta: number) => {
+      setTranslationTextScale((s) => {
+        const next = stepScale(s, delta)
+        void setPref(`translationTextScale:${bookId}`, next)
+        return next
+      })
+    },
+    [bookId],
+  )
+
+  // The reader's highlights, to draw on their pages.
+  const highlightMarks = useMemo(() => entries.filter((e) => e.source === 'highlight' && e.marks?.length), [entries])
+
+  return { toast, showToast, clip, highlight, highlightMarks, saveToJournal, journalStates, cardTextScale, stepCardText, translationTextScale, stepTranslationText }
 }

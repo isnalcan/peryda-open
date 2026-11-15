@@ -7,7 +7,7 @@ import type { Strings } from '../i18n/strings'
 import { CARD_HEIGHT_RANGE, CARD_WIDTH_RANGE } from './cardsStore'
 import { GEOMETRY } from './geometry'
 import type { YarnCard } from './types'
-import { CARD_TEXT_SCALES, type JournalState } from './useThreadActions'
+import { CARD_TEXT_SCALES, isPictureArea, type JournalState } from './useThreadActions'
 
 interface Props {
   /** 'world' cards float on the reading surface; 'column' cards sit in a list beside an EPUB. */
@@ -174,7 +174,10 @@ function YarnCardViewImpl(props: Props) {
   }
 
   const image = card.anchors.find((a) => a.croppedImage)?.croppedImage
+  // A page area shows its picture only: the text read from a scan is often garbled, and the picture
+  // already says what was chosen (owner test 15 Nov).
   const quote = card.anchors
+    .filter((a) => !isPictureArea(a))
     .map((a) => a.selectedText.trim())
     .filter(Boolean)
     .join(' · ')

@@ -165,7 +165,7 @@ public enum Backup {
             // recheck MR-6); a book deleted earlier in this run saves normally again (MR-1).
             let data = LibraryStore.RestoredData(
                 cards: checked.cards.filter { $0.bookId == book.id }.map(clamped),
-                journal: checked.journal.filter { $0.bookId == book.id }.map(clamped),
+                journal: checked.journal.filter { $0.bookId == book.id }.map { clamped($0, pageCount: book.pageCount) },
                 position: checked.positions.first(where: { $0.bookId == book.id }).map(clamped),
                 readings: readings(from: manifest.prefs, bookId: book.id)
             )
@@ -385,11 +385,36 @@ public enum Backup {
         return c
     }
 
-    static func clamped(_ record: JournalRecord) -> JournalRecord {
+    /// Highlights on one entry, and line rectangles in one of them, a restore keeps at most.
+    static let maxMarks = 50
+    static let maxMarkRects = 200
+
+    /// A journal entry as restored. A highlight's marks are kept only where they make sense (a page of
+    /// the book, rectangles inside the page, within the counts above); other entries carry none.
+    /// Same rules as the web's backupValidate.
+    static func clamped(_ record: JournalRecord, pageCount: Int = 100_000) -> JournalRecord {
         var r = record
         r.pageNumber = min(max(r.pageNumber, 0), 100_000)
         r.createdAt = finite(r.createdAt, 1e15)
+        guard r.source == .highlight, let marks = r.marks else {
+            r.marks = nil
+            return r
+        }
+        let pages = pageCount > 0 ? pageCount : 100_000
+        let kept = marks.prefix(maxMarks).compactMap { mark -> JournalMark? in
+            guard mark.pageNumber >= 1, mark.pageNumber <= pages else { return nil }
+            let rects = mark.lineRects.prefix(maxMarkRects).filter(insidePage)
+            return rects.isEmpty ? nil : JournalMark(pageNumber: mark.pageNumber, lineRects: Array(rects))
+        }
+        r.marks = kept.isEmpty ? nil : Array(kept)
         return r
+    }
+
+    /// A rectangle with finite values that lies on the page (0…1, with a hair of tolerance).
+    static func insidePage(_ rect: NormalizedRect) -> Bool {
+        let values = [rect.x, rect.y, rect.width, rect.height]
+        guard values.allSatisfy(\.isFinite) else { return false }
+        return rect.x >= 0 && rect.y >= 0 && rect.width > 0 && rect.height > 0 && rect.x + rect.width <= 1.001 && rect.y + rect.height <= 1.001
     }
 
     static func clamped(_ position: ReadingPosition) -> ReadingPosition {

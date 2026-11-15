@@ -175,9 +175,11 @@ final class WorldView: NSView {
         for (number, view) in pageViews {
             let highlights = model.highlights(onPage: number)
             let knots = model.knots(onPage: number, lang: lang)
-            if view.highlights != highlights || view.knots != knots {
+            let marks = model.highlighterMarks(onPage: number)
+            if view.highlights != highlights || view.knots != knots || view.marks != marks {
                 view.highlights = highlights
                 view.knots = knots
+                view.marks = marks
                 view.needsDisplay = true
                 view.syncKnots()
             }
@@ -795,6 +797,8 @@ final class PageView: NSView {
     let number: Int
     weak var world: WorldView?
     var highlights: [ReaderModel.Highlight] = []
+    /// The reader's own highlights ("Vurgula"), drawn in yellow under everything else.
+    var marks: [[NormalizedRect]] = []
     var knots: [ReaderModel.Knot] = []
     var selectionRects: [CGRect] = []
     var areaRect: CGRect? = nil {
@@ -826,6 +830,12 @@ final class PageView: NSView {
         // Highlights multiply like a real highlighter, so black text never fades.
         ctx.saveGState()
         ctx.setBlendMode(.multiply)
+        if !marks.isEmpty {
+            ctx.setFillColor(Theme.highlighter.cgColor)
+            for rects in marks {
+                for rect in rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
+            }
+        }
         for hl in highlights where !hl.area {
             ctx.setFillColor(hl.pending ? NSColor(srgbRed: 0.2, green: 0.376, blue: 0.31, alpha: 0.16).cgColor : Theme.highlight(hl.color).cgColor)
             for rect in hl.rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
