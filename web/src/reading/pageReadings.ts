@@ -257,6 +257,35 @@ export class PageReadingsStore {
     else void this.runWaves(pages, provider, lang)
   }
 
+  /** Whether a page waits on a Gemini batch (being drawn, the job being made, or the job running). */
+  isWaitingForBatch(page: number): boolean {
+    const r = this.readings.get(page)
+    return !!r && r.state === 'waiting' && (!!r.job || this.sending.has(page))
+  }
+
+  /**
+   * "Extract now": stops waiting for the batch and reads this page straight away, at the normal price; the
+   * other pages stay in their job. The page leaves the job, so the job's later answer for it is ignored, and a
+   * page still being drawn for a job is not sent to it (owner, 15 Nov). Mirrors the Mac's PageReadings.readNow.
+   */
+  readNow(page: number, lang: Lang) {
+    if (!this.isWaitingForBatch(page)) return
+    const job = this.readings.get(page)?.job
+    this.sending.delete(page)
+    const provider = this.options.fake ? 'gemini' : resolveActiveProvider(this.options.settings)
+    if (!provider) {
+      this.fail(page, 'no-key')
+      this.emit()
+      void this.save()
+      return
+    }
+    this.readings.set(page, { page, text: '', state: 'waiting', createdAt: Date.now() })
+    if (job) this.abandonUnwaited(new Set([job]))
+    this.emit()
+    void this.save()
+    void this.run(page, provider, lang)
+  }
+
   /** Stops every page still on its way (a batch job is cancelled and removed at Google); pages already read stay. */
   stop(): number {
     this.generation++
@@ -381,14 +410,16 @@ export class PageReadingsStore {
     let group: BatchItem[] = []
     let bytes = 0
     const send = async () => {
-      if (!group.length) return
-      const items = group
+      // A page read now while its group filled is left out: never sent twice.
+      const items = group.filter((item) => this.sending.has(Number(item.key)))
       group = []
       bytes = 0
+      if (!items.length) return
       await this.submitGroup(items, key, model, generation)
     }
     for (const p of pages) {
       if (generation !== this.batchGeneration) return
+      if (!this.sending.has(p)) continue
       const image = await this.options.picture(p).catch(() => null)
       if (generation !== this.batchGeneration) return
       if (!image) {

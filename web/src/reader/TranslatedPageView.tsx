@@ -14,6 +14,8 @@ interface Props {
   onHeight: (id: string, height: number) => void
   onRetranslate: (id: string) => void
   onTranslateNow: (id: string) => void
+  /** The page waits on a Gemini batch job: "Translate now" is offered at once (owner, 15 Nov). */
+  inBatch?: boolean
   onRemove: (id: string) => void
   onOpenSettings: () => void
   /** This book's translated-text size (×1 = the size the page fits to), and a step smaller or larger. */
@@ -50,7 +52,7 @@ function errorText(t: Strings, code: string): string {
  * A whole-page translation, drawn as a page of its own beside the PDF page: same size, level with it,
  * paper and ink like a printed page. Its text can be selected to open threads, as on the PDF.
  */
-function TranslatedPageViewImpl({ card, x, y, onHeight, onRetranslate, onTranslateNow, onRemove, onOpenSettings, textScale = 1, onTextScale }: Props) {
+function TranslatedPageViewImpl({ card, x, y, onHeight, onRetranslate, onTranslateNow, inBatch = false, onRemove, onOpenSettings, textScale = 1, onTextScale }: Props) {
   const { t, lang } = useI18n()
   const ref = useRef<HTMLElement>(null)
   const answer = [...card.messages].reverse().find((m) => m.role === 'assistant')
@@ -98,7 +100,7 @@ function TranslatedPageViewImpl({ card, x, y, onHeight, onRetranslate, onTransla
       </header>
       <div className="translated-page-body">
         {!answer || (streaming && !answer.content) ? (
-          <Waiting card={card} t={t} onTranslateNow={onTranslateNow} />
+          <Waiting card={card} t={t} inBatch={inBatch || !!card.batchJob} onTranslateNow={onTranslateNow} />
         ) : answer.state === 'error' ? (
           <div className="translated-page-error" role="status">
             <p>{errorText(t, answer.content)}</p>
@@ -118,19 +120,21 @@ function TranslatedPageViewImpl({ card, x, y, onHeight, onRetranslate, onTransla
   )
 }
 
-/** Waiting for the batch job or the direct answer; after a minute in a batch, the reader may stop waiting. */
-function Waiting({ card, t, onTranslateNow }: { card: YarnCard; t: Strings; onTranslateNow: (id: string) => void }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 5000)
-    return () => window.clearInterval(timer)
-  }, [])
+/**
+ * Waiting for the batch job or the direct answer. A page in a batch can be translated now at once, at the
+ * normal price, while the others stay in the queue (owner, 15 Nov: batches can take long; the button used to
+ * appear only after a minute).
+ */
+function Waiting({ card, t, inBatch, onTranslateNow }: { card: YarnCard; t: Strings; inBatch: boolean; onTranslateNow: (id: string) => void }) {
   return (
     <div className="translated-page-waiting" role="status">
       <span className="spinner" aria-hidden="true" />
-      <span>{card.batchJob ? t.batchWaiting : t.translating}</span>
-      {card.batchJob && now - card.createdAt > 60_000 && (
-        <button type="button" className="text-button" onClick={() => onTranslateNow(card.id)}>{t.translateNow}</button>
+      <span>{inBatch ? t.batchWaiting : t.translating}</span>
+      {inBatch && (
+        <>
+          <button type="button" className="text-button" onClick={() => onTranslateNow(card.id)}>{t.translateNow}</button>
+          <span className="translated-page-note">{t.batchNowNote}</span>
+        </>
       )}
     </div>
   )

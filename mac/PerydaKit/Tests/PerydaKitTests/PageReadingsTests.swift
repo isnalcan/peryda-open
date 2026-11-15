@@ -167,4 +167,45 @@ struct PageReadingsTests {
         #expect(left.isEmpty, "\(left)")
         #expect(store.position(for: book.id) == nil)
     }
+
+    /// "Extract now" on a page waiting in a batch job: it is read straight away, leaves the job, and
+    /// the job's later answer for it is ignored; the other pages stay in the job (owner, 15 Nov).
+    @Test func readNowTakesAPageOutOfItsJobAndReadsItDirectly() async throws {
+        let streamer = RecordingStreamer()
+        let batcher = FakeBatcher()
+        let m = model(streamer: streamer, batcher: batcher)
+        m.read(2...5, lang: .tr)
+        await until { m.inBatch == 4 }
+        #expect(m.isWaitingForBatch(3))
+        m.readNow(3, lang: .tr)
+        #expect(!m.isWaitingForBatch(3))
+        await until { m.readings[3]?.state == .done }
+        #expect(streamer.requests.count == 1)
+        #expect(m.inBatch == 3)
+        await batcher.setStatus(.done(texts: ["2": "İki", "3": "Üç (toplu)", "4": "Dört", "5": "Beş"], errors: [:]))
+        await until { m.pending == 0 }
+        #expect(m.readings[3]?.text == "Kavramlar, sınırlarında netleşir.", "the job's answer for a page read now is ignored")
+        #expect(m.done.count == 4)
+        #expect(await batcher.cancelled.isEmpty, "the job goes on for the other pages")
+        m.readNow(3, lang: .tr)
+        #expect(streamer.requests.count == 1, "a page not waiting in a job is not read again")
+    }
+
+    /// A page read now while its range is still being drawn is not put into the job: never sent twice.
+    @Test func aPageReadNowWhileItsJobIsDrawnIsNotSentToTheJob() async throws {
+        let streamer = RecordingStreamer()
+        let batcher = FakeBatcher()
+        let m = PageReadings(bookId: "book", bookTitle: "Freud", pageCount: 20, settings: keyed, store: nil, streamer: streamer, batcher: batcher) { _ in
+            try? await Task.sleep(for: .milliseconds(30))
+            return Self.picture
+        }
+        m.pollStart = .milliseconds(20)
+        m.read(1...4, lang: .tr)
+        #expect(m.isWaitingForBatch(4))
+        m.readNow(4, lang: .tr)
+        await until { m.inBatch == 3 && m.readings[4]?.state == .done }
+        let created = await batcher.created
+        #expect(created.flatMap { $0.items.map(\.key) }.sorted() == ["1", "2", "3"])
+        #expect(streamer.requests.count == 1)
+    }
 }

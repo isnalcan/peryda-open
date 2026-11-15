@@ -126,6 +126,31 @@ public final class PageReadings {
         }
     }
 
+    /// Whether this page waits on a Gemini batch job (being drawn, the job being made, or the job
+    /// running): "Extract now" is offered at once for such a page (owner, 15 Nov).
+    public func isWaitingForBatch(_ page: Int) -> Bool {
+        guard let r = readings[page], r.state == .waiting else { return false }
+        return r.job != nil || batchBound[page] != nil
+    }
+
+    /// Stops waiting for the batch and reads this page straight away, at the normal price; the other
+    /// pages stay in their job. The page leaves the job, so the job's later answer for it is ignored,
+    /// and a page still being drawn for a job is not sent to it (owner, 15 Nov).
+    public func readNow(_ page: Int, lang: Lang) {
+        guard isWaitingForBatch(page) else { return }
+        let job = readings[page]?.job
+        batchBound[page] = nil
+        guard let provider = settings.resolvedProvider else {
+            fail(page, "no-key")
+            save()
+            return
+        }
+        readings[page] = PageReading(page: page, state: .waiting)
+        if let job { abandonUnwaited([job]) }
+        save()
+        run(page, provider: provider, lang: lang)
+    }
+
     /// Stops every page still on its way (a batch job is cancelled and removed at Google); pages
     /// already read stay. Returns how many were stopped.
     @discardableResult
@@ -244,7 +269,7 @@ public final class PageReadings {
                 let item = GeminiBatch.Item(key: String(p), system: r.system, turns: r.turns)
                 let size = CardsModel.batchItemBytes(item)
                 if !group.isEmpty, bytes + size > CardsModel.batchMaxBytes {
-                    self.submitGroup(group, key: key, model: model, generation: generation, call: call)
+                    self.submitGroup(self.stillBound(group, call: call), key: key, model: model, generation: generation, call: call)
                     group = []
                     bytes = 0
                 }
@@ -254,11 +279,19 @@ public final class PageReadings {
             }
             guard let self, generation == self.batchGeneration else { return }
             self.save()
-            if !group.isEmpty { self.submitGroup(group, key: key, model: model, generation: generation, call: call) }
+            let last = self.stillBound(group, call: call)
+            if !last.isEmpty { self.submitGroup(last, key: key, model: model, generation: generation, call: call) }
         }
     }
 
+    /// The items whose pages still go to this request's job (a page read now meanwhile is left out,
+    /// so it is never sent twice).
+    private func stillBound(_ items: [GeminiBatch.Item], call: Int) -> [GeminiBatch.Item] {
+        items.filter { item in Int(item.key).map { batchBound[$0] == call } ?? false }
+    }
+
     private func submitGroup(_ items: [GeminiBatch.Item], key: String, model: String, generation: Int, call: Int) {
+        guard !items.isEmpty else { return }
         let pages = items.compactMap { Int($0.key) }
         let batcher = batcher
         Task { [weak self] in

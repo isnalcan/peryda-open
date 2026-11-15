@@ -113,6 +113,12 @@
     "de": "Dieser Batch-Auftrag wurde angehalten, weil dein Gemini-Schlüssel geändert wurde. Versuche es erneut.",
     "es": "Este trabajo por lotes se detuvo porque cambió tu clave de Gemini. Vuelve a intentarlo."
   },
+  "batchNowNote": {
+    "tr": "Beklemeden yaparsan hemen, normal fiyatla yapılır; diğer sayfalar sırada kalır.",
+    "en": "Doing it now is immediate, at the normal price; the other pages stay in the queue.",
+    "de": "Sofort geht es gleich, zum normalen Preis; die anderen Seiten bleiben in der Warteschlange.",
+    "es": "Si lo haces ahora, es inmediato y a precio normal; las demás páginas siguen en cola."
+  },
   "batchWaiting": {
     "tr": "Sırada (toplu iş)",
     "en": "Queued (batch)",
@@ -358,6 +364,12 @@
     "en": "Backup file ready",
     "de": "Sicherungsdatei bereit",
     "es": "Archivo de copia listo"
+  },
+  "extractNow": {
+    "tr": "Beklemeden çıkar",
+    "en": "Extract now",
+    "de": "Jetzt auslesen",
+    "es": "Extraer ahora"
   },
   "extractText": {
     "tr": "Sayfanın metnini çıkar",

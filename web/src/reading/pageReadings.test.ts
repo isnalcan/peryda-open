@@ -282,5 +282,46 @@ describe('Read with Pery (pages and ranges)', () => {
     expect(r.inBatch).toBe(3)
     r.close()
   })
-})
 
+  // Owner, 15 Nov: a page waiting in a batch job can be extracted now; the others stay in the job.
+  it('reads a page now: it leaves its job, and the job goes on for the others', async () => {
+    const rec = recorder()
+    const batcher = new FakeBatcher()
+    const r = readings(keyed, rec.streamer, batcher)
+    await r.ready
+    r.read(2, 5, 'tr')
+    await until(() => r.inBatch === 4)
+    expect(r.isWaitingForBatch(3)).toBe(true)
+    r.readNow(3, 'tr')
+    expect(r.isWaitingForBatch(3)).toBe(false)
+    await until(() => r.reading(3)?.state === 'done')
+    expect(rec.requests).toHaveLength(1)
+    expect(r.inBatch).toBe(3)
+    batcher.state = { state: 'done', texts: { '2': 'İki', '3': 'Üç (toplu)', '4': 'Dört', '5': 'Beş' }, errors: {} }
+    await until(() => r.pending === 0)
+    expect(r.reading(3)?.text).toBe('Kavramlar, sınırlarında netleşir.')
+    expect(r.done).toHaveLength(4)
+    expect(batcher.cancelled).toEqual([])
+    r.readNow(3, 'tr')
+    expect(rec.requests).toHaveLength(1)
+    r.close()
+  })
+
+  it('does not put a page read now into a job still being drawn', async () => {
+    const rec = recorder()
+    const batcher = new FakeBatcher()
+    const slow = async () => {
+      await new Promise((res) => setTimeout(res, 20))
+      return 'data:image/jpeg;base64,' + 'QUJD'.repeat(400)
+    }
+    const r = new PageReadingsStore({ bookId: 'book', bookTitle: 'Freud', pageCount: 20, settings: keyed, picture: slow, streamer: rec.streamer, batcher, pollStart: 10 })
+    await r.ready
+    r.read(1, 4, 'tr')
+    expect(r.isWaitingForBatch(4)).toBe(true)
+    r.readNow(4, 'tr')
+    await until(() => r.inBatch === 3 && r.reading(4)?.state === 'done')
+    expect(batcher.created.flatMap((c) => c.items.map((i) => i.key)).sort()).toEqual(['1', '2', '3'])
+    expect(rec.requests).toHaveLength(1)
+    r.close()
+  })
+})

@@ -2338,6 +2338,12 @@ button:disabled {
   color: #211f1a;
 }
 
+/* Under "Translate now": doing it now is immediate, at the normal price (owner, 15 Nov). */
+.translated-page-note {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+
 .translated-page .text-button {
   color: #33604f;
 }

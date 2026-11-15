@@ -331,6 +331,36 @@ final class PageTranslationSurfaceTests: XCTestCase {
         try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-range.png"))
     }
 
+    /// A page waiting in a batch job offers "Translate now" at once (owner, 15 Nov: batches can take
+    /// long; the button used to appear only after a minute). A real click translates that page directly
+    /// while the others stay in the job.
+    func testTranslateNowIsOfferedAtOnceAndWorksWhenClicked() async throws {
+        reader.pollStart = .seconds(60)
+        reader.translateRange(1...4)
+        // The range's camera move would scroll the page under the click; this test places the view itself.
+        reader.cameraCommand = nil
+        try await waitUntil { await self.batcher.jobs.count == 1 }
+        try await waitUntil { self.reader.cards.waitingTranslations.count == 4 }
+        let id = try XCTUnwrap(reader.translation(of: 2)?.id)
+        XCTAssertTrue(reader.cards.isWaitingForBatch(id))
+        world.scrollView.magnification = 0.74
+        let place = try XCTUnwrap(reader.placements[id])
+        world.scrollView.contentView.scroll(to: CGPoint(x: place.x - 100, y: place.y - 40))
+        world.scrollView.reflectScrolledClipView(world.scrollView.contentView)
+        await settle()
+        let host = try XCTUnwrap(world.documentView.subviews.first { $0 is ZoomedHostingView<AnyView> && abs($0.frame.minX - place.x) < 1 && abs($0.frame.minY - place.y) < 1 })
+        host.layoutSubtreeIfNeeded()
+        func controls(_ v: NSView) -> [NSControl] { ((v as? NSControl).map { [$0] } ?? []) + v.subviews.flatMap(controls) }
+        // The header's controls sit in its top 60 units; the waiting area's button below them.
+        let now = try XCTUnwrap(controls(host).first { $0.convert($0.bounds, to: host).minY > 60 }, "Translate now is there at once")
+        let before = streamer.requests.count
+        await click(now.convert(CGPoint(x: now.bounds.midX, y: now.bounds.midY), to: nil))
+        try await waitUntil { self.streamer.requests.count == before + 1 }
+        try await waitUntil { self.reader.translation(of: 2)?.messages.last?.state == nil }
+        XCTAssertFalse(reader.cards.isWaitingForBatch(id))
+        XCTAssertEqual(reader.cards.waitingTranslations.count, 3, "the others stay in the job")
+    }
+
     func testAScannedPageIsReadOnTheMac() async throws {
         // A page that is only a picture of text, as from a scanner.
         let size = CGSize(width: 1200, height: 800)

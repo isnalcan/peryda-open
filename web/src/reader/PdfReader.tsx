@@ -1083,6 +1083,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                       onHeight={onHeight}
                       onRetranslate={retranslate}
                       onTranslateNow={store.translateNow}
+                      inBatch={store.isWaitingForBatch(card.id)}
                       onRemove={remove}
                       onOpenSettings={onOpenSettings}
                       textScale={actions.translationTextScale}

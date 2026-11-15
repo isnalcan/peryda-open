@@ -113,20 +113,24 @@ struct TranslatedPageView: View {
         }
     }
 
-    /// Waiting on the batch job; after a minute the reader may choose not to wait.
+    /// Waiting on its batch job (or its direct answer). A page in a batch can be translated now at
+    /// once, at the normal price, while the others stay in the queue (owner, 15 Nov: batches can take
+    /// long; the button used to appear only after a minute).
     private func waiting(_ card: YarnCard) -> some View {
-        TimelineView(.periodic(from: .now, by: 5)) { context in
-            let waited = context.date.timeIntervalSince1970 - card.createdAt / 1000
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(card.batchJob == nil ? t["translating"] : t["batchWaiting"])
-                        .font(.system(size: 13))
-                        .foregroundStyle(Self.faint)
-                }
-                if card.batchJob != nil, waited > 60 {
-                    LinkButton(title: t["translateNow"]) { reader.cards.translateNow(cardId) }
-                }
+        let inBatch = reader.cards.isWaitingForBatch(card.id)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(inBatch ? t["batchWaiting"] : t["translating"])
+                    .font(.system(size: 13))
+                    .foregroundStyle(Self.faint)
+            }
+            if inBatch {
+                LinkButton(title: t["translateNow"]) { reader.cards.translateNow(cardId) }
+                Text(t["batchNowNote"])
+                    .font(.system(size: 12))
+                    .foregroundStyle(Self.faint)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

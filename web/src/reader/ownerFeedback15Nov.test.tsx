@@ -148,3 +148,29 @@ describe('Translation options', () => {
     expect(terms()).toBeNull()
   })
 })
+
+// Owner, 15 Nov: a page waiting in a batch offers "Translate now" at once, not after a minute.
+describe('Translate now', () => {
+  it('is offered at once for a page waiting in a batch, and not for a direct translation', async () => {
+    const onNow = vi.fn()
+    const waiting = {
+      ...card([anchor('pdf_text')]),
+      translatedPage: 1,
+      translationLanguage: 'tr',
+      kind: 'translate',
+      color: 'sky',
+      createdAt: Date.now(),
+      messages: [{ id: 'm1', role: 'user', content: 'ÇEVİRİ', createdAt: 1 }, { id: 'm2', role: 'assistant', content: '', createdAt: 2, state: 'streaming' }],
+    } as YarnCard
+    await render(<TranslatedPageView card={waiting} x={0} y={0} onHeight={() => {}} onRetranslate={() => {}} onTranslateNow={onNow} inBatch onRemove={() => {}} onOpenSettings={() => {}} />)
+    const now = buttons().find((b) => b.textContent === 'Beklemeden çevir')
+    expect(now).toBeDefined()
+    expect(host.textContent).toContain('normal fiyatla')
+    await act(async () => now!.click())
+    expect(onNow).toHaveBeenCalledWith('c1')
+    act(() => root.unmount())
+    host.remove()
+    await render(<TranslatedPageView card={waiting} x={0} y={0} onHeight={() => {}} onRetranslate={() => {}} onTranslateNow={onNow} onRemove={() => {}} onOpenSettings={() => {}} />)
+    expect(buttons().find((b) => b.textContent === 'Beklemeden çevir')).toBeUndefined()
+  })
+})

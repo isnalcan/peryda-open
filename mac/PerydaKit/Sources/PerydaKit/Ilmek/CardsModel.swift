@@ -414,7 +414,8 @@ public final class CardsModel {
                 let item = GeminiBatch.Item(key: id, system: r.system, turns: r.turns)
                 let size = Self.batchItemBytes(item)
                 if !group.isEmpty, bytes + size > Self.batchMaxBytes {
-                    self.submitGroup(group, key: key, model: model)
+                    // A page translated now while its group filled is left out: never sent twice.
+                    self.submitGroup(group.filter { self.batchBound.contains($0.key) }, key: key, model: model)
                     group = []
                     bytes = 0
                 }
@@ -423,11 +424,12 @@ public final class CardsModel {
                 await Task.yield()
             }
             guard let self, generation == self.batchGeneration, !group.isEmpty else { return }
-            self.submitGroup(group, key: key, model: model)
+            self.submitGroup(group.filter { self.batchBound.contains($0.key) }, key: key, model: model)
         }
     }
 
     private func submitGroup(_ items: [GeminiBatch.Item], key: String, model: String) {
+        guard !items.isEmpty else { return }
         let ids = items.map(\.key)
         let batcher = batcher
         let token = UUID()
@@ -631,6 +633,13 @@ public final class CardsModel {
                 await batcher.delete(apiKey: key, name: job)
             }
         }
+    }
+
+    /// Whether this page translation waits on a Gemini batch (being drawn, the job being made, or the
+    /// job running): "Translate now" is offered at once for such a page (owner, 15 Nov).
+    public func isWaitingForBatch(_ cardId: String) -> Bool {
+        guard let card = cards.first(where: { $0.id == cardId }), card.messages.last?.state == .streaming else { return false }
+        return card.batchJob != nil || batchBound.contains(cardId) || submissions[cardId] != nil
     }
 
     /// Stops waiting for the batch and translates this page straight away.

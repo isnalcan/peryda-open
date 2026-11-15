@@ -270,9 +270,23 @@ export function ExtractTextDialog(props: { doc: PDFDocumentProxy; page: number; 
       )}
       <div className="extract-body">
         {streaming && !reading.text ? (
-          <p className="faint extract-status">
-            <span className="spinner" aria-hidden="true" /> {reading.job ? t.readingInBatch : t.readingText}
-          </p>
+          // A page waiting in a batch job can be extracted now, at the normal price, while the others stay
+          // in the queue (owner, 15 Nov).
+          store?.isWaitingForBatch(page) ? (
+            <div className="extract-status">
+              <p className="faint">
+                <span className="spinner" aria-hidden="true" /> {t.readingInBatch}
+              </p>
+              <button type="button" className="primary-button" onClick={() => store.readNow(page, lang)}>
+                {t.extractNow}
+              </button>
+              <p className="faint">{t.batchNowNote}</p>
+            </div>
+          ) : (
+            <p className="faint extract-status">
+              <span className="spinner" aria-hidden="true" /> {t.readingText}
+            </p>
+          )
         ) : streaming || reading?.state === 'done' ? (
           <ExtractedText text={reading!.text} size={size} />
         ) : own === null ? (

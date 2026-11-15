@@ -302,8 +302,12 @@ describe('page translation', () => {
     const batcher = new FakeBatcher()
     const s = store(keyed, recorder().streamer, batcher)
     const ids = s.translatePages([page(1), page(2), page(3)], 'tr')
+    // Offered from the start, while the job is still being made (owner, 15 Nov).
+    expect(ids.every((id) => s.isWaitingForBatch(id))).toBe(true)
     await s.waitForIdle()
+    expect(s.isWaitingForBatch(ids[1]!)).toBe(true)
     s.translateNow(ids[1]!)
+    expect(s.isWaitingForBatch(ids[1]!)).toBe(false)
     await s.waitForIdle()
     const card = s.pageTranslation(2, 'tr')!
     expect(card.batchJob).toBeUndefined()

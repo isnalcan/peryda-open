@@ -301,8 +301,12 @@ struct PageTranslationTests {
         let batcher = FakeBatcher()
         let m = model(streamer: streamer, batcher: batcher)
         let ids = m.translatePages([page(1), page(2), page(3)], target: .tr)
+        // "Translate now" is offered from the start, while the job is still being made (owner, 15 Nov).
+        #expect(ids.allSatisfy { m.isWaitingForBatch($0) })
         for _ in 0..<100 where m.waitingTranslations.count < 3 { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(m.isWaitingForBatch(ids[1]))
         m.translateNow(ids[1])
+        #expect(!m.isWaitingForBatch(ids[1]))
         await m.waitForIdle()
         let card = try #require(m.pageTranslation(page: 2, target: .tr))
         #expect(card.batchJob == nil)

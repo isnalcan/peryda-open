@@ -168,9 +168,18 @@ struct ExtractedTextSheet: View {
             if let reading, reading.state == .done || (reading.state == .reading && !reading.text.isEmpty) {
                 textView(reading.text)
             } else if let reading, reading.state == .waiting || reading.state == .reading {
+                // A page waiting in a batch job can be extracted now, at the normal price, while the
+                // others stay in the queue (owner, 15 Nov).
+                let inBatch = readings?.isWaitingForBatch(page) == true
                 VStack(spacing: 10) {
                     ProgressView()
-                    Text(reading.job != nil ? t["readingInBatch"] : t["readingText"]).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Text(inBatch ? t["readingInBatch"] : t["readingText"]).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    if inBatch {
+                        Button(t["extractNow"]) { readings?.readNow(page, lang: lang) }
+                            .buttonStyle(.borderedProminent)
+                            .tint(Color.peryda)
+                        Text(t["batchNowNote"]).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    }
                 }
                 .padding(28)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

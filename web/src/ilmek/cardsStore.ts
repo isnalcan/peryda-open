@@ -522,10 +522,11 @@ export class CardsStore {
         let group: BatchItem[] = []
         let bytes = 0
         const send = async () => {
-          if (!group.length) return
-          const items = group
+          // A page translated now while its group filled is left out: never sent twice.
+          const items = group.filter((item) => this.submissions.get(item.key) === token)
           group = []
           bytes = 0
+          if (!items.length) return
           await this.submitGroup(key, model, items, token, generation)
         }
         for (const id of ids) {
@@ -680,6 +681,13 @@ export class CardsStore {
       await this.saveNow(waiting.map((c) => c.id))
       await this.batcher.delete(key, job).catch(() => undefined)
     }
+  }
+
+  /** Whether a page translation waits on a Gemini batch: "Translate now" is offered at once (owner, 15 Nov). */
+  isWaitingForBatch(cardId: string): boolean {
+    const card = this.cards.find((c) => c.id === cardId)
+    if (!card || card.messages[card.messages.length - 1]?.state !== 'streaming') return false
+    return !!card.batchJob || this.submissions.has(cardId)
   }
 
   /**
