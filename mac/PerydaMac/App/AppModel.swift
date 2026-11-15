@@ -242,13 +242,20 @@ final class AppModel {
             .appendingPathComponent("Peryda/epub", isDirectory: true)
     }
 
-    /// Imports PDF and EPUB files; returns the last book added. Each file is read, checked and
-    /// unpacked off the main thread, so a large or hostile file does not freeze the app (audit recheck
-    /// MA-11).
+    /// Whether these files become one book (then it opens): one file, or photos only (owner, 16 Nov:
+    /// photos chosen together make one book).
+    static func makesOneBook(_ urls: [URL]) -> Bool {
+        urls.count == 1 || (!urls.isEmpty && urls.allSatisfy(ImageBook.isImage))
+    }
+
+    /// Imports PDF and EPUB files, and photos (together, as one book); returns the last book added.
+    /// Each file is read, checked and unpacked off the main thread, so a large or hostile file does not
+    /// freeze the app (audit recheck MA-11).
     @discardableResult
     func importFiles(_ urls: [URL]) async -> BookRecord? {
         var last: BookRecord?
-        for url in urls {
+        let photos = ImageBook.ordered(urls.filter { $0.isFileURL && ImageBook.isImage($0) })
+        for url in urls where !photos.contains(url) {
             // Only files on this Mac: a web link dragged in is never fetched.
             guard url.isFileURL, LibraryStore.format(of: url) != nil else {
                 lastError = t["unsupportedFile"]
@@ -266,8 +273,31 @@ final class AppModel {
             }.value
             if let result { last = result } else { lastError = t["importFailed"] }
         }
+        if !photos.isEmpty {
+            let scoped = photos.map { $0.startAccessingSecurityScopedResource() }
+            defer { for (url, s) in zip(photos, scoped) where s { url.stopAccessingSecurityScopedResource() } }
+            let total = photos.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+            if total > Self.maxImportMB * 1024 * 1024 {
+                lastError = t("fileTooLarge", ["n": Self.maxImportMB])
+            } else {
+                let store = store
+                let result = await Task.detached(priority: .userInitiated) { () -> BookRecord? in
+                    try? Self.importPhotos(photos, into: store)
+                }.value
+                if let result { last = result } else { lastError = t["importFailed"] }
+            }
+        }
         reloadBooks()
         return last
+    }
+
+    /// Makes one PDF book from photos, a page each, in the given order (any thread). Its title is the
+    /// first photo's name.
+    nonisolated static func importPhotos(_ urls: [URL], into store: LibraryStore) throws -> BookRecord? {
+        let files = try urls.map { try Data(contentsOf: $0, options: .mappedIfSafe) }
+        guard let pdf = ImageBook.pdf(from: files), let first = urls.first else { return nil }
+        let name = first.deletingPathExtension().lastPathComponent
+        return try store.importBook(data: pdf, fileName: name + ".pdf", title: nil, author: nil, pageCount: files.count, fingerprint: ImageBook.fingerprint(files))
     }
 
     /// Reads one file and adds it to the library (any thread).

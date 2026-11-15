@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { GEOMETRY, LANE_X, pageLayout, subLaneX } from './geometry'
+import { GEOMETRY, LANE_X, laneX, pageLayout, remapPinned, subLaneX } from './geometry'
 import type { PdfYarnAnchor, YarnCard } from './types'
-import { ROOM_AROUND, TRANSLATION_GAP, centredContentWidth, clipsFor, contentRect, isShown, pageBand, placeCards, worldRect, yarnSegments, type WorldInput } from './worldLayout'
+import { ROOM_AROUND, TRANSLATION_GAP, cardsForSurface, centredContentWidth, clipsFor, contentRect, isShown, pageBand, pinnedAfterResize, placeCards, worldRect, yarnSegments, type WorldInput } from './worldLayout'
 
 const pages = pageLayout([
   [612, 792],
@@ -141,5 +141,52 @@ describe('world layout', () => {
     expect(rect.x).toBeLessThanOrEqual(-500 - ROOM_AROUND + 1)
     expect(rect.x + rect.width).toBeGreaterThanOrEqual(LANE_X + GEOMETRY.cardWidth + ROOM_AROUND)
     expect(centredContentWidth(content)).toBeGreaterThan(2 * (mid + 500))
+  })
+
+  // Owner, 16 Nov: the pages are resized from a page's corner; everything stays with its passage.
+  describe('resized pages', () => {
+    const sizes = [
+      [612, 792],
+      [612, 792],
+      [612, 792],
+    ] as const
+    const big = pageLayout(sizes, 1.5 * GEOMETRY.pageWorldWidth)
+
+    it('the lane, the yarns’ ends and the world follow the pages’ width', () => {
+      const thread = card({ id: 'lane', anchors: [onPage(2, 0.5)] })
+      const world = input([thread], { pages: big })
+      const placed = placeCards(world)
+      expect(placed.get('lane')!.x).toBe(laneX(big[0]!.width))
+      const [segment] = yarnSegments(world, placed)
+      expect(segment!.from[0]).toBeCloseTo(0.6 * big[0]!.width, 5)
+      expect(segment!.from[1]).toBeCloseTo(big[1]!.y + 0.51 * big[1]!.height, 5)
+      const content = contentRect(world, placed)
+      expect(content.pageWidth).toBe(big[0]!.width)
+      const rect = worldRect(content)
+      expect(rect.x + rect.width / 2).toBeCloseTo(big[0]!.width / 2, 5)
+    })
+
+    it('a translation is drawn at its page’s size now, and placed cards move with their passage', () => {
+      const translation = card({ id: 'tr', kind: 'translate', color: 'sky', anchors: [onPage(2)], translatedPage: 2, translationLanguage: 'tr', width: 760, height: pages[1]!.height })
+      const pinned = card({ id: 'p', anchors: [onPage(2)], isPinned: true, x: 900, y: pages[1]!.y + 100 })
+      const lane = card({ id: 'l', anchors: [onPage(1)] })
+      const cards = [translation, pinned, lane]
+      const shown = cardsForSurface(cards, big)
+      expect(shown[0]).toMatchObject({ width: big[1]!.width, height: big[1]!.height })
+      // Unchanged cards keep their identity, so they are not drawn again.
+      expect(shown[1]).toBe(pinned)
+      expect(shown[2]).toBe(lane)
+      // The stored translation keeps the size it was made at.
+      expect(translation.width).toBe(760)
+
+      const moved = pinnedAfterResize(cards, pages, big)
+      expect([...moved.keys()]).toEqual(['p'])
+      const at = moved.get('p')!
+      expect([at.x, at.y]).toEqual(remapPinned([900, pages[1]!.y + 100], pages, big))
+      // Right of the page it keeps its distance from the page's right edge.
+      expect(at.x - big[0]!.width).toBeCloseTo(900 - pages[0]!.width, 9)
+      const during = cardsForSurface(cards, big, moved)
+      expect(during[1]).toMatchObject({ x: at.x, y: at.y })
+    })
   })
 })

@@ -60,6 +60,7 @@ describe('backup', () => {
     await db.prefs.put({ key: 'launches', value: 7 })
     await db.prefs.put({ key: 'rememberKeys', value: true })
     await db.prefs.put({ key: `cardTextScale:${book.id}`, value: 1.3 })
+    await db.prefs.put({ key: `pageScale:${book.id}`, value: 1.6 })
     await db.prefs.put({
       key: `readings:${book.id}`,
       value: [
@@ -77,6 +78,8 @@ describe('backup', () => {
     await importBackup(blob)
     expect((await db.prefs.get(`readings:${book.id}`))?.value).toEqual([{ page: 1, text: 'Bir', state: 'done', createdAt: 5 }])
     expect((await db.prefs.get(`cardTextScale:${book.id}`))?.value).toBe(1.3)
+    // The pages' size comes back with the cards that were placed beside them at that size.
+    expect((await db.prefs.get(`pageScale:${book.id}`))?.value).toBe(1.6)
     expect(await db.prefs.get('launches')).toBeUndefined()
   })
 

@@ -47,5 +47,7 @@ export function useCards(ctx: CardsContext) {
     remove: store.remove,
     update: store.update,
     resize: store.resize,
+    resizeFrom: store.resizeFrom,
+    placeMany: store.placeMany,
   }
 }

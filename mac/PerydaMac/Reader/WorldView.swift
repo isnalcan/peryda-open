@@ -24,7 +24,6 @@ final class WorldView: NSView {
     private var dragStart: (page: Int, point: CGPoint)?
     private var selection: PDFSelection?
     private var areaDrag: (page: Int, start: CGPoint)?
-    private var brushFrozen = false
     private var dragCard: (id: String, origin: CGPoint)?
     /// Card positions from the last layout; a dragged card's live position is laid over them.
     private var lastPlacements: [String: CGPoint] = [:]
@@ -117,6 +116,7 @@ final class WorldView: NSView {
             documentView.setBoundsOrigin(docFrame.origin)
         }
         clipView.contentBottom = model.contentRect.maxY
+        layoutPages()
         if yarnView.frame != docFrame {
             yarnView.frame = docFrame
             yarnView.setBoundsOrigin(docFrame.origin)
@@ -147,13 +147,18 @@ final class WorldView: NSView {
                     }
                     view.onResize = { [weak self] size, _ in self?.model?.cards.resize(id, width: size.width, height: size.height) }
                     view.onResizeReset = { [weak self] in self?.model?.cards.resize(id, width: Geometry.cardWidth, height: nil) }
+                    view.onEdgeResize = { [weak self] width, left, ended in self?.cardEdgeResized(id, width: width, fromLeft: left, ended: ended) }
+                    view.onEdgeReset = { [weak self] in
+                        guard let card = self?.model?.cards.cards.first(where: { $0.id == id }) else { return }
+                        self?.model?.cards.resize(id, width: Geometry.cardWidth, height: card.height)
+                    }
                 }
                 view.sizingOptions = []
                 documentView.addSubview(view)
                 cardViews[card.id] = view
             }
             if dragCard?.id != card.id {
-                view.frame = CGRect(x: p.x, y: p.y, width: card.width, height: model.heights[card.id] ?? 150)
+                view.frame = CGRect(x: p.x, y: p.y, width: model.displayWidth(card), height: model.heights[card.id] ?? 150)
             }
             if view.isHidden == shown { view.isHidden = !shown }
         }
@@ -167,7 +172,6 @@ final class WorldView: NSView {
         // The menu closed (a press in a card's text, a new thread, Escape): the page selection goes too.
         if model.pending == nil, dragStart == nil, areaDrag == nil, selection != nil { clearSelection() }
 
-        yarnView.ghost = model.liveBrush.map { (model.brushColor, $0.to) }
         refreshYarns(dt: 0)
         layoutClips(placements)
 
@@ -191,6 +195,100 @@ final class WorldView: NSView {
                 self?.model?.cameraCommand = nil
             }
         }
+    }
+
+    // MARK: Page size (owner, 16 Nov)
+
+    /// Pages drawn at an older size: redrawn when they come into view (a resize stretches what was
+    /// drawn, and drawing every page of a long book at once would stall).
+    private var stalePages: Set<Int> = []
+
+    /// Puts every page where the layout says (they move and grow when the pages are resized).
+    private func layoutPages() {
+        guard let model else { return }
+        for (number, view) in pageViews where number <= model.pages.count {
+            let box = model.pages[number - 1]
+            let frame = CGRect(x: box.x, y: box.y, width: box.width, height: box.height)
+            if view.frame != frame {
+                view.frame = frame
+                view.syncKnots()
+                stalePages.insert(number)
+            }
+            view.placeGrip()
+        }
+    }
+
+    /// The page being resized: its top-left corner stays put on screen while the reader drags.
+    private var pageResize: (number: Int, offsetY: CGFloat, originX: CGFloat)?
+
+    func pageResizeBegan(_ pageView: PageView) {
+        guard let model, pageView.number <= model.pages.count else { return }
+        model.beginPageResize()
+        let page = model.pages[pageView.number - 1]
+        let b = scrollView.contentView.bounds
+        pageResize = (pageView.number, CGFloat(page.y) - b.minY, b.minX)
+    }
+
+    /// Resizes in proportion: the pointer, seen from the page's top-left corner, is projected on the
+    /// page's diagonal, so dragging right, down or both all work.
+    func pageResizeDragged(_ event: NSEvent) {
+        guard let model, let r = pageResize, r.number <= model.pages.count else { return }
+        let page = model.pages[r.number - 1]
+        let p = documentView.convert(event.locationInWindow, from: nil)
+        let dx = Double(p.x) - page.x, dy = Double(p.y) - page.y
+        let t = (dx * page.width + dy * page.height) / (page.width * page.width + page.height * page.height)
+        model.resizePages(scale: t * page.width / Geometry.pageWorldWidth)
+        applyPageResize()
+    }
+
+    private func applyPageResize() {
+        guard let model, let r = pageResize, r.number <= model.pages.count else { return }
+        sync()
+        let page = model.pages[r.number - 1]
+        scrollView.contentView.scroll(to: CGPoint(x: r.originX, y: CGFloat(page.y) - r.offsetY))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
+    func pageResizeEnded() {
+        guard pageResize != nil else { return }
+        model?.endPageResize()
+        pageResize = nil
+        sync()
+        redrawVisiblePages()
+        savePositionSoon()
+    }
+
+    /// Double-click on the corner: the standard page size again.
+    func resetPageSize(_ pageView: PageView) {
+        pageResizeBegan(pageView)
+        model?.resizePages(scale: 1)
+        applyPageResize()
+        pageResizeEnded()
+    }
+
+    // MARK: Card width from its sides (owner, 16 Nov)
+
+    /// Where a card's right edge was when the reader began widening it from the left.
+    private var edgeStart: (id: String, right: Double, y: Double)?
+
+    /// From the right side only the width changes; from the left side the right edge stays put, and
+    /// the card becomes one the reader placed.
+    func cardEdgeResized(_ id: String, width: CGFloat, fromLeft: Bool, ended: Bool) {
+        guard let model, let card = model.cards.cards.first(where: { $0.id == id }) else { return }
+        let w = min(max(Double(width), CardsModel.widthRange.lowerBound), CardsModel.widthRange.upperBound)
+        if fromLeft {
+            if edgeStart?.id != id {
+                let p = lastPlacements[id] ?? CGPoint(x: card.x, y: card.y)
+                edgeStart = (id, Double(p.x) + card.width, Double(p.y))
+            }
+            if let start = edgeStart {
+                model.cards.resize(id, width: w, height: card.height)
+                model.cards.pin(id, x: start.right - w, y: start.y)
+            }
+        } else {
+            model.cards.resize(id, width: w, height: card.height)
+        }
+        if ended { edgeStart = nil }
     }
 
     // MARK: Only nearby cards stay attached
@@ -286,11 +384,11 @@ final class WorldView: NSView {
             let m = min(maxScale, max(0.15, (viewport.width - 48) / width))
             setMagnification(m, animated: animated)
             let visible = scrollView.contentView.bounds.size
-            scroll(to: CGPoint(x: Geometry.pageWorldWidth / 2 - visible.width / 2, y: cy - visible.height / 2), animated: animated)
+            scroll(to: CGPoint(x: model.pageWidth / 2 - visible.width / 2, y: cy - visible.height / 2), animated: animated)
         }
         switch command {
         case .focus:
-            fit(width: Geometry.pageWorldWidth + 48, maxScale: 2.5)
+            fit(width: model.pageWidth + 48, maxScale: 2.5)
         case .overview:
             fit(width: model.centredContentWidth, maxScale: 1)
         case .map:
@@ -299,7 +397,7 @@ final class WorldView: NSView {
             // The page and the place its translation goes, side by side.
             guard number >= 1, number <= model.pages.count else { break }
             let page = model.pages[number - 1]
-            let translation = model.translation(of: number).flatMap { t in model.placements[t.id].map { CGRect(x: $0.x, y: $0.y, width: t.width, height: page.height) } }
+            let translation = model.translation(of: number).flatMap { t in model.placements[t.id].map { CGRect(x: $0.x, y: $0.y, width: model.displayWidth(t), height: page.height) } }
             let right = translation?.maxX ?? (page.x + page.width * 2 + 60)
             let width = right - page.x + 80
             let m = min(1.2, max(0.15, (viewport.width - 48) / width))
@@ -325,7 +423,7 @@ final class WorldView: NSView {
         case .show(let cardId):
             guard let p = model.placements[cardId] else { return }
             let visible = scrollView.contentView.bounds.size
-            let width = model.cards.cards.first { $0.id == cardId }?.width ?? Geometry.cardWidth
+            let width = model.cards.cards.first { $0.id == cardId }.map(model.displayWidth) ?? Geometry.cardWidth
             scroll(to: CGPoint(x: p.x + width / 2 - visible.width / 2, y: p.y - 40), animated: animated)
             model.offscreenCard = nil
         }
@@ -365,12 +463,29 @@ final class WorldView: NSView {
 
     private func redrawVisiblePages() {
         let visible = scrollView.contentView.bounds
-        for view in pageViews.values where view.frame.intersects(visible) { view.needsDisplay = true }
+        for view in pageViews.values where view.frame.intersects(visible) {
+            view.needsDisplay = true
+            stalePages.remove(view.number)
+        }
+    }
+
+    /// Pages left stretched by a resize are drawn again once they are in view (not while resizing).
+    private func redrawStalePagesInView() {
+        guard !stalePages.isEmpty, pageResize == nil else { return }
+        let visible = scrollView.contentView.bounds.insetBy(dx: 0, dy: -200)
+        for number in stalePages {
+            guard let view = pageViews[number], view.frame.intersects(visible) else { continue }
+            view.needsDisplay = true
+            stalePages.remove(number)
+        }
     }
 
     @objc private func magnifyEnded() {
         model?.magnification = scrollView.magnification
         redrawVisiblePages()
+        // Edge strips and corner grips are a few points on screen at any zoom.
+        for view in cardViews.values { window?.invalidateCursorRects(for: view) }
+        for view in pageViews.values { view.placeGrip() }
         savePositionSoon()
     }
 
@@ -393,6 +508,7 @@ final class WorldView: NSView {
             if page != model.currentPage { model.currentPage = page }
         }
         attachNearbyCards()
+        redrawStalePagesInView()
         if let id = model.offscreenCard, let view = cardViews[id], scrollView.contentView.bounds.intersection(view.frame).width > view.frame.width * 0.6 {
             model.offscreenCard = nil
         }
@@ -421,14 +537,11 @@ final class WorldView: NSView {
             return
         }
         dragStart = (pageView.number, pt)
-        brushFrozen = false
         let page = pageView.geometry.page
         if event.clickCount == 2 {
             selection = page.selectionForWord(at: pt)
         } else if event.clickCount >= 3 {
             selection = page.selectionForLine(at: pt)
-        } else if model.tool == .brush {
-            selection = page.selectionForWord(at: pt)
         }
         showSelection()
     }
@@ -443,27 +556,10 @@ final class WorldView: NSView {
             return
         }
         guard let start = dragStart, let startView = pageViews[start.page], let target = page(at: docPoint) else { return }
-        if brushFrozen {
-            model.liveBrush = (model.liveBrush?.from ?? docPoint, docPoint)
-            return
-        }
         let local = target.convert(event.locationInWindow, from: nil)
         let pt = target.geometry.pagePoint(fromView: local, viewSize: target.bounds.size)
-        let onText = target.geometry.page.characterIndex(at: pt) >= 0
-        if model.tool != .brush || onText {
-            let next = model.document?.selection(from: startView.geometry.page, at: start.point, to: target.geometry.page, at: pt)
-            if model.tool == .brush {
-                // Brush strokes snap to whole words.
-                if let word = target.geometry.page.selectionForWord(at: pt) { next?.add(word) }
-                if let first = startView.geometry.page.selectionForWord(at: start.point) { next?.add(first) }
-            }
-            selection = next
-            showSelection()
-        }
-        if model.tool == .brush, let sel = selection, let right = selectionRightEdge(sel), docPoint.x - right.x >= Geometry.g.brushPullThreshold / scrollView.magnification {
-            brushFrozen = true
-            model.liveBrush = (right, docPoint)
-        }
+        selection = model.document?.selection(from: startView.geometry.page, at: start.point, to: target.geometry.page, at: pt)
+        showSelection()
     }
 
     func pageMouseUp(_ pageView: PageView, event: NSEvent) {
@@ -491,17 +587,6 @@ final class WorldView: NSView {
         defer { dragStart = nil }
         guard let sel = selection else { return }
         let anchors = anchorsFrom(sel)
-        if model.tool == .brush, brushFrozen {
-            brushFrozen = false
-            model.liveBrush = nil
-            clearSelection()
-            if !anchors.isEmpty {
-                let card = model.cards.create(color: model.brushColor, kind: .quick(model.brushColor), anchors: anchors)
-                model.focusedCard = card.id
-                model.offscreenCard = card.id
-            }
-            return
-        }
         guard !anchors.isEmpty, let rect = selectionRect(sel) else { return }
         model.pending = PendingSelection(anchors: anchors, rect: rect)
     }
@@ -563,21 +648,6 @@ final class WorldView: NSView {
             rect = rect.map { $0.union(r) } ?? r
         }
         return rect
-    }
-
-    /// Right-middle of the selection's last line, in document coordinates (where the brush yarn leaves).
-    private func selectionRightEdge(_ sel: PDFSelection) -> CGPoint? {
-        guard let model else { return nil }
-        var best: CGPoint?
-        for line in sel.selectionsByLine() {
-            for page in line.pages {
-                guard let view = pageViews[(model.document?.index(for: page) ?? -2) + 1] else { continue }
-                let n = view.geometry.normalized(fromPage: line.bounds(for: page))
-                let p = CGPoint(x: view.frame.minX + (n.x + n.width) * view.frame.width, y: view.frame.minY + (n.y + n.height / 2) * view.frame.height)
-                if best == nil || p.y > best!.y { best = p }
-            }
-        }
-        return best
     }
 
     func knotClicked(_ cardId: String) {
@@ -805,6 +875,8 @@ final class PageView: NSView {
         didSet { needsDisplay = true }
     }
     private var knotViews: [String: ZoomedHostingView<KnotBadge>] = [:]
+    /// The bottom-right corner: drag to resize the book's pages (owner, 16 Nov).
+    let grip = PageResizeGrip()
 
     init(geometry: PageGeometry, number: Int) {
         self.geometry = geometry
@@ -815,6 +887,25 @@ final class PageView: NSView {
         layer?.shadowOpacity = 0.12
         layer?.shadowRadius = 8
         layer?.shadowOffset = CGSize(width: 0, height: -3)
+        grip.page = self
+        addSubview(grip)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self, userInfo: nil))
+    }
+
+    /// The grip shows while the pointer is over the page.
+    override func mouseEntered(with event: NSEvent) { grip.shown = true }
+    override func mouseExited(with event: NSEvent) { grip.shown = false }
+
+    /// The grip is about 18 points on screen at any zoom, in the page's bottom-right corner.
+    func placeGrip() {
+        let m = max(world?.scrollView.magnification ?? 1, 0.05)
+        let side = min(80, max(10, 18 / m))
+        let frame = CGRect(x: bounds.width - side, y: bounds.height - side, width: side, height: side)
+        if grip.frame != frame {
+            grip.frame = frame
+            window?.invalidateCursorRects(for: grip)
+        }
+        if let t = world.map({ UIText($0.lang)["resizePage"] }), grip.toolTip != t { grip.toolTip = t }
     }
 
     @available(*, unavailable)
@@ -878,7 +969,7 @@ final class PageView: NSView {
             let badge = KnotBadge(knot: knot) { [weak self] in self?.world?.knotClicked(knot.cardId) }
             let view = knotViews[knot.cardId] ?? {
                 let v = ZoomedHostingView(rootView: badge)
-                addSubview(v)
+                addSubview(v, positioned: .below, relativeTo: grip)
                 knotViews[knot.cardId] = v
                 return v
             }()
@@ -935,17 +1026,73 @@ final class PageView: NSView {
     }
 
     override func resetCursorRects() {
-        let crosshair = world?.model?.tool == .area || world?.model?.tool == .brush || geometry.isTextless
+        let crosshair = world?.model?.tool == .area || geometry.isTextless
         addCursorRect(bounds, cursor: crosshair ? .crosshair : .iBeam)
     }
 }
 
-/// Bezier yarns between anchors and cards, plus the ghost card while the brush is pulled.
+/// A page's bottom-right corner: dragging it resizes every page of the book (threads, highlights and
+/// translations follow); a double-click returns to the standard size. Drawn only while the pointer is
+/// over the page, like a window's resize corner.
+final class PageResizeGrip: NSView {
+    weak var page: PageView?
+    var shown = false {
+        didSet { if shown != oldValue { needsDisplay = true } }
+    }
+    private var resizing = false
+
+    override var isFlipped: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard shown || resizing, let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let w = bounds.width, h = bounds.height
+        ctx.setStrokeColor(Theme.hex("#33604F").withAlphaComponent(0.7).cgColor)
+        ctx.setLineWidth(max(1, w / 12))
+        ctx.setLineCap(.round)
+        for f in [0.3, 0.6] {
+            ctx.move(to: CGPoint(x: w * (1 - f) - w * 0.12, y: h - w * 0.12))
+            ctx.addLine(to: CGPoint(x: w - w * 0.12, y: h * (1 - f) - h * 0.12))
+        }
+        ctx.strokePath()
+    }
+
+    override func resetCursorRects() {
+        if #available(macOS 15.0, *) {
+            addCursorRect(bounds, cursor: .frameResize(position: .bottomRight, directions: .all))
+        } else {
+            addCursorRect(bounds, cursor: .crosshair)
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let page, let world = page.world else { return }
+        if event.clickCount == 2 {
+            world.resetPageSize(page)
+            return
+        }
+        resizing = true
+        world.pageResizeBegan(page)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard resizing else { return }
+        page?.world?.pageResizeDragged(event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard resizing else { return }
+        resizing = false
+        needsDisplay = true
+        page?.world?.pageResizeEnded()
+    }
+}
+
+/// Bezier yarns between anchors and cards.
 final class YarnOverlayView: NSView {
     var segments: [YarnSegment] = []
     /// Rope bends by segment id (see YarnRopes).
     var bends: [String: CGPoint] = [:]
-    var ghost: (YarnColor, CGPoint)?
 
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -973,17 +1120,6 @@ final class YarnOverlayView: NSView {
             ctx.setFillColor(color.cgColor)
             ctx.fillEllipse(in: CGRect(x: seg.from.x - s.startKnotRadius, y: seg.from.y - s.startKnotRadius, width: s.startKnotRadius * 2, height: s.startKnotRadius * 2))
             ctx.fillEllipse(in: CGRect(x: seg.to.x - s.endKnotRadius, y: seg.to.y - s.endKnotRadius, width: s.endKnotRadius * 2, height: s.endKnotRadius * 2))
-        }
-        if let (color, point) = ghost {
-            let rect = CGRect(x: point.x, y: point.y - Geometry.g.cardAttachY, width: Geometry.cardWidth, height: 92)
-            let stroke = Theme.yarn(color)
-            ctx.setStrokeColor(stroke.cgColor)
-            ctx.setFillColor(Theme.paperRaised.withAlphaComponent(0.7).cgColor)
-            ctx.setLineDash(phase: 0, lengths: [6, 5])
-            ctx.setLineWidth(1.5)
-            ctx.addPath(CGPath(roundedRect: rect, cornerWidth: 10, cornerHeight: 10, transform: nil))
-            ctx.drawPath(using: .fillStroke)
-            ctx.setLineDash(phase: 0, lengths: [])
         }
     }
 }

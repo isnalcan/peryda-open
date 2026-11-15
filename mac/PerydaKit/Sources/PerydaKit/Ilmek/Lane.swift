@@ -57,7 +57,7 @@ public enum Lane {
 
     /// Pinned cards stay put; first-generation cards share the lane right of the pages; a card opened
     /// from another card goes to a lane right of its parent. Folded cards are not placed.
-    public static func layout(_ cards: [Input]) -> [String: CGPoint] {
+    public static func layout(_ cards: [Input], laneX: Double = Geometry.laneX) -> [String: CGPoint] {
         let g = SharedContract.tokens.geometry
         let byId = Dictionary(cards.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         func depth(_ card: Input) -> Int {
@@ -79,7 +79,7 @@ public enum Lane {
         for d in 0...maxDepth {
             var lanes: [Double: [Input]] = [:]
             for c in visible where !c.isPinned && depth(c) == d {
-                var x = Geometry.laneX
+                var x = laneX
                 if d > 0, let parentId = c.parentCardId, let parent = byId[parentId], let p = result[parentId] {
                     x = Geometry.subLaneX(parentX: p.x, parentWidth: parent.width)
                 }

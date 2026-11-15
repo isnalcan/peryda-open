@@ -5,14 +5,15 @@ import { useI18n } from '../i18n/I18n'
 import type { Lang } from '../i18n/strings'
 import type { ByokSettings } from '../ai/provider'
 import { kindLabel } from '../ai/compose'
-import { GEOMETRY, pageLayout, screenToWorld } from '../ilmek/geometry'
+import { GEOMETRY, clampPageScale, pageLayout, pageWidthAt, pageWidthOf } from '../ilmek/geometry'
 import { useCards } from '../ilmek/useCards'
 import { YarnCardView } from '../ilmek/YarnCardView'
-import { YarnLayer, type YarnSegment } from '../ilmek/YarnLayer'
+import { YarnLayer } from '../ilmek/YarnLayer'
 import { useRopes } from '../ilmek/rope'
 import { SelectionMenu, type ScreenRect } from '../ilmek/SelectionMenu'
 import type { NormalizedRect, PageBox, PdfYarnAnchor, Point, YarnCard, YarnColor } from '../ilmek/types'
-import { centredContentWidth, clipsFor, contentRect, isShown, pageBand, placeCards, worldRect, yarnSegments, type WorldInput } from '../ilmek/worldLayout'
+import { cardsForSurface, centredContentWidth, clipsFor, contentRect, isShown, pageBand, pinnedAfterResize, placeCards, worldRect, yarnSegments, type WorldInput } from '../ilmek/worldLayout'
+import type { CardPlacement } from '../ilmek/lane'
 import { PdfPageView, type PageHighlight, type PageKnot, type Tool } from './PdfPageView'
 import { ReaderTopBar } from './ReaderTopBar'
 import { anchorsFromSelection, expandToWords, normalizeText, selectionScreenRect, type PageElement } from './selection'
@@ -27,10 +28,8 @@ import { TranslatedPageView } from './TranslatedPageView'
 import { RANGE_LIMIT, isUnfinishedTranslation } from '../ilmek/cardsStore'
 import { PageTextCache, pageSource, renderPageJpeg, translationPicture } from './pageText'
 import { PageReadingsStore } from '../reading/pageReadings'
-import { brushCaretAt, lastLineRight } from './brush'
 import { useFakeAi } from '../ai/fake'
 import { cardText } from './useThreadSelection'
-import yarnKinds from '@shared/yarn-kinds.json'
 
 interface Props {
   book: BookRecord
@@ -53,7 +52,10 @@ const POLL_START_MS = 5000
 
 interface Opened {
   doc: PDFDocumentProxy
-  pages: PageBox[]
+  /** Each page's size in points. */
+  sizes: (readonly [number, number])[]
+  /** The book's page size (the reader resizes the pages from a page's corner); 1 is pageWorldWidth. */
+  pageScale: number
   camera: Camera | null
   page: number
   paged: boolean
@@ -76,16 +78,18 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
         if (!file) throw new Error('missing file')
         doc = await openPdf(await file.blob.arrayBuffer())
         const sizes = await pageSizes(doc)
-        const [saved, paged, target, explainTerms] = await Promise.all([
+        const [saved, paged, target, explainTerms, pageScale] = await Promise.all([
           db.positions.get(book.id),
           getPref<boolean>('pagedReading', false),
           getPref<Lang | null>(`translateLang:${book.id}`, null),
           getPref<boolean>('explainTerms', true),
+          getPref<unknown>(`pageScale:${book.id}`, 1),
         ])
         if (cancelled) return
         setOpened({
           doc,
-          pages: pageLayout(sizes.map((s) => [s.width, s.height] as const)),
+          sizes: sizes.map((s) => [s.width, s.height] as const),
+          pageScale: typeof pageScale === 'number' && Number.isFinite(pageScale) ? clampPageScale(pageScale) : 1,
           camera: saved && saved.scale > 0 ? { x: saved.panX, y: saved.panY, s: saved.scale } : null,
           page: Math.min(Math.max(1, saved?.page ?? 1), doc.numPages),
           paged,
@@ -116,32 +120,17 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
   return <ReaderSurface book={book} opened={opened} settings={settings} lang={lang} onOpened={onOpened} onBack={onBack} onOpenSettings={onOpenSettings} />
 }
 
-interface BrushState {
-  startNode: Node
-  startOffset: number
-  /** Set once the stroke is pulled far enough to the right: the painted text no longer changes. */
-  frozen: boolean
-  from: Point | null
-  pointer: Point
-}
-
-const WORD_CHAR = /[\p{L}\p{N}'’-]/u
-
-/** Widens a range so it starts and ends on whole words (inside the text nodes it already touches). */
-function snapToWords(range: Range): void {
-  const { startContainer: sc, endContainer: ec } = range
-  if (sc.nodeType === Node.TEXT_NODE) {
-    const text = sc.textContent ?? ''
-    let i = range.startOffset
-    while (i > 0 && WORD_CHAR.test(text[i - 1]!)) i -= 1
-    range.setStart(sc, i)
-  }
-  if (ec.nodeType === Node.TEXT_NODE) {
-    const text = ec.textContent ?? ''
-    let j = range.endOffset
-    while (j < text.length && WORD_CHAR.test(text[j]!)) j += 1
-    range.setEnd(ec, j)
-  }
+/** A resize of the pages from a page's corner, while the pointer is down. */
+interface PageResizeDrag {
+  page: number
+  /** The pages when the drag began (cards the reader placed are moved from these). */
+  startPages: PageBox[]
+  startScale: number
+  scale: number
+  /** The grabbed page's top-left corner on screen (viewport pixels): it stays there. */
+  left: number
+  top: number
+  renderWidth: number
 }
 
 function prefersReducedMotion(): boolean {
@@ -160,7 +149,11 @@ interface SurfaceProps {
 
 function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenSettings }: SurfaceProps) {
   const { t } = useI18n()
-  const { doc, pages } = opened
+  const { doc, sizes } = opened
+  // The pages' size: resized from a page's bottom-right corner, kept per book (owner, 16 Nov).
+  const [pageScale, setPageScale] = useState(opened.pageScale)
+  const pages = useMemo(() => pageLayout(sizes, pageWidthAt(pageScale)), [sizes, pageScale])
+  const pageWidth = pageWidthOf(pages)
   const viewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState({ width: 1200, height: 800 })
@@ -209,6 +202,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   useEffect(() => () => cancelAnimationFrame(animation.current), [])
 
   const [tool, setTool] = useState<Tool>('select')
+  const pageResizing = useRef<PageResizeDrag | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [bridgeHeld, setBridgeHeld] = useState<PdfYarnAnchor[] | null>(null)
   const [heights, setHeights] = useState<Record<string, number>>({})
@@ -217,8 +211,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const [focusedCard, setFocusedCard] = useState<string | null>(null)
   const [showJournal, setShowJournal] = useState(false)
   const [offscreenCard, setOffscreenCard] = useState<string | null>(null)
-  const [brushColor, setBrushColor] = useState<YarnColor>('mint')
-  const [brush, setBrush] = useState<BrushState | null>(null)
   const [pagedReading, setPagedReading] = useState(opened.paged)
   const [pagedPage, setPagedPage] = useState(opened.page)
   const [shortQuotes, setShortQuotes] = useState<ReadonlySet<string>>(() => new Set())
@@ -228,7 +220,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const [extractingPage, setExtractingPage] = useState<number | null>(null)
   const [pageMenu, setPageMenu] = useState<{ x: number; y: number; page: number } | null>(null)
   const [showTranslationFor, setShowTranslationFor] = useState<number | null>(null)
-  const brushRange = useRef<Range | null>(null)
   const pageElements = useRef(new Map<number, { element: HTMLElement; textLayer: HTMLElement | null }>())
   const pageTexts = useMemo(() => new PageTextCache(doc), [doc])
   // Pages read with Pery in "Extract page text", kept with the book; a batch job still lands while it is open.
@@ -246,7 +237,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   useEffect(() => {
     readings.settings = settings
   }, [readings, settings])
-  const { store, cards, create, ask, retry, stop, remove, update, resize } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
+  const { store, cards, create, ask, retry, stop, remove, update, resize, resizeFrom, placeMany } = useCards({ bookId: book.id, bookTitle: book.title, lang, settings })
   store.pageCount = pages.length
   store.explainTerms = explainTerms
   // Scanned pages' pictures are drawn when their translation is sent, not kept beforehand (WW-5).
@@ -264,9 +255,14 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const currentPage = pagedReading ? pagedPage : scrollPage
 
   // ---- Layout: cards, translations, yarns, knots ----
+  // While the pages are resized from a corner: the width the pages stay drawn at (they are stretched
+  // until the pointer is let go) and where the cards the reader placed are meanwhile.
+  const [pageResize, setPageResize] = useState<{ renderWidth: number; moved: ReadonlyMap<string, CardPlacement> } | null>(null)
+  // Page translations at their page's size now, and placed cards following a resize in progress.
+  const surfaceCards = useMemo(() => cardsForSurface(cards, pages, pageResize?.moved), [cards, pages, pageResize])
   const layoutInput: WorldInput = useMemo(
-    () => ({ cards, pages, heights, pagedReading, currentPage: 1, hideThreads: false, revealed: new Set<string>() }),
-    [cards, pages, heights, pagedReading],
+    () => ({ cards: surfaceCards, pages, heights, pagedReading, currentPage: 1, hideThreads: false, revealed: new Set<string>() }),
+    [surfaceCards, pages, heights, pagedReading],
   )
   const placements = useMemo(() => placeCards(layoutInput), [layoutInput])
   const shownInput: WorldInput = useMemo(
@@ -339,15 +335,16 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     (band: { top: number; bottom: number } | null) => (band ? (c: Camera): Camera => constrainToBand(c, band, viewport.height) : null),
     [viewport.height],
   )
-  constrainRef.current = constrainFor(bandFor(currentPage))
+  // Not while the pages are being resized: the band moves with them (set again when the pointer is let go).
+  constrainRef.current = pageResizing.current ? null : constrainFor(bandFor(currentPage))
 
   // ---- Viewport, saved position ----
   const overviewCamera = useCallback(
     (width: number, height: number): Camera => {
       const s = Math.min(1, Math.max(0.15, (width - 48) / centredContentWidth(content)))
-      return { x: width / 2 - (GEOMETRY.pageWorldWidth / 2) * s, y: 24, s }
+      return { x: width / 2 - (pageWidth / 2) * s, y: 24, s }
     },
-    [content],
+    [content, pageWidth],
   )
   const overviewRef = useRef(overviewCamera)
   overviewRef.current = overviewCamera
@@ -401,6 +398,104 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   )
   const turnPage = useCallback((delta: number) => goToPage(currentPage + delta), [goToPage, currentPage])
 
+  // ---- Resizing the pages from a page's bottom-right corner (owner, 16 Nov) ----
+  // The pages keep their proportions; threads, highlights and translations follow them, and cards the
+  // reader placed move with their passage. The grabbed page's top-left corner stays where it is on
+  // screen. The pages are stretched while the pointer moves and drawn again at the new size after.
+  const pagesRef = useRef(pages)
+  pagesRef.current = pages
+  const pageScaleRef = useRef(pageScale)
+  pageScaleRef.current = pageScale
+
+  /** Lays the pages out at `scale` and keeps the grabbed page's corner at (left, top) on screen. */
+  const showPagesAt = useCallback(
+    (scale: number, page: number, left: number, top: number) => {
+      const next = pageLayout(sizes, pageWidthAt(scale))
+      const box = next[page - 1]
+      if (!box) return next
+      cancelAnimationFrame(animation.current)
+      cameraReady.current = true
+      const c = cameraRef.current
+      constrainRef.current = null
+      setCamera({ x: left - box.x * c.s, y: top - box.y * c.s, s: c.s })
+      setPageScale(scale)
+      return next
+    },
+    [sizes, cameraRef, setCamera],
+  )
+
+  const onPageGripDown = useCallback(
+    (page: number, e: ReactPointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return
+      const box = pagesRef.current[page - 1]
+      if (!box) return
+      e.preventDefault()
+      e.stopPropagation()
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        /* synthetic or already released pointer */
+      }
+      setPending(null)
+      const c = cameraRef.current
+      const scale = pageScaleRef.current
+      pageResizing.current = { page, startPages: pagesRef.current, startScale: scale, scale, left: c.x + box.x * c.s, top: c.y + box.y * c.s, renderWidth: box.width }
+      setPageResize({ renderWidth: box.width, moved: new Map() })
+    },
+    [cameraRef],
+  )
+
+  const onPageGripMove = useCallback(
+    (e: ReactPointerEvent<HTMLElement>) => {
+      const d = pageResizing.current
+      const host = viewportRef.current?.getBoundingClientRect()
+      const b = d?.startPages[d.page - 1]
+      if (!d || !host || !b) return
+      // The pointer's offset from the page's corner, projected on the page's diagonal: the page keeps
+      // its proportions and its bottom-right corner follows the pointer.
+      const s = cameraRef.current.s
+      const dx = (e.clientX - host.left - d.left) / s
+      const dy = (e.clientY - host.top - d.top) / s
+      const t = (dx * b.width + dy * b.height) / (b.width * b.width + b.height * b.height)
+      const scale = clampPageScale((t * b.width) / GEOMETRY.pageWorldWidth)
+      if (Math.abs(scale - d.scale) < 1e-4) return
+      d.scale = scale
+      const next = showPagesAt(scale, d.page, d.left, d.top)
+      setPageResize({ renderWidth: d.renderWidth, moved: pinnedAfterResize(store.cards, d.startPages, next) })
+    },
+    [cameraRef, showPagesAt, store],
+  )
+
+  const onPageGripUp = useCallback(() => {
+    const d = pageResizing.current
+    if (!d) return
+    pageResizing.current = null
+    if (d.scale !== d.startScale) {
+      placeMany(pinnedAfterResize(store.cards, d.startPages, pageLayout(sizes, pageWidthAt(d.scale))))
+      void setPref(`pageScale:${book.id}`, d.scale)
+    }
+    setPageResize(null)
+  }, [placeMany, store, sizes, book.id])
+
+  /** A double click on the corner: the pages' original size. */
+  const onPageGripReset = useCallback(
+    (page: number) => {
+      const from = pagesRef.current
+      const box = from[page - 1]
+      if (!box || pageScaleRef.current === 1) return
+      const c = cameraRef.current
+      const next = showPagesAt(1, page, c.x + box.x * c.s, c.y + box.y * c.s)
+      placeMany(pinnedAfterResize(store.cards, from, next))
+      void setPref(`pageScale:${book.id}`, 1)
+    },
+    [cameraRef, showPagesAt, placeMany, store, book.id],
+  )
+
+  const pageGrip = useMemo(
+    () => ({ label: t.resizePage, down: onPageGripDown, move: onPageGripMove, up: onPageGripUp, reset: onPageGripReset }),
+    [t.resizePage, onPageGripDown, onPageGripMove, onPageGripUp, onPageGripReset],
+  )
+
   const switchPaged = (paged: boolean) => {
     if (paged === pagedReading) return
     void setPref('pagedReading', paged)
@@ -423,9 +518,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     const c = cameraRef.current
     const s = Math.min(maxScale, Math.max(0.15, (viewport.width - 48) / width))
     const cy = (viewport.height / 2 - c.y) / c.s
-    animateCamera({ x: viewport.width / 2 - (GEOMETRY.pageWorldWidth / 2) * s, y: viewport.height / 2 - cy * s, s })
+    animateCamera({ x: viewport.width / 2 - (pageWidth / 2) * s, y: viewport.height / 2 - cy * s, s })
   }
-  const presetFocus = () => fit(GEOMETRY.pageWorldWidth + 48, 2.5)
+  const presetFocus = () => fit(pageWidth + 48, 2.5)
   const presetMap = () => fit(centredContentWidth(content), 0.45)
   const zoomCenter = (s: number) => zoomAround([viewport.width / 2, viewport.height / 2], s)
 
@@ -436,7 +531,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       if (!box) return
       const card = store.pageTranslation(page, translationTarget)
       const p = card ? placements.get(card.id) : undefined
-      const right = p && card ? p.x + card.width : box.x + box.width * 2 + 60
+      // A translation is drawn at its page's size.
+      const right = p ? p.x + box.width : box.x + box.width * 2 + 60
       const width = right - box.x + 80
       const s = Math.min(1.2, Math.max(0.15, (viewport.width - 48) / width))
       animateCamera({ x: viewport.width / 2 - ((box.x + right) / 2) * s, y: 24 - box.y * s, s })
@@ -640,34 +736,11 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     return () => window.removeEventListener('keydown', onKey)
   }, [panBy, zoomAround, cameraRef, viewport, pagedReading, turnPage])
 
-  // ---- Pointer: panning, brush ----
+  // ---- Pointer: panning ----
   const panDrag = useRef<{ x: number; y: number } | null>(null)
-  const toWorld = (clientX: number, clientY: number): Point => {
-    const host = viewportRef.current!.getBoundingClientRect()
-    const c = cameraRef.current
-    return screenToWorld([clientX - host.left, clientY - host.top], [c.x, c.y], c.s)
-  }
-
   const onViewportPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement
     if (!target.closest('.selection-menu')) setPending((p) => (p ? null : p))
-    const brushLayer = tool === 'brush' && e.button === 0 ? target.closest('.pdf-page .textLayer') : null
-    if (brushLayer) {
-      // With the brush, the page never falls back to the browser's own text selection.
-      e.preventDefault()
-      const caret = brushCaretAt(e.clientX, e.clientY, brushLayer, true)
-      if (caret) {
-        try {
-          e.currentTarget.setPointerCapture(e.pointerId)
-        } catch {
-          /* synthetic or already released pointer */
-        }
-        window.getSelection()?.removeAllRanges()
-        brushRange.current = null
-        setBrush({ startNode: caret.node, startOffset: caret.offset, frozen: false, from: null, pointer: toWorld(e.clientX, e.clientY) })
-        return
-      }
-    }
     const onEmpty = target === viewportRef.current || target === worldRef.current || target.classList.contains('yarn-layer')
     if (e.button === 1 || (e.button === 0 && onEmpty)) {
       e.preventDefault()
@@ -680,61 +753,12 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     }
   }
   const onViewportPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (brush) {
-      const pointer = toWorld(e.clientX, e.clientY)
-      if (brush.frozen) {
-        setBrush({ ...brush, pointer })
-        return
-      }
-      // Paint only while the pointer is over text of the same page; pulling far enough right makes a thread.
-      const selection = window.getSelection()
-      const layer = (brush.startNode.parentElement ?? null)?.closest('.textLayer')
-      const caret = layer ? brushCaretAt(e.clientX, e.clientY, layer) : null
-      if (caret && selection) {
-        const range = document.createRange()
-        range.setStart(brush.startNode, brush.startOffset)
-        range.setEnd(brush.startNode, brush.startOffset)
-        if (range.comparePoint(caret.node, caret.offset) >= 0) range.setEnd(caret.node, caret.offset)
-        else range.setStart(caret.node, caret.offset)
-        snapToWords(range)
-        brushRange.current = range
-        selection.removeAllRanges()
-        selection.addRange(range)
-      }
-      const painted = brushRange.current
-      if (painted && !painted.collapsed) {
-        const rects = [...painted.getClientRects()].filter((r) => r.width > 0)
-        const right = lastLineRight(rects)
-        const last = rects.reduce((a, r) => (r.bottom > a.bottom ? r : a), rects[0]!)
-        if (right !== null && e.clientX - right >= GEOMETRY.brushPullThreshold) {
-          selection?.removeAllRanges()
-          selection?.addRange(painted)
-          setBrush({ ...brush, frozen: true, from: toWorld(right, last.top + last.height / 2), pointer })
-          return
-        }
-      }
-      setBrush({ ...brush, pointer })
-      return
-    }
     const d = panDrag.current
     if (!d) return
     panBy(e.clientX - d.x, e.clientY - d.y)
     panDrag.current = { x: e.clientX, y: e.clientY }
   }
   const onViewportPointerUp = () => {
-    if (brush) {
-      const pulled = brush.frozen
-      setBrush(null)
-      if (pulled) {
-        const selection = window.getSelection()
-        const anchors = selection ? anchorsFromSelection(selection, pageList(), book.id) : []
-        selection?.removeAllRanges()
-        if (anchors.length) void createWith({ color: brushColor, kind: brushColor, anchors })
-        return
-      }
-      window.setTimeout(readSelection, 0)
-      return
-    }
     if (panDrag.current) {
       panDrag.current = null
       return
@@ -964,9 +988,6 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     return { first: Math.max(0, first), last: Math.max(0, last) }
   }, [camera.y, camera.s, viewport.height, pages, pagedReading, currentPage])
 
-  const liveSegments: YarnSegment[] =
-    brush?.frozen && brush.from ? [...segments, { key: 'brush-live', color: brushColor, from: brush.from, to: brush.pointer, dashed: true }] : segments
-
   return (
     <div className="reader-shell" style={{ ['--card-text' as string]: actions.cardTextScale }}>
       <ReaderTopBar
@@ -975,7 +996,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         onOpenSettings={onOpenSettings}
         onOpenJournal={() => setShowJournal((v) => !v)}
         journalOpen={showJournal}
-        leading={<ToolSwitcher tool={tool} onTool={setTool} brushColor={brushColor} onBrushColor={setBrushColor} />}
+        leading={<ToolSwitcher tool={tool} onTool={setTool} />}
       >
         <PageNav
           page={currentPage}
@@ -1035,8 +1056,13 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         >
           <div
             ref={worldRef}
-            className="reader-world"
-            style={{ width: world.x + world.width, height: world.height, transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.s})` }}
+            className={`reader-world${pageResize ? ' is-resizing-pages' : ''}`}
+            style={{
+              width: world.x + world.width,
+              height: world.height,
+              transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.s})`,
+              ['--zoom' as string]: camera.s,
+            }}
           >
             {pages.map((box, i) =>
               i >= visibleRange.first && i <= visibleRange.last ? (
@@ -1045,6 +1071,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                   doc={doc}
                   pageNumber={i + 1}
                   box={box}
+                  renderWidth={pageResize?.renderWidth}
                   renderScale={settledScale}
                   highlights={highlightsByPage.get(i + 1) ?? EMPTY}
                   knots={knotsByPage.get(i + 1) ?? EMPTY}
@@ -1054,23 +1081,14 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                   onHighlightClick={onHighlightClick}
                   onTextless={noop}
                   onDrawn={onPageDrawn}
+                  grip={pageGrip}
                 />
               ) : pagedReading ? null : (
                 <div key={i + 1} className="pdf-page is-placeholder" style={{ transform: `translate(${box.x}px, ${box.y}px)`, width: box.width, height: box.height }} />
               ),
             )}
-            <YarnLayer segments={liveSegments} bends={ropeBends} x={world.x} width={world.width} height={world.height} />
-            {brush?.frozen && (
-              <div
-                className="ghost-card"
-                data-yarn={brushColor}
-                style={{ transform: `translate(${brush.pointer[0]}px, ${brush.pointer[1] - GEOMETRY.cardAttachY}px)`, width: GEOMETRY.cardWidth }}
-                aria-hidden="true"
-              >
-                <span className="yarn-dot" /> {yarnKinds.kinds[brushColor].cardTitle[lang]}
-              </div>
-            )}
-            {cards.map((card) => {
+            <YarnLayer segments={segments} bends={ropeBends} x={world.x} width={world.width} height={world.height} />
+            {surfaceCards.map((card) => {
               const p = placements.get(card.id)
               if (!p || !shownIds.has(card.id)) return null
               if (card.translatedPage !== undefined) {
@@ -1109,6 +1127,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                     onMove={onMove}
                     onDragLive={onDragLive}
                     onResize={resize}
+                    onResizeFrom={resizeFrom}
                     onUnpin={onUnpin}
                     onCollapse={onCollapse}
                     onOpenSettings={onOpenSettings}

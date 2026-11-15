@@ -141,6 +141,20 @@ public final class CardsModel {
 
     public func unpin(_ cardId: String) { mutate(cardId) { $0.isPinned = false } }
 
+    /// Places several cards at once (the pages were resized and the cards the reader placed moved with
+    /// them), saved in one write.
+    public func pinAll(_ points: [String: CGPoint]) {
+        guard !points.isEmpty else { return }
+        for (id, p) in points {
+            mutate(id, save: false) {
+                $0.isPinned = true
+                $0.x = Double(p.x)
+                $0.y = Double(p.y)
+            }
+        }
+        scheduleSave()
+    }
+
     /// Limits for resizing a card by its corner, in world units.
     nonisolated public static let widthRange: ClosedRange<Double> = 300...640
     nonisolated public static let heightRange: ClosedRange<Double> = 150...1000

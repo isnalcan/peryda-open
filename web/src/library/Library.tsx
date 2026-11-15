@@ -5,6 +5,7 @@ import { useI18n } from '../i18n/I18n'
 import { GearIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { coverFit, forgetCover, loadCover, peekCover, type CoverImage } from './covers'
 import { bookDetail, shelf } from './libraryModel'
+import { isImageFile } from './imagePdf'
 import { EditBookDialog } from './EditBookDialog'
 import './library.css'
 import { LibraryArt } from './LibraryArt'
@@ -77,15 +78,30 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
     setBusy(true)
     let last: BookRecord | null = null
     // The PDF and EPUB engines load only when a file is added.
-    const { ImportError, importBook } = await import('./importBook')
+    const { ImportError, importBook, importImages } = await import('./importBook')
+    const refuse = (error: unknown) => {
+      const refused = error instanceof ImportError ? error : null
+      if (refused?.kind === 'unsupported') setMessage(t.unsupportedFile)
+      else if (refused?.kind === 'tooLarge') setMessage(t.fileTooLarge(refused.limitMb))
+      else if (refused?.kind === 'heic') setMessage(t.heicUnsupported)
+      else setMessage(t.importFailed)
+    }
+    // Photos chosen or dropped together become one book, a page each; PDFs and EPUBs are added one by one.
+    const images = files.filter(isImageFile)
     for (const file of files) {
+      if (images.includes(file)) continue
       try {
         last = await importBook(file)
       } catch (error) {
-        const refused = error instanceof ImportError ? error : null
-        if (refused?.kind === 'unsupported') setMessage(t.unsupportedFile)
-        else if (refused?.kind === 'tooLarge') setMessage(t.fileTooLarge(refused.limitMb))
-        else setMessage(t.importFailed)
+        refuse(error)
+      }
+    }
+    if (images.length) {
+      try {
+        last = await importImages(images)
+        if (images.length > 1) setMessage(t.imagesAsBook(images.length))
+      } catch (error) {
+        refuse(error)
       }
     }
     setBusy(false)
@@ -147,7 +163,7 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.epub,application/pdf,application/epub+zip"
+          accept=".pdf,.epub,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,application/epub+zip,image/jpeg,image/png,image/webp,image/heic,image/heif"
           multiple
           hidden
           onChange={(e) => {

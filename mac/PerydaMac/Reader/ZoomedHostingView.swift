@@ -17,10 +17,15 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
     var onResize: ((CGSize, Bool) -> Void)?
     /// A double-click on the corner returns the card to its natural size.
     var onResizeReset: (() -> Void)?
+    /// Widening from the left or right edge (owner, 16 Nov): the new width in world units, whether it
+    /// is the left edge, and whether it ended.
+    var onEdgeResize: ((CGFloat, Bool, Bool) -> Void)?
+    /// A double-click on an edge returns the card to its natural width.
+    var onEdgeReset: (() -> Void)?
     var headerHeight: CGFloat = 36
     var gripSize: CGFloat = 16
 
-    private enum Grab { case header, corner(CGSize), body }
+    private enum Grab { case header, corner(CGSize), edge(left: Bool, width: CGFloat), body }
     private var press: (start: CGPoint, grab: Grab)?
     private var dragging = false
 
@@ -28,7 +33,24 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
         guard let superview, !isHidden else { return nil }
         let local = convert(point, from: superview)
         guard bounds.contains(local) else { return nil }
-        return Self.control(in: self, at: local) ?? self
+        let hit = Self.control(in: self, at: local)
+        // A thin strip along each side resizes the card, even over its text; a button there still works.
+        if !(hit is NSControl), edge(at: CGPoint(x: local.x, y: isFlipped ? local.y : bounds.height - local.y)) != nil { return self }
+        return hit ?? self
+    }
+
+    /// How wide the side strips are: about six points on screen at any zoom.
+    private var edgeWidth: CGFloat {
+        let m = max(enclosingScrollView?.magnification ?? 1, 0.05)
+        return min(24, max(3, 6 / m))
+    }
+
+    /// Whether a point (from the top-left corner) is on the left (true) or right (false) side strip.
+    private func edge(at p: CGPoint) -> Bool? {
+        guard onEdgeResize != nil, !inCorner(p) else { return nil }
+        if p.x < edgeWidth { return true }
+        if p.x > bounds.width - edgeWidth { return false }
+        return nil
     }
 
     /// The front-most control or text view containing `point` (in `view`'s coordinates).
@@ -80,6 +102,13 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
                 return
             }
             grab = .corner(bounds.size)
+        } else if let left = edge(at: p) {
+            if event.clickCount == 2 {
+                onEdgeReset?()
+                press = nil
+                return
+            }
+            grab = .edge(left: left, width: bounds.width)
         } else if p.y < headerHeight, onHeaderDrag != nil {
             grab = .header
         } else {
@@ -103,6 +132,9 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
         case .corner(let start):
             dragging = true
             onResize?(CGSize(width: start.width + t.width, height: start.height + t.height), false)
+        case .edge(let left, let width):
+            dragging = true
+            onEdgeResize?(left ? width - t.width : width + t.width, left, false)
         case .body:
             break
         }
@@ -122,6 +154,8 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
             NSCursor.arrow.set()
         case .corner(let start) where dragging:
             onResize?(CGSize(width: start.width + t.width, height: start.height + t.height), true)
+        case .edge(let left, let width) where dragging:
+            onEdgeResize?(left ? width - t.width : width + t.width, left, true)
         default:
             onClick?(fromTopLeft(event))
         }
@@ -150,6 +184,18 @@ final class ZoomedHostingView<Content: View>: NSHostingView<Content> {
 
     override func resetCursorRects() {
         if onHeaderDrag != nil { addCursorRect(CGRect(x: 0, y: isFlipped ? 0 : bounds.height - headerHeight, width: bounds.width, height: headerHeight), cursor: .openHand) }
+        if onEdgeResize != nil {
+            // Both sides, short of the corner grip.
+            let e = edgeWidth, h = bounds.height - gripSize
+            let y = isFlipped ? 0 : gripSize
+            if #available(macOS 15.0, *) {
+                addCursorRect(CGRect(x: 0, y: y, width: e, height: h), cursor: .frameResize(position: .left, directions: .all))
+                addCursorRect(CGRect(x: bounds.width - e, y: y, width: e, height: h), cursor: .frameResize(position: .right, directions: .all))
+            } else {
+                addCursorRect(CGRect(x: 0, y: y, width: e, height: h), cursor: .resizeLeftRight)
+                addCursorRect(CGRect(x: bounds.width - e, y: y, width: e, height: h), cursor: .resizeLeftRight)
+            }
+        }
         if onResize != nil {
             let corner = CGRect(x: bounds.width - gripSize, y: isFlipped ? bounds.height - gripSize : 0, width: gripSize, height: gripSize)
             if #available(macOS 15.0, *) {

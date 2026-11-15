@@ -45,10 +45,11 @@ export interface CardPlacement {
 
 /**
  * Places every visible card. Pinned cards stay where the reader left them. Unpinned first-generation
- * cards share the lane right of the pages; a card opened from inside another card goes to a lane right
- * of its parent. Each lane is solved separately, parents before children.
+ * cards share the lane right of the pages (at `laneX`, which follows the pages' size); a card opened
+ * from inside another card goes to a lane right of its parent. Each lane is solved separately, parents
+ * before children.
  */
-export function layoutCards(cards: readonly CardForLayout[]): Map<string, CardPlacement> {
+export function layoutCards(cards: readonly CardForLayout[], laneX: number = LANE_X): Map<string, CardPlacement> {
   const result = new Map<string, CardPlacement>()
   const byId = new Map(cards.map((c) => [c.id, c]))
   const depthOf = (card: CardForLayout): number => {
@@ -71,7 +72,7 @@ export function layoutCards(cards: readonly CardForLayout[]): Map<string, CardPl
     const lanes = new Map<number, CardForLayout[]>()
     for (const c of visible) {
       if (c.isPinned || depthOf(c) !== depth) continue
-      let x = LANE_X
+      let x = laneX
       if (depth > 0 && c.parentCardId) {
         const parent = byId.get(c.parentCardId)
         const parentPlacement = parent ? result.get(parent.id) : undefined

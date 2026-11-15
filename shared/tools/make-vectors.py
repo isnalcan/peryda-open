@@ -18,15 +18,57 @@ def bezier(x1, y1, x2, y2):
     return {"c1": [x1 + span, y1], "c2": [x2 - span, y2]}
 
 
-def page_layout(sizes):
-    """sizes: list of [widthPt, heightPt]; pages stack vertically at a fixed world width."""
+def page_layout(sizes, width=None):
+    """sizes: list of [widthPt, heightPt]; pages stack vertically at one world width (the reader's page
+    size: pageWorldWidth times the book's page scale)."""
+    width = float(G["pageWorldWidth"] if width is None else width)
     y = 0.0
     pages = []
     for w, h in sizes:
-        height = G["pageWorldWidth"] * (h / w)
-        pages.append({"x": 0.0, "y": y, "width": float(G["pageWorldWidth"]), "height": height})
+        height = width * (h / w)
+        pages.append({"x": 0.0, "y": y, "width": width, "height": height})
         y += height + G["pageGap"]
     return pages
+
+
+def clamp_page_scale(s):
+    return min(max(s, G["pageScaleMin"]), G["pageScaleMax"])
+
+
+def lane_x(page_width):
+    return page_width + G["laneOffset"]
+
+
+def remap_pinned(point, old_pages, new_pages):
+    """Where a card the reader placed goes when the pages are resized, so it stays by its passage.
+    x: right of the pages it moves with their right edge, left of them it stays, over them it scales.
+    y: on a page it keeps its place within that page; in the gap below a page it moves with that
+    page's bottom; above the first page it stays."""
+    x, y = point
+    if not old_pages or not new_pages or len(old_pages) != len(new_pages):
+        return [x, y]
+    old_w, new_w = old_pages[0]["width"], new_pages[0]["width"]
+    if x >= old_w:
+        nx = x + (new_w - old_w)
+    elif x <= 0:
+        nx = x
+    else:
+        nx = x * new_w / old_w
+    index = None
+    for i, page in enumerate(old_pages):
+        if page["y"] <= y:
+            index = i
+        else:
+            break
+    if index is None:
+        ny = y
+    else:
+        o, n = old_pages[index], new_pages[index]
+        if y <= o["y"] + o["height"]:
+            ny = n["y"] + (y - o["y"]) * n["height"] / o["height"]
+        else:
+            ny = y + (n["y"] + n["height"]) - (o["y"] + o["height"])
+    return [nx, ny]
 
 
 def anchor_world_point(rect, page):
@@ -194,6 +236,28 @@ def main():
     ]
     write("provider.json", {"description": "Which provider answers. Keys here are placeholders, not real keys.",
                             "cases": [{"settings": p, "provider": resolve_provider(p)} for p in providers]})
+
+    scale_sizes = [[612, 792], [842, 595], [595.28, 841.89]]
+    base = page_layout(scale_sizes)
+    scaled = []
+    for s in [0.5, 1.37, 2.5]:
+        width = G["pageWorldWidth"] * s
+        new_pages = page_layout(scale_sizes, width)
+        points = [[835, 120], [1300, 1500], [-420, 700], [300, 1200], [0, 50], [760, 990], [500, 2400], [900, 5000], [200, -40]]
+        scaled.append({
+            "scale": s,
+            "pages": new_pages,
+            "laneX": lane_x(width),
+            "pinned": [{"from": p, "to": remap_pinned(p, base, new_pages)} for p in points],
+        })
+    write("page-scale.json", {
+        "description": "Resizing the pages (the book's page scale): page stacking at the new width, the lane, "
+                       "where cards the reader placed move to (from the pages at scale 1), and the scale limits.",
+        "sizes": scale_sizes,
+        "basePages": base,
+        "scaled": scaled,
+        "clamp": [{"scale": s, "clamped": clamp_page_scale(s)} for s in [0.1, 0.5, 1, 1.8, 2.5, 4]],
+    })
 
 
 if __name__ == "__main__":

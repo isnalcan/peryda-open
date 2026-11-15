@@ -62,6 +62,33 @@ struct SharedVectorsTests {
         #expect(Geometry.subLaneX(parentX: d(parent["x"]), parentWidth: d(parent["width"])) == d(sub["x"]))
     }
 
+    /// Resizing the pages: stacking at the new width, the lane beside them, where placed cards go, and
+    /// the scale limits (owner, 16 Nov).
+    @Test func pageScale() throws {
+        let v = try Vectors.json("page-scale.json")
+        let sizes = (v["sizes"] as! [[Any]]).map { CGSize(width: d($0[0]), height: d($0[1])) }
+        let base = Geometry.pageLayout(sizes)
+        for (i, e) in (v["basePages"] as! [[String: Any]]).enumerated() {
+            #expect(close(base[i].y, d(e["y"])) && close(base[i].height, d(e["height"])) && close(base[i].width, d(e["width"])))
+        }
+        for c in v["scaled"] as! [[String: Any]] {
+            let width = Geometry.pageWorldWidth * d(c["scale"])
+            let pages = Geometry.pageLayout(sizes, width: width)
+            for (i, e) in (c["pages"] as! [[String: Any]]).enumerated() {
+                #expect(close(pages[i].y, d(e["y"])) && close(pages[i].height, d(e["height"])) && close(pages[i].width, d(e["width"])))
+            }
+            #expect(close(Geometry.laneX(pageWidth: width), d(c["laneX"])))
+            for p in c["pinned"] as! [[String: Any]] {
+                let from = arr(p["from"]), to = arr(p["to"])
+                let r = Geometry.remapPinned(CGPoint(x: from[0], y: from[1]), from: base, to: pages)
+                #expect(close(r.x, to[0], 1e-6) && close(r.y, to[1], 1e-6), "\(from) -> \(r), expected \(to)")
+            }
+        }
+        for c in v["clamp"] as! [[String: Any]] {
+            #expect(Geometry.clampPageScale(d(c["scale"])) == d(c["clamped"]))
+        }
+    }
+
     @Test func pdfCoordinates() throws {
         for c in try Vectors.json("pdf-coordinates.json")["cases"] as! [[String: Any]] {
             let b = arr(c["bounds"]), r = arr(c["rect"])

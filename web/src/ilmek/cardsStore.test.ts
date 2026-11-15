@@ -463,6 +463,36 @@ describe('threads', () => {
     expect('height' in s.cards[0]!).toBe(false)
   })
 
+  // Owner, 16 Nov: a card's side edges change its width; from the left edge the right edge stays.
+  it('resizing from the left edge keeps the right edge and places the card there', async () => {
+    const s = store()
+    const card = s.create({ color: 'cream', kind: 'cream', anchors: [], text: 'not' })
+    s.resizeFrom(card.id, 500, 1200, 340)
+    expect(s.cards[0]).toMatchObject({ width: 500, x: 700, y: 340, isPinned: true })
+    s.resizeFrom(card.id, 2000, 1200, 340)
+    expect(s.cards[0]).toMatchObject({ width: 640, x: 560 })
+    await s.waitForIdle()
+    expect(await db.cards.get(card.id)).toMatchObject({ width: 640, x: 560, isPinned: true })
+  })
+
+  it('moves several placed cards at once (the pages were resized)', async () => {
+    const s = store()
+    const a = s.create({ color: 'cream', kind: 'cream', anchors: [], text: 'a' })
+    const b = s.create({ color: 'cream', kind: 'cream', anchors: [], text: 'b' })
+    const c = s.create({ color: 'cream', kind: 'cream', anchors: [], text: 'c' })
+    await s.waitForIdle()
+    let changes = 0
+    const stop = s.subscribe(() => (changes += 1))
+    s.placeMany(new Map([[a.id, { x: 1300, y: 40 }], [b.id, { x: -400, y: 900 }]]))
+    stop()
+    expect(changes).toBe(1)
+    expect(s.cards.find((x) => x.id === a.id)).toMatchObject({ x: 1300, y: 40 })
+    expect(s.cards.find((x) => x.id === b.id)).toMatchObject({ x: -400, y: 900 })
+    expect(s.cards.find((x) => x.id === c.id)).toBe(s.cards[2])
+    await s.waitForIdle()
+    expect(await db.cards.get(b.id)).toMatchObject({ x: -400, y: 900 })
+  })
+
   it('removing a card removes every thread opened from it', async () => {
     const s = store()
     const a = s.create({ color: 'cream', kind: 'cream', anchors: [], text: 'a' })

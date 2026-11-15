@@ -253,6 +253,46 @@ final class CardButtonTests: XCTestCase {
         XCTAssertNil(c.height, "and natural height")
     }
 
+    /// Owner, 16 Nov: a card widens from either side. From the right only the width changes; from the
+    /// left the right edge stays put and the card stays where the reader put it.
+    func testSidesWidenTheCard() async throws {
+        let card = try await makeCard(anchors: [anchor(page: 1, y: 0.3, text: "Kavramlar sınırlarda netleşir.")])
+        try await zoom(0.63, onto: card.id)
+        var view = try cardView(card.id)
+        let startX = view.frame.minX
+        // 63 window points at 63% is 100 world units.
+        await drag(from: world.documentView.convert(CGPoint(x: view.frame.maxX - 2, y: view.frame.midY), to: nil), by: CGSize(width: 63, height: 0))
+        var c = try XCTUnwrap(reader.cards.cards.first)
+        XCTAssertEqual(c.width, Geometry.cardWidth + 100, accuracy: 2, "right side: wider")
+        XCTAssertFalse(c.isPinned, "still in the lane")
+        view = try cardView(card.id)
+        XCTAssertEqual(view.frame.minX, startX, accuracy: 0.5, "its left edge stays")
+        let right = view.frame.maxX
+        await drag(from: world.documentView.convert(CGPoint(x: view.frame.minX + 2, y: view.frame.midY), to: nil), by: CGSize(width: -63, height: 0))
+        c = try XCTUnwrap(reader.cards.cards.first)
+        XCTAssertEqual(c.width, Geometry.cardWidth + 200, accuracy: 3, "left side: wider")
+        XCTAssertTrue(c.isPinned, "the card stays where the reader widened it")
+        XCTAssertEqual(c.x + c.width, right, accuracy: 1, "its right edge stays")
+        // A double-click on a side: natural width again.
+        view = try cardView(card.id)
+        let p = world.documentView.convert(CGPoint(x: view.frame.maxX - 2, y: view.frame.midY), to: nil)
+        window.sendEvent(mouse(.leftMouseDown, p))
+        window.sendEvent(NSEvent.mouseEvent(with: .leftMouseDown, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 2, pressure: 1)!)
+        window.sendEvent(mouse(.leftMouseUp, p))
+        XCTAssertEqual(try XCTUnwrap(reader.cards.cards.first).width, Geometry.cardWidth)
+    }
+
+    /// Text in the middle of a card still selects: only a thin strip at each side resizes.
+    func testTheSideStripsAreThin() async throws {
+        let card = try await makeCard(anchors: [anchor(page: 1, y: 0.3, text: "Kavramlar sınırlarda netleşir.")])
+        try await zoom(1, onto: card.id)
+        let view = try cardView(card.id)
+        let inside = view.hitTest(world.documentView.convert(CGPoint(x: view.frame.minX + 30, y: view.frame.midY), to: view.superview))
+        let edge = view.hitTest(world.documentView.convert(CGPoint(x: view.frame.minX + 2, y: view.frame.midY), to: view.superview))
+        XCTAssertTrue(edge === view, "the side strip belongs to the card itself")
+        XCTAssertFalse(inside === nil)
+    }
+
     /// The reply line is a light label until clicked; a click opens the field ready for typing.
     func testReplyLabelOpensTheFieldWhenZoomed() async throws {
         let card = try await makeCard(anchors: [anchor(page: 1, y: 0.3, text: "Kavramlar sınırlarda netleşir.")])

@@ -15,15 +15,62 @@ export function bezierPath(from: Point, to: Point): string {
   return `M ${f(from[0])} ${f(from[1])} C ${f(c1[0])} ${f(c1[1])}, ${f(c2[0])} ${f(c2[1])}, ${f(to[0])} ${f(to[1])}`
 }
 
-/** Pages stack vertically at a fixed world width; sizes are the page boxes in points. */
-export function pageLayout(sizes: ReadonlyArray<readonly [number, number]>): PageBox[] {
+/**
+ * Pages stack vertically at one world width (the reader's page size: pageWorldWidth times the book's
+ * page scale); sizes are the page boxes in points.
+ */
+export function pageLayout(sizes: ReadonlyArray<readonly [number, number]>, width: number = GEOMETRY.pageWorldWidth): PageBox[] {
   let y = 0
   return sizes.map(([w, h]) => {
-    const height = GEOMETRY.pageWorldWidth * (h / w)
-    const box = { x: 0, y, width: GEOMETRY.pageWorldWidth, height }
+    const height = width * (h / w)
+    const box = { x: 0, y, width, height }
     y += height + GEOMETRY.pageGap
     return box
   })
+}
+
+/** The page scale kept within its limits (the pages are resized from a page's corner). */
+export function clampPageScale(s: number): number {
+  return Math.min(Math.max(s, GEOMETRY.pageScaleMin), GEOMETRY.pageScaleMax)
+}
+
+/** The world width of the pages at a page scale. */
+export function pageWidthAt(scale: number): number {
+  return GEOMETRY.pageWorldWidth * scale
+}
+
+/** The pages' world width (pageWorldWidth when there are none). */
+export function pageWidthOf(pages: readonly PageBox[]): number {
+  return pages[0]?.width ?? GEOMETRY.pageWorldWidth
+}
+
+/** The lane right of pages this wide. */
+export function laneX(pageWidth: number): number {
+  return pageWidth + GEOMETRY.laneOffset
+}
+
+/**
+ * Where a card the reader placed goes when the pages are resized, so it stays by its passage.
+ * x: right of the pages it moves with their right edge, left of them it stays, over them it scales.
+ * y: on a page it keeps its place within that page; in the gap below a page it moves with that page's
+ * bottom; above the first page it stays. (Same rule as shared/tools/make-vectors.py and the Mac app.)
+ */
+export function remapPinned(point: Point, oldPages: readonly PageBox[], newPages: readonly PageBox[]): Point {
+  const [x, y] = point
+  if (!oldPages.length || !newPages.length || oldPages.length !== newPages.length) return [x, y]
+  const oldW = oldPages[0]!.width
+  const newW = newPages[0]!.width
+  const nx = x >= oldW ? x + (newW - oldW) : x <= 0 ? x : (x * newW) / oldW
+  let index = -1
+  for (let i = 0; i < oldPages.length; i += 1) {
+    if (oldPages[i]!.y <= y) index = i
+    else break
+  }
+  if (index === -1) return [nx, y]
+  const o = oldPages[index]!
+  const n = newPages[index]!
+  const ny = y <= o.y + o.height ? n.y + ((y - o.y) * n.height) / o.height : y + (n.y + n.height) - (o.y + o.height)
+  return [nx, ny]
 }
 
 export function worldHeight(pages: readonly PageBox[]): number {
@@ -41,7 +88,7 @@ export function cardAttachPoint(card: { x: number; y: number }): Point {
   return [card.x, card.y + GEOMETRY.cardAttachY]
 }
 
-export const LANE_X = GEOMETRY.pageWorldWidth + GEOMETRY.laneOffset
+export const LANE_X = laneX(GEOMETRY.pageWorldWidth)
 
 export function subLaneX(parent: { x: number; width: number }): number {
   return parent.x + parent.width + GEOMETRY.subLaneGap

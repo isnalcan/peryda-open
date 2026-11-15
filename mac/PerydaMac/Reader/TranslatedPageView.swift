@@ -29,7 +29,7 @@ struct TranslatedPageView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .padding(EdgeInsets(top: 20, leading: 52, bottom: 40, trailing: 44))
-            .frame(width: card.width, height: card.height.map { CGFloat($0) } ?? 980, alignment: .topLeading)
+            .frame(width: reader.displayWidth(card), height: reader.translationHeight(card).map { CGFloat($0) } ?? 980, alignment: .topLeading)
             .background(Self.paper)
             .overlay(Rectangle().stroke(Color.black.opacity(0.06)))
             .shadow(color: .black.opacity(0.10), radius: 10, y: 3)

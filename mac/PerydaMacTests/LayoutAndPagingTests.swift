@@ -71,6 +71,70 @@ final class LayoutAndPagingTests: XCTestCase {
         XCTAssertLessThan(w.minX, -400)
     }
 
+    /// Owner, 16 Nov: the pages resize from a page's bottom-right corner. The page's top-left corner
+    /// stays put on screen, threads follow (in the lane, and ones the reader placed), the size is kept
+    /// for the book, and a double-click on the corner brings the standard size back.
+    func testThePagesResizeFromTheCornerAndThreadsFollow() async throws {
+        UserDefaults.standard.removeObject(forKey: "pageScale:\(reader.book.id)")
+        defer { UserDefaults.standard.removeObject(forKey: "pageScale:\(reader.book.id)") }
+        let inLane = try await makeCard([anchor(page: 2, y: 0.4, text: "Kavramlar sınırlarda netleşir.")])
+        let placed = try await makeCard([anchor(page: 2, y: 0.6, text: "Dikkat sınırlı bir kaynaktır.")], color: .coral)
+        reader.cards.pin(placed.id, x: 1500, y: reader.pages[1].y + 400)
+        world.scrollView.magnification = 0.5
+        world.scrollView.contentView.scroll(to: CGPoint(x: -200, y: reader.pages[0].y - 40))
+        world.scrollView.reflectScrolledClipView(world.scrollView.contentView)
+        world.sync()
+        window.displayIfNeeded()
+        let base = reader.pages
+        let page = try pageView(1)
+        let topLeft = page.convert(CGPoint.zero, to: nil)
+        let grip = page.grip
+        XCTAssertTrue(window.contentView?.hitTest(grip.convert(CGPoint(x: grip.bounds.midX, y: grip.bounds.midY), to: nil)) === grip, "the corner is the grip")
+        let start = grip.convert(CGPoint(x: grip.bounds.midX, y: grip.bounds.midY), to: nil)
+        func ev(_ type: NSEvent.EventType, _ p: CGPoint, clicks: Int = 1) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: p, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
+        }
+        window.sendEvent(ev(.leftMouseDown, start))
+        for i in 1...6 {
+            window.sendEvent(ev(.leftMouseDragged, CGPoint(x: start.x + 20 * Double(i), y: start.y - 20 * Double(i))))
+        }
+        window.sendEvent(ev(.leftMouseUp, CGPoint(x: start.x + 120, y: start.y - 120)))
+        XCTAssertGreaterThan(reader.pageScale, 1.2, "larger pages")
+        XCTAssertEqual(reader.pages[0].width, Geometry.pageWorldWidth * reader.pageScale, accuracy: 0.01)
+        let moved = page.convert(CGPoint.zero, to: nil)
+        XCTAssertEqual(moved.x, topLeft.x, accuracy: 1, "the page's top-left corner stays put")
+        XCTAssertEqual(moved.y, topLeft.y, accuracy: 1)
+        XCTAssertEqual(page.frame.width, reader.pages[0].width, accuracy: 0.01, "the page view follows")
+        // The thread in the lane sits beside the wider pages; the placed one moved with its page.
+        let p = reader.placements
+        XCTAssertEqual(try XCTUnwrap(p[inLane.id]).x, Geometry.laneX(pageWidth: reader.pageWidth), accuracy: 0.01)
+        let expected = Geometry.remapPinned(CGPoint(x: 1500, y: base[1].y + 400), from: base, to: reader.pages)
+        let saved = try XCTUnwrap(reader.cards.cards.first { $0.id == placed.id })
+        XCTAssertEqual(saved.x, expected.x, accuracy: 0.01, "saved where it moved")
+        XCTAssertEqual(saved.y, expected.y, accuracy: 0.01)
+        // The yarn still starts at its passage on the larger page.
+        let seg = try XCTUnwrap(reader.segments.first { $0.cardId == inLane.id })
+        XCTAssertEqual(seg.from.x, Geometry.anchorWorldPoint(NormalizedRect(x: 0.1, y: 0.4, width: 0.6, height: 0.02), page: reader.pages[1]).x, accuracy: 0.01)
+        XCTAssertEqual(UserDefaults.standard.double(forKey: "pageScale:\(reader.book.id)"), reader.pageScale, "kept for the book")
+
+        // Reopened, the book keeps its page size.
+        let again = try XCTUnwrap(ReaderModel(book: reader.book, store: store, lang: .tr, settings: ByokSettings(), streamer: InstantStreamer()))
+        XCTAssertEqual(again.pageScale, reader.pageScale, accuracy: 0.0001)
+
+        // A double-click on the corner: the standard size, and the placed card back where it was.
+        page.placeGrip()
+        let corner = grip.convert(CGPoint(x: grip.bounds.midX, y: grip.bounds.midY), to: nil)
+        window.sendEvent(ev(.leftMouseDown, corner))
+        window.sendEvent(ev(.leftMouseUp, corner))
+        window.sendEvent(ev(.leftMouseDown, corner, clicks: 2))
+        window.sendEvent(ev(.leftMouseUp, corner, clicks: 2))
+        XCTAssertEqual(reader.pageScale, 1)
+        let back = try XCTUnwrap(reader.cards.cards.first { $0.id == placed.id })
+        XCTAssertEqual(back.x, 1500, accuracy: 0.01)
+        XCTAssertEqual(back.y, base[1].y + 400, accuracy: 0.01)
+        XCTAssertEqual(UserDefaults.standard.object(forKey: "pageScale:\(reader.book.id)") as? Double, nil, "the standard size is not stored")
+    }
+
     func testACardMovedLeftOfThePageTakesItsYarnOnTheRight() async throws {
         let card = try await makeCard([anchor(page: 1, y: 0.3, text: "Kavramlar sınırlarda netleşir.")])
         reader.cards.pin(card.id, x: -520, y: 200)
@@ -157,6 +221,32 @@ final class LayoutAndPagingTests: XCTestCase {
         let paged = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
         content.cacheDisplay(in: content.bounds, to: paged)
         try paged.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-paged.png"))
+    }
+
+    /// The pages made larger with a wider thread beside them, the corner grip showing: for a visual check.
+    func testResizedPagesSnapshot() async throws {
+        defer { UserDefaults.standard.removeObject(forKey: "pageScale:\(reader.book.id)") }
+        let app = AppModel(store: store, settings: ByokSettings(geminiApiKey: "placeholder-not-a-key"), lang: .tr)
+        let wide = try await makeCard([anchor(page: 1, y: 0.25, text: "Kavramlar, birbirlerinden ayrıldıkları sınırlarda netleşir.")], color: .amber)
+        reader.cards.resize(wide.id, width: 560, height: nil)
+        let placed = try await makeCard([anchor(page: 1, y: 0.55, text: "Dikkat sınırlı bir kaynaktır.")], color: .sky)
+        reader.cards.pin(placed.id, x: -470, y: 520)
+        reader.beginPageResize()
+        reader.resizePages(scale: 1.35)
+        reader.endPageResize()
+        let surface = ReaderSurface(reader: reader).environment(app)
+        window.contentView = NSHostingView(rootView: surface)
+        window.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(400))
+        reader.cameraCommand = .overview
+        try await Task.sleep(for: .milliseconds(500))
+        let content = try XCTUnwrap(window.contentView)
+        func find<T: NSView>(_ type: T.Type, in view: NSView) -> [T] { view.subviews.flatMap { ($0 as? T).map { [$0] } ?? [] + find(type, in: $0) } }
+        for page in find(PageView.self, in: content) where page.number == 1 { page.grip.shown = true }
+        content.layoutSubtreeIfNeeded()
+        let rep = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+        content.cacheDisplay(in: content.bounds, to: rep)
+        try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-page-size.png"))
     }
 }
 

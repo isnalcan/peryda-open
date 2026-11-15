@@ -100,12 +100,6 @@ export const EyeIcon = (p: IconProps) => (
 export const ZoomInIcon = (p: IconProps) => <Svg {...p}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" /></Svg>
 export const ZoomOutIcon = (p: IconProps) => <Svg {...p}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M8 11h6" /></Svg>
 export const CursorIcon = (p: IconProps) => <Svg {...p}><path d="M4 4l7 17 2.5-7.5L21 11z" /></Svg>
-export const BrushIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M9.1 14.9l-2.6.6a3 3 0 0 0-2.3 2.4L3.5 21l3.1-.7a3 3 0 0 0 2.4-2.3l.6-2.6" />
-    <path d="M9.1 14.9l1.8 1.8L21 6.6A2.6 2.6 0 0 0 17.4 3z" />
-  </Svg>
-)
 export const AreaIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />

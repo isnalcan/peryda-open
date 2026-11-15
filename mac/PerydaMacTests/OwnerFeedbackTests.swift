@@ -71,24 +71,19 @@ final class OwnerFeedbackTests: XCTestCase {
         try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent(name))
     }
 
-    // B. The brush: drag over a sentence, pull to the right, let go: a thread in the brush's colour.
-    func testTheBrushMakesAThreadInItsColour() async throws {
-        reader.tool = .brush
-        reader.brushColor = .coral
+    // B. The thread brush was taken out (owner, 16 Nov): pulling a selection past the line's end only
+    // selects; the menu then opens the thread.
+    func testPullingPastTheLineOnlySelects() async throws {
         let s = try sentence("Kavramlar, birbirlerinden ayrıldıkları sınırlarda netleşir.")
         s.view.mouseDown(with: event(.leftMouseDown, at: s.start))
         s.view.mouseDragged(with: event(.leftMouseDragged, at: s.end))
-        // Pulled well past the end of the line: the yarn leaves the page.
         for i in 1...4 {
             s.view.mouseDragged(with: event(.leftMouseDragged, at: CGPoint(x: s.end.x + Double(i) * 150, y: s.end.y)))
         }
-        XCTAssertNotNil(reader.liveBrush, "the yarn follows the pointer")
         s.view.mouseUp(with: event(.leftMouseUp, at: CGPoint(x: s.end.x + 600, y: s.end.y)))
         await reader.cards.waitForIdle()
-        let card = try XCTUnwrap(reader.cards.cards.first)
-        XCTAssertEqual(card.color, .coral)
-        XCTAssertTrue(card.anchors.first?.selectedText.hasPrefix("Kavramlar") == true, card.anchors.first?.selectedText ?? "")
-        XCTAssertNil(reader.liveBrush)
+        XCTAssertTrue(reader.cards.cards.isEmpty, "no thread without choosing one")
+        XCTAssertTrue(reader.pending?.anchors.first?.selectedText.hasPrefix("Kavramlar") == true, "the sentence is selected")
     }
 
     // D. "Vurgula": yellow on the page, a highlight in the journal; deleting the entry takes the mark away.

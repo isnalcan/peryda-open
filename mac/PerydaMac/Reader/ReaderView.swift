@@ -110,14 +110,6 @@ struct ReaderSurface: View {
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 ToolSwitcher(tool: $reader.tool, t: t)
-                if reader.tool == .brush {
-                    Picker(t["brushColor"], selection: $reader.brushColor) {
-                        ForEach(SelectionMenuView.quick, id: \.self) { c in
-                            Text(Compose.kindLabel(app.lang, c)).tag(c)
-                        }
-                    }
-                    .frame(width: 130)
-                }
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 ControlGroup {
@@ -187,7 +179,8 @@ struct ReaderSurface: View {
     }
 }
 
-/// Select, brush and area: the tool in use is always marked (select when a book opens).
+/// Select and area: the tool in use is always marked (select when a book opens). The thread brush was
+/// taken out (owner, 16 Nov): selecting and choosing from the menu does the same.
 struct ToolSwitcher: View {
     @Binding var tool: ReaderTool
     let t: UIText
@@ -195,7 +188,6 @@ struct ToolSwitcher: View {
     var body: some View {
         HStack(spacing: 2) {
             item(.select, "cursorarrow", t["toolSelect"])
-            item(.brush, "paintbrush.pointed", t["toolBrush"])
             item(.area, "viewfinder", t["toolArea"])
         }
         // Inset from the toolbar's rounded background, with a rounded mark of the same shape inside it
@@ -495,7 +487,6 @@ struct WorldRepresentable: NSViewRepresentable {
         _ = reader.heights
         _ = reader.pending?.anchors.count
         _ = reader.bridgeHeld?.count
-        _ = reader.liveBrush.map { $0.to.x + $0.to.y }
         _ = reader.focusedCard
         _ = reader.cameraCommand
         _ = reader.tool

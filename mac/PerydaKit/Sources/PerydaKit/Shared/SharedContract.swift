@@ -76,7 +76,9 @@ public struct Tokens: Decodable, Sendable {
 
     public struct GeometryTokens: Decodable, Sendable {
         public let pageWorldWidth, pageGap, laneOffset, laneTop, laneGap, anchorLift, cardWidth, cardAttachY: Double
-        public let subLaneGap, bezierMinSpan, bezierSpanRatio, brushPullThreshold: Double
+        public let subLaneGap, bezierMinSpan, bezierSpanRatio: Double
+        /// The smallest and largest page size, as a multiple of pageWorldWidth (resizing the pages).
+        public let pageScaleMin, pageScaleMax: Double
         public let areaMinWidth, areaMinHeight, areaCropScale, textlessPageCharacterThreshold: Double
         public let cardRadius, previewImageMaxHeight, recallBlur: Double
     }

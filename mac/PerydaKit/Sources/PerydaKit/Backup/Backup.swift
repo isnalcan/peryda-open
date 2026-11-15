@@ -83,7 +83,7 @@ public enum Backup {
             cards: cards,
             journal: journal,
             positions: books.compactMap { store.position(for: $0.id) },
-            prefs: books.compactMap { readingsPref(store.readings(for: $0.id), bookId: $0.id) }
+            prefs: books.compactMap { readingsPref(store.readings(for: $0.id), bookId: $0.id) } + books.compactMap { pageScalePref(bookId: $0.id) }
         )
         let json = try JSONEncoder().encode(manifest)
         guard UInt64(json.count) <= limits.manifest else { throw Failure.tooLarge }
@@ -170,6 +170,11 @@ public enum Backup {
                 readings: readings(from: manifest.prefs, bookId: book.id)
             )
             guard try store.restoreBook(book, movingFile: temp, with: data) else { continue }
+            // The book's page size comes back with it: the threads the reader placed were saved where
+            // they sit beside pages of that size.
+            if let scale = pageScale(from: manifest.prefs, bookId: book.id), let key = SafeID.defaultsKey("pageScale", book.id) {
+                UserDefaults.standard.set(scale, forKey: key)
+            }
             restored += 1
         }
         return restored
@@ -190,6 +195,21 @@ public enum Backup {
     /// Pages Pery read, per book, and the longest text kept for one (as the web engine).
     static let maxReadings = 2_000
     static let maxReadingText = 1_000_000
+
+    /// A book's page size (`pageScale:<bookId>`, a multiple of the standard width) as a backup row, when
+    /// the reader changed it (as the web engine keeps it).
+    static func pageScalePref(bookId: String, defaults: UserDefaults = .standard) -> Pref? {
+        guard let key = SafeID.defaultsKey("pageScale", bookId) else { return nil }
+        let scale = defaults.double(forKey: key)
+        guard scale > 0, abs(scale - 1) > 0.0001 else { return nil }
+        return Pref(key: "pageScale:\(bookId)", value: AnyCodable(Geometry.clampPageScale(scale)))
+    }
+
+    /// The page size a backup brings for a book, within the allowed range; nil when none or not a number.
+    static func pageScale(from prefs: [Pref], bookId: String) -> Double? {
+        guard let row = prefs.first(where: { $0.key == "pageScale:\(bookId)" }), let v = row.value.value as? Double, v.isFinite, v > 0 else { return nil }
+        return Geometry.clampPageScale(v)
+    }
 
     /// A book's finished page readings as a backup preference row (`readings:<bookId>`), in the web
     /// engine's shape: page, text, state "done", createdAt; never a job name (audit WR-1).

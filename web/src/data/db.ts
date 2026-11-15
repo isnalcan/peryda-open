@@ -143,7 +143,7 @@ export async function setPref(key: string, value: unknown): Promise<void> {
 }
 
 /** Preferences kept per book (`<name>:<bookId>`), removed with the book. */
-export const PER_BOOK_PREFS = ['translateLang', 'journalSummary', 'cardTextScale', 'translationTextScale', 'readings'] as const
+export const PER_BOOK_PREFS = ['translateLang', 'journalSummary', 'cardTextScale', 'translationTextScale', 'readings', 'pageScale'] as const
 
 /**
  * Removes a book and everything that belongs to it, in one transaction. Returns the Gemini batch jobs its

@@ -80,7 +80,7 @@ struct LibraryView: View {
             guard !files.isEmpty else { return false }
             Task {
                 let book = await model.importFiles(files)
-                if files.count == 1, let book { openWindow(id: "reader", value: book.id) }
+                if AppModel.makesOneBook(files), let book { openWindow(id: "reader", value: book.id) }
             }
             return true
         } isTargeted: { dropTargeted = $0 }

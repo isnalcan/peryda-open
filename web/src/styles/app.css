@@ -366,6 +366,32 @@ button:disabled {
   color-scheme: only light;
 }
 
+/* The corner the pages are resized from: shown when the pointer is over the page (about 22 screen
+   pixels at any zoom; --zoom is the camera's). */
+.page-resize-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  width: calc(22px / var(--zoom, 1));
+  height: calc(22px / var(--zoom, 1));
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 140ms ease-out;
+  background:
+    linear-gradient(135deg, transparent 0 55%, var(--stroke) 55% 60%, transparent 60% 70%, var(--stroke) 70% 75%, transparent 75% 85%, var(--stroke) 85% 90%, transparent 90%);
+}
+
+.pdf-page:hover .page-resize-grip {
+  opacity: 0.6;
+}
+
+.page-resize-grip:hover,
+.page-resize-grip:active {
+  opacity: 1;
+}
+
 .pdf-page.is-placeholder {
   background: color-mix(in srgb, var(--page-sheet) 92%, var(--paper-sunken));
 }
@@ -1193,59 +1219,7 @@ button:disabled {
   }
 }
 
-/* ---------- Brush, hints, journal ---------- */
-
-.tool-brush .textLayer span {
-  cursor: crosshair;
-}
-
-.brush-colors {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 4px;
-}
-
-.brush-colors button {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-}
-
-.brush-colors button[aria-checked='true'] {
-  box-shadow: inset 0 0 0 1.5px var(--stroke);
-}
-
-.brush-colors .yarn-dot {
-  width: 11px;
-  height: 11px;
-}
-
-.ghost-card {
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 92px;
-  padding: 0 14px;
-  align-items: flex-start;
-  padding-top: 12px;
-  border: 1.5px dashed var(--stroke);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--paper-raised) 70%, transparent);
-  color: var(--stroke);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  pointer-events: none;
-}
+/* ---------- Hints, journal ---------- */
 
 .offscreen-hint {
   position: absolute;
@@ -2133,6 +2107,52 @@ button:disabled {
 
 .yarn-card-grip:hover {
   opacity: 1;
+}
+
+/* Side edges: drag to change the width. About 6 screen pixels at any zoom (--zoom is the camera's), half
+   outside the card so the text near its border stays selectable. */
+.yarn-card-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: calc(6px / var(--zoom, 1));
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.yarn-card-edge.is-left {
+  left: calc(-3px / var(--zoom, 1));
+}
+
+.yarn-card-edge.is-right {
+  right: calc(-3px / var(--zoom, 1));
+  bottom: 18px;
+}
+
+.yarn-card-edge::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 50%;
+  width: calc(2px / var(--zoom, 1));
+  border-radius: 1px;
+  background: var(--stroke);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease-out;
+}
+
+.yarn-card-edge:hover::after,
+.yarn-card.is-dragging .yarn-card-edge:active::after {
+  opacity: 0.45;
+}
+
+/* While the pages are resized, cards and translations follow the pointer without easing. */
+.reader-world.is-resizing-pages .yarn-card,
+.reader-world.is-resizing-pages .translated-page {
+  transition: none;
 }
 
 .yarn-confirm {

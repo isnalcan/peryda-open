@@ -9,6 +9,15 @@ public enum Geometry {
     public static var cardWidth: Double { g.cardWidth }
     public static var laneX: Double { g.pageWorldWidth + g.laneOffset }
 
+    /// The first threads' lane beside pages of a given width (the reader can resize the pages).
+    public static func laneX(pageWidth: Double) -> Double { pageWidth + g.laneOffset }
+
+    /// The page size the reader chose, as a multiple of pageWorldWidth, within the allowed range.
+    public static func clampPageScale(_ s: Double) -> Double {
+        guard s.isFinite else { return 1 }
+        return min(max(s, g.pageScaleMin), g.pageScaleMax)
+    }
+
     public static func subLaneX(parentX: Double, parentWidth: Double) -> Double {
         parentX + parentWidth + g.subLaneGap
     }
@@ -19,15 +28,38 @@ public enum Geometry {
         return (CGPoint(x: x1 + span, y: y1), CGPoint(x: x2 - span, y: y2))
     }
 
-    /// Pages stack vertically at a fixed world width; sizes are page boxes in points.
-    public static func pageLayout(_ sizes: [CGSize]) -> [PageBox] {
+    /// Pages stack vertically at one world width (pageWorldWidth times the book's page scale); sizes
+    /// are page boxes in points.
+    public static func pageLayout(_ sizes: [CGSize], width: Double? = nil) -> [PageBox] {
+        let width = width ?? g.pageWorldWidth
         var y = 0.0
         return sizes.map { size in
-            let height = g.pageWorldWidth * (size.height / size.width)
-            let box = PageBox(x: 0, y: y, width: g.pageWorldWidth, height: height)
+            let height = width * (size.height / size.width)
+            let box = PageBox(x: 0, y: y, width: width, height: height)
             y += height + g.pageGap
             return box
         }
+    }
+
+    /// Where a card the reader placed goes when the pages are resized, so it stays by its passage.
+    /// x: right of the pages it moves with their right edge, left of them it stays, over them it
+    /// scales. y: on a page it keeps its place within that page; in the gap below a page it moves with
+    /// that page's bottom; above the first page it stays. Matches shared/tools/make-vectors.py.
+    public static func remapPinned(_ point: CGPoint, from old: [PageBox], to new: [PageBox]) -> CGPoint {
+        guard let o0 = old.first, let n0 = new.first, old.count == new.count else { return point }
+        let x = Double(point.x), y = Double(point.y)
+        let oldW = o0.width, newW = n0.width
+        let nx: Double = x >= oldW ? x + (newW - oldW) : (x <= 0 ? x : x * newW / oldW)
+        var index: Int?
+        for (i, page) in old.enumerated() {
+            if page.y <= y { index = i } else { break }
+        }
+        var ny = y
+        if let i = index {
+            let o = old[i], n = new[i]
+            ny = y <= o.y + o.height ? n.y + (y - o.y) * n.height / o.height : y + (n.y + n.height) - (o.y + o.height)
+        }
+        return CGPoint(x: nx, y: ny)
     }
 
     /// Where a yarn starts: the middle of the right edge of the anchor's bounding rectangle.

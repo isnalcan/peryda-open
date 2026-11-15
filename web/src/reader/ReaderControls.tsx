@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useI18n } from '../i18n/I18n'
 import { LANGS, type Lang } from '../i18n/strings'
-import { LANGUAGE_NAMES, kindLabel } from '../ai/compose'
-import { QUICK } from '../ilmek/SelectionMenu'
+import { LANGUAGE_NAMES } from '../ai/compose'
 import type { YarnColor } from '../ilmek/types'
 import {
   AreaIcon,
-  BrushIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -22,9 +20,9 @@ import {
 } from '../ui/icons'
 import type { Tool } from './PdfPageView'
 
-/** Select, brush and area: the tool in use is always marked (select when a book opens). */
-export function ToolSwitcher({ tool, onTool, brushColor, onBrushColor }: { tool: Tool; onTool: (t: Tool) => void; brushColor: YarnColor; onBrushColor: (c: YarnColor) => void }) {
-  const { t, lang } = useI18n()
+/** Select and area: the tool in use is always marked (select when a book opens). */
+export function ToolSwitcher({ tool, onTool }: { tool: Tool; onTool: (t: Tool) => void }) {
+  const { t } = useI18n()
   const item = (value: Tool, label: string, icon: React.ReactNode) => (
     <button type="button" className="tool-switch" aria-pressed={tool === value} title={label} aria-label={label} onClick={() => onTool(value)}>
       {icon}
@@ -33,17 +31,7 @@ export function ToolSwitcher({ tool, onTool, brushColor, onBrushColor }: { tool:
   return (
     <div className="tool-switcher" role="toolbar" aria-label={t.toolSelect}>
       {item('select', t.toolSelect, <CursorIcon size={16} />)}
-      {item('brush', t.toolBrush, <BrushIcon size={16} />)}
       {item('area', t.toolArea, <AreaIcon size={16} />)}
-      {tool === 'brush' && (
-        <span className="brush-colors" role="radiogroup" aria-label={t.brushColor}>
-          {QUICK.map((c) => (
-            <button key={c} type="button" role="radio" aria-checked={brushColor === c} data-yarn={c} title={kindLabel(lang, c)} aria-label={kindLabel(lang, c)} onClick={() => onBrushColor(c)}>
-              <span className="yarn-dot" />
-            </button>
-          ))}
-        </span>
-      )}
     </div>
   )
 }

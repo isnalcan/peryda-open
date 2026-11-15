@@ -30,6 +30,8 @@ interface Props {
   onDragLive?: (id: string, at: { x: number; y: number } | null) => void
   /** Corner resizing (world cards); no height lets the card follow its content again. */
   onResize?: (id: string, width: number, height?: number) => void
+  /** Resizing from the left edge: the right edge stays, so the card is placed with its new left edge at `y`. */
+  onResizeFrom?: (id: string, width: number, right: number, y: number) => void
   onUnpin: (id: string) => void
   onCollapse: (id: string) => void
   onOpenSettings: () => void
@@ -89,9 +91,9 @@ function YarnCardViewImpl(props: Props) {
     setDragState(v)
   }
   const dragStart = useRef<{ px: number; py: number; x: number; y: number; moved: boolean } | null>(null)
-  const [size, setSizeState] = useState<{ w: number; h: number } | null>(null)
-  const sizeRef = useRef<{ w: number; h: number } | null>(null)
-  const setSize = (v: { w: number; h: number } | null) => {
+  const [size, setSizeState] = useState<{ w: number; h?: number } | null>(null)
+  const sizeRef = useRef<{ w: number; h?: number } | null>(null)
+  const setSize = (v: { w: number; h?: number } | null) => {
     sizeRef.current = v
     setSizeState(v)
   }
@@ -159,6 +161,58 @@ function YarnCardViewImpl(props: Props) {
     if (end) props.onResize?.(card.id, end.w, end.h)
     setSize(null)
   }
+
+  // Side edges change only the width (owner, 16 Nov). From the right edge the card grows to the right;
+  // from the left edge its right edge stays, so the card is placed where its new left edge is.
+  const edgeStart = useRef<{ px: number; w: number; x: number; side: 'left' | 'right' } | null>(null)
+  const onEdgeDown = (side: 'left' | 'right') => (e: PointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    capture(e)
+    props.onFocusCard(card.id)
+    edgeStart.current = { px: e.clientX, w: card.width, x: props.x, side }
+  }
+  const onEdgeMove = (e: PointerEvent<HTMLElement>) => {
+    const s = edgeStart.current
+    if (!s) return
+    const dx = (e.clientX - s.px) / props.scale()
+    const w = clamp(s.side === 'right' ? s.w + dx : s.w - dx, CARD_WIDTH_RANGE)
+    setSize({ w, h: card.height })
+    if (s.side === 'left') {
+      const at = { x: s.x + s.w - w, y: props.y }
+      setDrag(at)
+      props.onDragLive?.(card.id, at)
+    }
+  }
+  const onEdgeUp = () => {
+    const s = edgeStart.current
+    edgeStart.current = null
+    const end = sizeRef.current
+    if (s && end) {
+      if (s.side === 'right') props.onResize?.(card.id, end.w, card.height)
+      else props.onResizeFrom?.(card.id, end.w, s.x + s.w, props.y)
+    }
+    setSize(null)
+    if (s?.side === 'left') {
+      setDrag(null)
+      props.onDragLive?.(card.id, null)
+    }
+  }
+  const edge = (side: 'left' | 'right') => (
+    <span
+      className={`yarn-card-edge is-${side}`}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t.resizeCardWidth}
+      title={t.resizeCardWidth}
+      onPointerDown={onEdgeDown(side)}
+      onPointerMove={onEdgeMove}
+      onPointerUp={onEdgeUp}
+      onPointerCancel={onEdgeUp}
+      onDoubleClick={() => props.onResize?.(card.id, GEOMETRY.cardWidth, card.height)}
+    />
+  )
 
   const submit = () => {
     const body = draft.trim()
@@ -353,6 +407,8 @@ function YarnCardViewImpl(props: Props) {
           </button>
         )}
       </footer>
+      {props.onResizeFrom && !column && edge('left')}
+      {props.onResize && !column && edge('right')}
       {props.onResize && !column && (
         <span
           className="yarn-card-grip"

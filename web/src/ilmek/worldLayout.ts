@@ -1,6 +1,6 @@
 import { kindTitle } from '../ai/compose'
 import type { Lang } from '../i18n/strings'
-import { GEOMETRY, LANE_X, anchorWorldPoint } from './geometry'
+import { GEOMETRY, anchorWorldPoint, laneX, pageWidthOf, remapPinned } from './geometry'
 import { layoutCards, type CardForLayout, type CardPlacement } from './lane'
 import type { PageBox, Point, YarnCard, YarnColor } from './types'
 import type { YarnSegment } from './YarnLayer'
@@ -133,6 +133,8 @@ export function placeCards(input: WorldInput): Map<string, CardPlacement> {
   }
 
   const pageOf = new Map(cards.map((c) => [c.id, homePage(c, byId)]))
+  // The lane follows the pages' right edge (the reader can resize the pages).
+  const lane = laneX(pageWidthOf(pages))
   let placed = new Map<string, CardPlacement>()
   for (let round = 0; round < 32; round += 1) {
     const previous = placed
@@ -158,10 +160,10 @@ export function placeCards(input: WorldInput): Map<string, CardPlacement> {
         groups.set(page, [...(groups.get(page) ?? []), item])
       }
       const merged = new Map<string, CardPlacement>()
-      for (const group of groups.values()) for (const [id, p] of layoutCards(group)) merged.set(id, p)
+      for (const group of groups.values()) for (const [id, p] of layoutCards(group, lane)) merged.set(id, p)
       placed = merged
     } else {
-      placed = layoutCards(items)
+      placed = layoutCards(items, lane)
     }
     if (samePlacements(placed, previous)) break
   }
@@ -172,12 +174,15 @@ export interface ContentRect {
   minX: number
   maxX: number
   maxY: number
+  /** The pages' world width (pageWorldWidth when not given): the world stays centred on the pages. */
+  pageWidth?: number
 }
 
 /** Where things are: the pages, the default lane, and every placed thread and translation. */
 export function contentRect(input: WorldInput, placements: Map<string, CardPlacement>): ContentRect {
+  const pageWidth = pageWidthOf(input.pages)
   let minX = 0
-  let maxX = LANE_X + GEOMETRY.cardWidth
+  let maxX = laneX(pageWidth) + GEOMETRY.cardWidth
   const last = input.pages[input.pages.length - 1]
   let maxY = last ? last.y + last.height : 0
   const byId = byIdOf(input.cards)
@@ -187,18 +192,18 @@ export function contentRect(input: WorldInput, placements: Map<string, CardPlace
     maxX = Math.max(maxX, p.x + w)
     maxY = Math.max(maxY, p.y + heightOf(input, id))
   }
-  return { minX, maxX, maxY }
+  return { minX, maxX, maxY, pageWidth }
 }
 
 /** The content's width when kept centred on the page (what the camera fits). */
 export function centredContentWidth(c: ContentRect): number {
-  const mid = GEOMETRY.pageWorldWidth / 2
+  const mid = (c.pageWidth ?? GEOMETRY.pageWorldWidth) / 2
   return 2 * Math.max(c.maxX - mid, mid - c.minX) + 80
 }
 
 /** The world's extent: the content plus generous room on both sides, symmetric around the page's centre. */
 export function worldRect(c: ContentRect): { x: number; y: number; width: number; height: number } {
-  const mid = GEOMETRY.pageWorldWidth / 2
+  const mid = (c.pageWidth ?? GEOMETRY.pageWorldWidth) / 2
   const half = Math.max(c.maxX - mid, mid - c.minX) + ROOM_AROUND
   return { x: mid - half, y: 0, width: half * 2, height: c.maxY + ROOM_BELOW }
 }
@@ -243,11 +248,12 @@ export function clipsFor(input: WorldInput, placements: Map<string, CardPlacemen
 export function yarnSegments(input: WorldInput, placements: ReadonlyMap<string, CardPlacement>): YarnSegment[] {
   const byId = byIdOf(input.cards)
   const out: YarnSegment[] = []
+  const pageMid = pageWidthOf(input.pages) / 2
   for (const card of input.cards) {
     if (card.translatedPage !== undefined || !isShown(card, input, byId)) continue
     const p = placements.get(card.id)
     if (!p) continue
-    const onLeft = p.x + card.width / 2 < GEOMETRY.pageWorldWidth / 2
+    const onLeft = p.x + card.width / 2 < pageMid
     const to: Point = onLeft ? [p.x + card.width, p.y + GEOMETRY.cardAttachY] : [p.x, p.y + GEOMETRY.cardAttachY]
     for (const a of card.anchors) {
       let from: Point | null = null
@@ -283,4 +289,33 @@ export function pageBand(input: WorldInput, placements: ReadonlyMap<string, Card
     bottom = Math.max(bottom, p.y + heightOf(input, card.id))
   }
   return { top: top - 32, bottom: bottom + 32 }
+}
+
+/**
+ * The cards as the surface lays them out and draws them: a page translation is the size of its page now
+ * (the reader can resize the pages; the stored card keeps the size it was made at), and while the pages
+ * are being resized, the cards the reader placed follow them (`moved`). Unchanged cards keep their
+ * identity, so cards that did not change are not drawn again.
+ */
+export function cardsForSurface(cards: readonly YarnCard[], pages: readonly PageBox[], moved?: ReadonlyMap<string, CardPlacement>): YarnCard[] {
+  return cards.map((c) => {
+    if (c.translatedPage !== undefined) {
+      const page = pages[c.translatedPage - 1]
+      if (page && (c.width !== page.width || c.height !== page.height)) return { ...c, width: page.width, height: page.height }
+      return c
+    }
+    const m = moved?.get(c.id)
+    return m && (m.x !== c.x || m.y !== c.y) ? { ...c, x: m.x, y: m.y } : c
+  })
+}
+
+/** Cards the reader placed (not page translations): where they go when the pages change from `from` to `to`. */
+export function pinnedAfterResize(cards: readonly YarnCard[], from: readonly PageBox[], to: readonly PageBox[]): Map<string, CardPlacement> {
+  const out = new Map<string, CardPlacement>()
+  for (const c of cards) {
+    if (!c.isPinned || c.translatedPage !== undefined) continue
+    const [x, y] = remapPinned([c.x, c.y], from, to)
+    out.set(c.id, { x, y })
+  }
+  return out
 }

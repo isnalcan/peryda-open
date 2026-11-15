@@ -4,7 +4,7 @@ import PDFKit
 import PerydaKit
 
 enum ReaderTool: String {
-    case select, brush, area
+    case select, area
 }
 
 /// A selection waiting for the reader to choose what to do with it.
@@ -47,12 +47,83 @@ final class ReaderModel {
     let document: PDFDocument?
     /// The EPUB being read; nil for PDF books.
     let epub: EPUBBook?
-    let pages: [PageBox]
+    /// Each page's size in points (as shown), for laying the pages out at any width.
+    private let pageSizes: [CGSize]
+    /// Where the pages are in the world: stacked at `pageWidth`.
+    private(set) var pages: [PageBox]
+
+    // MARK: Page size (owner, 16 Nov)
+
+    /// The size of this book's pages, as a multiple of the standard page width; the reader resizes them
+    /// from a page's bottom-right corner. Threads, highlights and translations follow. Kept per book.
+    private(set) var pageScale: Double = 1
+    var pageWidth: Double { Geometry.pageWorldWidth * pageScale }
+    /// The pages as they were when a resize began: cards the reader placed are moved from there.
+    private var resizeBase: [PageBox]?
+
+    private static func savedPageScale(_ bookId: String) -> Double {
+        let saved = SafeID.defaultsKey("pageScale", bookId).map { UserDefaults.standard.double(forKey: $0) } ?? 0
+        return saved > 0 ? Geometry.clampPageScale(saved) : 1
+    }
+
+    /// Starts resizing the pages (live updates follow through `resizePages`).
+    func beginPageResize() {
+        if resizeBase == nil { resizeBase = pages }
+    }
+
+    /// The pages at a new scale, while resizing: placed cards move with them, without being saved yet.
+    func resizePages(scale: Double) {
+        let s = Geometry.clampPageScale(scale)
+        guard abs(s - pageScale) > 0.0001 else { return }
+        pageScale = s
+        pages = Geometry.pageLayout(pageSizes, width: pageWidth)
+    }
+
+    /// Ends a resize: keeps the scale for this book, and moves every card the reader placed to where
+    /// it now is, in one write.
+    func endPageResize() {
+        guard let base = resizeBase else { return }
+        resizeBase = nil
+        if let key = SafeID.defaultsKey("pageScale", book.id) {
+            if abs(pageScale - 1) < 0.0001 { UserDefaults.standard.removeObject(forKey: key) } else { UserDefaults.standard.set(pageScale, forKey: key) }
+        }
+        guard base != pages else { return }
+        var moved: [String: CGPoint] = [:]
+        for card in cards.cards where card.isPinned && card.translatedPage == nil {
+            moved[card.id] = Geometry.remapPinned(CGPoint(x: card.x, y: card.y), from: base, to: pages)
+        }
+        cards.pinAll(moved)
+    }
+
+    /// Back to the standard page size.
+    func resetPageScale() {
+        beginPageResize()
+        resizePages(scale: 1)
+        endPageResize()
+    }
+
+    /// Where a placed card is shown: during a resize, moved with the pages.
+    private func pinnedPoint(_ card: YarnCard) -> CGPoint {
+        guard let base = resizeBase, card.translatedPage == nil else { return CGPoint(x: card.x, y: card.y) }
+        return Geometry.remapPinned(CGPoint(x: card.x, y: card.y), from: base, to: pages)
+    }
+
+    /// A page translation is as large as its page now (its stored size is the page's when it was
+    /// made); any other card has its own width.
+    func displayWidth(_ card: YarnCard) -> Double {
+        if let n = card.translatedPage, n >= 1, n <= pages.count { return pages[n - 1].width }
+        return card.width
+    }
+
+    /// A page translation's height: its page's.
+    func translationHeight(_ card: YarnCard) -> Double? {
+        guard let n = card.translatedPage, n >= 1, n <= pages.count else { return card.height }
+        return pages[n - 1].height
+    }
     let cards: CardsModel
     private let store: LibraryStore
 
     var tool: ReaderTool = .select
-    var brushColor: YarnColor = .mint
     var pending: PendingSelection?
     var bridgeHeld: [YarnAnchor]?
     var hideThreads = false {
@@ -73,7 +144,6 @@ final class ReaderModel {
     var shortQuotes: Set<String> = []
     var toast: String?
     var showJournal = false
-    var liveBrush: (from: CGPoint, to: CGPoint)?
     var offscreenCard: String?
     var journal: [JournalRecord] = []
     /// 1-based chapter at the top of the EPUB view.
@@ -182,7 +252,10 @@ final class ReaderModel {
             guard let page = doc.page(at: i) else { return CGSize(width: 612, height: 792) }
             return PageGeometry(page: page).displaySize
         }
-        self.pages = Geometry.pageLayout(sizes)
+        self.pageSizes = sizes
+        let scale = Self.savedPageScale(book.id)
+        self.pageScale = scale
+        self.pages = Geometry.pageLayout(sizes, width: Geometry.pageWorldWidth * scale)
         self.cards = CardsModel(bookId: book.id, bookTitle: book.title, lang: lang, settings: settings, store: store, streamer: streamer, batcher: batcher)
         self.streamer = streamer
         let saved = SafeID.defaultsKey("translateLang", book.id).flatMap { UserDefaults.standard.string(forKey: $0) }
@@ -210,6 +283,7 @@ final class ReaderModel {
         self.book = book
         self.document = nil
         self.epub = opened
+        self.pageSizes = []
         self.pages = []
         self.store = store
         self.cards = CardsModel(bookId: book.id, bookTitle: book.title, lang: lang, settings: settings, store: store, streamer: streamer)
@@ -449,10 +523,10 @@ final class ReaderModel {
     /// Where things are: the pages, the default lane, and every placed thread and translation.
     var contentRect: CGRect {
         var left = 0.0
-        var right = Geometry.laneX + Geometry.cardWidth
+        var right = Geometry.laneX(pageWidth: pageWidth) + Geometry.cardWidth
         var bottom = pages.last.map { $0.y + $0.height } ?? 0
         for (id, p) in placements {
-            let w = cards.cards.first { $0.id == id }?.width ?? Geometry.cardWidth
+            let w = cards.cards.first { $0.id == id }.map(displayWidth) ?? Geometry.cardWidth
             left = min(left, p.x)
             right = max(right, p.x + w)
             bottom = max(bottom, p.y + (heights[id] ?? 150))
@@ -462,14 +536,14 @@ final class ReaderModel {
 
     /// The content's width when kept centred on the page (what the camera fits).
     var centredContentWidth: Double {
-        let c = contentRect, mid = Geometry.pageWorldWidth / 2
+        let c = contentRect, mid = pageWidth / 2
         return 2 * max(c.maxX - mid, mid - c.minX) + 80
     }
 
     /// The world's extent: the content plus generous room on both sides, symmetric around the
     /// page's centre so the page sits in the middle.
     var worldRect: CGRect {
-        let c = contentRect, mid = Geometry.pageWorldWidth / 2
+        let c = contentRect, mid = pageWidth / 2
         let half = max(c.maxX - mid, mid - c.minX) + Self.roomAround
         return CGRect(x: mid - half, y: 0, width: half * 2, height: c.maxY + Self.roomBelow)
     }
@@ -557,9 +631,9 @@ final class ReaderModel {
                     parentCardId: c.parentCardId.flatMap { byId[$0] != nil ? $0 : nil },
                     isPinned: origin != nil || c.isPinned,
                     collapsed: folded(c),
-                    x: origin.map { Double($0.x) } ?? c.x,
-                    y: origin.map { Double($0.y) } ?? c.y,
-                    width: c.width,
+                    x: origin.map { Double($0.x) } ?? Double(pinnedPoint(c).x),
+                    y: origin.map { Double($0.y) } ?? Double(pinnedPoint(c).y),
+                    width: displayWidth(c),
                     anchorY: anchorY(c, placed),
                     height: heights[c.id] ?? 150
                 )
@@ -569,11 +643,11 @@ final class ReaderModel {
                 let pageOf = Dictionary(list.map { ($0.id, homePage(of: $0)) }, uniquingKeysWith: { a, _ in a })
                 var merged: [String: CGPoint] = [:]
                 for group in Dictionary(grouping: input, by: { pageOf[$0.id] ?? 1 }).values {
-                    merged.merge(Lane.layout(group)) { a, _ in a }
+                    merged.merge(Lane.layout(group, laneX: Geometry.laneX(pageWidth: pageWidth))) { a, _ in a }
                 }
                 placed = merged
             } else {
-                placed = Lane.layout(input)
+                placed = Lane.layout(input, laneX: Geometry.laneX(pageWidth: pageWidth))
             }
             if placed == previous { break }
         }
@@ -596,9 +670,10 @@ final class ReaderModel {
         for card in cards.cards where card.collapsed {
             guard let anchor = card.anchors.first(where: { $0.sourceType == .card }), let pid = anchor.sourceCardId,
                   let parent = byId[pid], let pp = place[pid], isShown(parent) else { continue }
-            let right = !card.isPinned || card.x + card.width / 2 >= pp.x + parent.width / 2
+            let parentWidth = displayWidth(parent)
+            let right = !card.isPinned || card.x + card.width / 2 >= pp.x + parentWidth / 2
             let y = pp.y + anchor.boundingRect.y + anchor.boundingRect.height / 2
-            out.append(Clip(cardId: card.id, color: card.color, title: Compose.kindTitle(lang, card.kind), right: right, point: CGPoint(x: right ? pp.x + parent.width : pp.x, y: y)))
+            out.append(Clip(cardId: card.id, color: card.color, title: Compose.kindTitle(lang, card.kind), right: right, point: CGPoint(x: right ? pp.x + parentWidth : pp.x, y: y)))
         }
         // Knots on the same edge never overlap.
         out.sort { $0.point.y < $1.point.y }
@@ -621,13 +696,13 @@ final class ReaderModel {
             guard let p = place[card.id] else { continue }
             // A card moved to the left of the page takes its yarn on its right edge, from the
             // passage's left end; otherwise left edge, right end.
-            let onLeft = p.x + card.width / 2 < Geometry.pageWorldWidth / 2
+            let onLeft = p.x + card.width / 2 < pageWidth / 2
             let to = onLeft ? CGPoint(x: p.x + card.width, y: p.y + Geometry.g.cardAttachY) : Geometry.cardAttachPoint(x: p.x, y: p.y)
             for a in card.anchors {
                 var from: CGPoint?
                 if a.sourceType == .card {
                     if let sid = a.sourceCardId, let parent = byId[sid], let pp = place[sid] {
-                        from = CGPoint(x: onLeft ? pp.x : pp.x + parent.width, y: pp.y + a.boundingRect.y + a.boundingRect.height / 2)
+                        from = CGPoint(x: onLeft ? pp.x : pp.x + displayWidth(parent), y: pp.y + a.boundingRect.y + a.boundingRect.height / 2)
                     }
                 } else if a.pageNumber >= 1, a.pageNumber <= pages.count {
                     let page = pages[a.pageNumber - 1]
@@ -638,7 +713,6 @@ final class ReaderModel {
                 if let from { out.append(YarnSegment(id: "\(card.id)-\(a.id)", color: card.color, from: from, to: to, cardId: card.id, sourceCardId: a.sourceCardId)) }
             }
         }
-        if let live = liveBrush { out.append(YarnSegment(id: "brush-live", color: brushColor, from: live.from, to: live.to, dashed: true)) }
         return out
     }
 
@@ -758,7 +832,7 @@ final class ReaderModel {
     }
 
     /// A highlight covers whole words: a selection that starts or ends inside a word is widened to the
-    /// word's edges, as the brush does (owner test 15 Nov: "r. Bu çaba … bırakm"). Each page's passage is
+    /// word's edges, as the thread brush did (owner test 15 Nov: "r. Bu çaba … bırakm"). Each page's passage is
     /// rebuilt from the PDF: its first and last character are joined with their whole words.
     func wholeWords(_ anchors: [YarnAnchor]) -> [YarnAnchor] {
         guard let document else { return anchors }

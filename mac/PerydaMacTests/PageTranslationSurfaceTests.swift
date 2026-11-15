@@ -135,6 +135,21 @@ final class PageTranslationSurfaceTests: XCTestCase {
             XCTAssertEqual(try XCTUnwrap(t.height), page.height, accuracy: 0.5)
         }
         XCTAssertTrue(reader.segments.isEmpty, "a translation hangs on no yarn")
+
+        // Owner, 16 Nov: resized pages take their translations with them, at the new size.
+        reader.beginPageResize()
+        reader.resizePages(scale: 1.5)
+        reader.endPageResize()
+        defer { UserDefaults.standard.removeObject(forKey: "pageScale:\(reader.book.id)") }
+        await settle()
+        let t = try XCTUnwrap(reader.translation(of: 1))
+        let page = reader.pages[0]
+        XCTAssertEqual(reader.displayWidth(t), page.width, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(reader.translationHeight(t)), page.height, accuracy: 0.5)
+        let p = try XCTUnwrap(reader.placements[t.id])
+        XCTAssertEqual(p.x, page.width + 60, accuracy: 0.5, "beside the larger page")
+        let view = try XCTUnwrap(world.documentView.subviews.first { $0 is ZoomedHostingView<AnyView> && abs($0.frame.minX - p.x) < 1 && abs($0.frame.minY - p.y) < 1 })
+        XCTAssertEqual(view.frame.width, page.width, accuracy: 0.5, "drawn at the page's size")
     }
 
     /// A range of more than two pages goes to Gemini as one batch, and fills in by itself.

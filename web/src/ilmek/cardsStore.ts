@@ -397,6 +397,34 @@ export class CardsStore {
     })
   }
 
+  /**
+   * Resizes a card from its left edge: its right edge stays, so it is placed (pinned) at the new left
+   * edge, at `y`. One write.
+   */
+  resizeFrom = (cardId: string, width: number, right: number, y: number) => {
+    this.patch(cardId, (c) => {
+      const w = clamp(width, CARD_WIDTH_RANGE)
+      return { ...c, width: w, isPinned: true, x: right - w, y }
+    })
+  }
+
+  /** Moves several placed cards at once (the pages were resized), in one write. */
+  placeMany = (positions: ReadonlyMap<string, { x: number; y: number }>) => {
+    if (!positions.size) return
+    const now = Date.now()
+    const changed: YarnCard[] = []
+    const next = this.cards.map((c) => {
+      const p = positions.get(c.id)
+      if (!p || (p.x === c.x && p.y === c.y)) return c
+      const updated = { ...c, x: p.x, y: p.y, updatedAt: now }
+      changed.push(updated)
+      return updated
+    })
+    if (!changed.length) return
+    this.commit(next)
+    if (!this.disposed) this.track(db.cards.bulkPut(changed).catch(() => undefined))
+  }
+
   isStreaming = (cardId: string) => this.running.has(cardId)
 
   // ---- Whole-page translation ----

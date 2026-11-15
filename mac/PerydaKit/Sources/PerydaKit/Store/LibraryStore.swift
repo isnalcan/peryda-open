@@ -210,10 +210,11 @@ public final class LibraryStore: @unchecked Sendable {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Adds a file, or returns the existing book when the same file was added before.
-    public func importBook(data: Data, fileName: String, title: String?, author: String?, pageCount: Int) throws -> BookRecord {
+    /// Adds a file, or returns the existing book when the same file was added before. A book made
+    /// from photos passes the photos' own fingerprint (`ImageBook.fingerprint`).
+    public func importBook(data: Data, fileName: String, title: String?, author: String?, pageCount: Int, fingerprint: String? = nil) throws -> BookRecord {
         guard let format = Self.format(of: URL(fileURLWithPath: fileName)) else { throw ImportError.unsupported }
-        let fp = Self.fingerprint(data)
+        let fp = fingerprint ?? Self.fingerprint(data)
         return try queue.sync {
             var list = storedBooks()
             if let existing = list.first(where: { $0.fingerprint == fp }) { return existing }

@@ -21,12 +21,26 @@ export interface PageKnot {
   rect: NormalizedRect
 }
 
-export type Tool = 'select' | 'area' | 'brush'
+export type Tool = 'select' | 'area'
+
+/** The corner the pages are resized from (bottom-right of every page), handled by the reader. */
+export interface PageGrip {
+  label: string
+  down: (pageNumber: number, e: PointerEvent<HTMLElement>) => void
+  move: (e: PointerEvent<HTMLElement>) => void
+  up: () => void
+  reset: (pageNumber: number) => void
+}
 
 interface Props {
   doc: PDFDocumentProxy
   pageNumber: number
   box: PageBox
+  /**
+   * While the pages are being resized: the width the page stays drawn at, stretched to `box` (drawing it
+   * again on every move would stutter). It is drawn at its new size once the pointer is let go.
+   */
+  renderWidth?: number
   renderScale: number
   highlights: readonly PageHighlight[]
   knots: readonly PageKnot[]
@@ -37,10 +51,12 @@ interface Props {
   onTextless: (pageNumber: number, textless: boolean) => void
   /** Called after the page's picture has been drawn. */
   onDrawn?: () => void
+  grip?: PageGrip
 }
 
 function PdfPageViewImpl(props: Props) {
   const { doc, pageNumber, box, renderScale } = props
+  const drawnWidth = props.renderWidth ?? box.width
   const pageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textRef = useRef<HTMLDivElement>(null)
@@ -62,7 +78,7 @@ function PdfPageViewImpl(props: Props) {
       const page = await doc.getPage(pageNumber)
       if (cancelled || !textRef.current || !pageRef.current) return
       const unit = page.getViewport({ scale: 1 })
-      const viewport = page.getViewport({ scale: box.width / unit.width })
+      const viewport = page.getViewport({ scale: drawnWidth / unit.width })
       pageRef.current.style.setProperty('--total-scale-factor', String(viewport.scale))
       textRef.current.replaceChildren()
       layer = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: textRef.current, viewport })
@@ -79,7 +95,7 @@ function PdfPageViewImpl(props: Props) {
       layer?.cancel()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, pageNumber, box.width])
+  }, [doc, pageNumber, drawnWidth])
 
   // Bitmap: re-rendered when the camera settles at a new scale so text stays sharp.
   useEffect(() => {
@@ -91,7 +107,7 @@ function PdfPageViewImpl(props: Props) {
       if (cancelled || !canvas) return
       const unit = page.getViewport({ scale: 1 })
       const dpr = window.devicePixelRatio || 1
-      const scale = cappedScale(unit.width, unit.height, (box.width * renderScale * dpr) / unit.width)
+      const scale = cappedScale(unit.width, unit.height, (drawnWidth * renderScale * dpr) / unit.width)
       const viewport = page.getViewport({ scale })
       const offscreen = document.createElement('canvas')
       offscreen.width = Math.ceil(viewport.width)
@@ -116,7 +132,7 @@ function PdfPageViewImpl(props: Props) {
       cancelled = true
       task?.cancel()
     }
-  }, [doc, pageNumber, box.width, renderScale])
+  }, [doc, pageNumber, drawnWidth, renderScale])
 
   const toNormalized = (e: PointerEvent): [number, number] => {
     const r = pageRef.current!.getBoundingClientRect()
@@ -126,7 +142,7 @@ function PdfPageViewImpl(props: Props) {
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
     const areaGesture = props.tool === 'area' || e.shiftKey || e.altKey || textless
-    if (!areaGesture || (e.target as HTMLElement).closest('.page-knot')) return
+    if (!areaGesture || (e.target as HTMLElement).closest('.page-knot, .page-resize-grip')) return
     e.preventDefault()
     window.getSelection()?.removeAllRanges()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -151,13 +167,19 @@ function PdfPageViewImpl(props: Props) {
     height: `${r.height * 100}%`,
   })
   const dragRect = drag ? rectFromCorners(drag.a, drag.b) : null
+  const stretch = box.width / drawnWidth
 
   return (
     <div
       ref={pageRef}
       className={`pdf-page${textless ? ' is-textless' : ''}${props.tool === 'area' ? ' is-area-tool' : ''}`}
       data-page={pageNumber}
-      style={{ transform: `translate(${box.x}px, ${box.y}px)`, width: box.width, height: box.height }}
+      style={{
+        transform: `translate(${box.x}px, ${box.y}px)${stretch !== 1 ? ` scale(${stretch})` : ''}`,
+        transformOrigin: '0 0',
+        width: drawnWidth,
+        height: box.height / stretch,
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -197,6 +219,19 @@ function PdfPageViewImpl(props: Props) {
         </button>
       ))}
       {dragRect && <div className="area-drag" style={pct(dragRect)} />}
+      {props.grip && (
+        <span
+          className="page-resize-grip"
+          role="separator"
+          aria-label={props.grip.label}
+          title={props.grip.label}
+          onPointerDown={(e) => props.grip?.down(pageNumber, e)}
+          onPointerMove={props.grip.move}
+          onPointerUp={props.grip.up}
+          onPointerCancel={props.grip.up}
+          onDoubleClick={() => props.grip?.reset(pageNumber)}
+        />
+      )}
     </div>
   )
 }

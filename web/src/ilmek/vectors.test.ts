@@ -6,16 +6,21 @@ import laneVectors from '@shared/vectors/lane.json'
 import areaVectors from '@shared/vectors/area.json'
 import zoomVectors from '@shared/vectors/zoom.json'
 import providerVectors from '@shared/vectors/provider.json'
+import pageScaleVectors from '@shared/vectors/page-scale.json'
 import {
+  GEOMETRY,
   LANE_X,
   anchorWorldPoint,
   areaAccepted,
   bezierControls,
   cardAttachPoint,
+  clampPageScale,
   cropPixels,
+  laneX,
   normalizedToPdf,
   pageLayout,
   pdfToNormalized,
+  remapPinned,
   subLaneX,
   zoomAt,
 } from './geometry'
@@ -55,6 +60,32 @@ describe('shared vectors: world space', () => {
     for (const c of worldVectors.cardAttach) closeAll(cardAttachPoint(c.card), c.point)
     expect(LANE_X).toBe(worldVectors.laneX)
     expect(subLaneX(worldVectors.subLane.parent)).toBe(worldVectors.subLane.x)
+  })
+})
+
+describe('shared vectors: resizing the pages', () => {
+  const sizes = pageScaleVectors.sizes.map((s) => [s[0]!, s[1]!] as const)
+  const base = pageLayout(sizes)
+
+  it('stacks pages at scale 1 like the world vectors', () => {
+    base.forEach((p, i) => {
+      const e = pageScaleVectors.basePages[i]!
+      closeAll([p.x, p.y, p.width, p.height], [e.x, e.y, e.width, e.height])
+    })
+  })
+
+  it.each(pageScaleVectors.scaled)('scale $scale: pages, lane and placed cards', (c) => {
+    const pages = pageLayout(sizes, GEOMETRY.pageWorldWidth * c.scale)
+    pages.forEach((p, i) => {
+      const e = c.pages[i]!
+      closeAll([p.x, p.y, p.width, p.height], [e.x, e.y, e.width, e.height])
+    })
+    close(laneX(pages[0]!.width), c.laneX)
+    for (const pin of c.pinned) closeAll(remapPinned([pin.from[0]!, pin.from[1]!], base, pages), pin.to)
+  })
+
+  it.each(pageScaleVectors.clamp)('clamps $scale', (c) => {
+    close(clampPageScale(c.scale), c.clamped)
   })
 })
 

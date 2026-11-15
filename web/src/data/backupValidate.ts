@@ -1,4 +1,5 @@
 import { LANGS } from '../i18n/strings'
+import { GEOMETRY } from '../ilmek/geometry'
 import { PROVIDERS } from '../ai/provider'
 import { isBatchName } from '../ai/batch'
 import { YARN_COLORS, type AnchorSource, type ArchiveLink, type NormalizedRect, type PdfYarnAnchor, type YarnCard, type YarnMessage } from '../ilmek/types'
@@ -212,7 +213,7 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     case 'extractedTextSize':
       return typeof value === 'number' && value >= 14 && value <= 28 ? { key, value } : null
   }
-  const perBook = /^(translateLang|journalSummary|cardTextScale|translationTextScale|readings):(.+)$/.exec(key)
+  const perBook = /^(translateLang|journalSummary|cardTextScale|translationTextScale|readings|pageScale):(.+)$/.exec(key)
   if (!perBook || !restoredBooks.has(perBook[2]!)) return null
   if (perBook[1] === 'translateLang') return oneOf(value, LANGS) ? { key, value } : null
   if (perBook[1] === 'readings') {
@@ -226,6 +227,8 @@ export function validPref(raw: unknown, restoredBooks: ReadonlySet<string>): Pre
     return done.length ? { key, value: done } : null
   }
   if (perBook[1] === 'cardTextScale' || perBook[1] === 'translationTextScale') return typeof value === 'number' && value >= 0.85 && value <= 1.75 ? { key, value } : null
+  // The pages' size: cards the reader placed were moved with it, so it comes back with them.
+  if (perBook[1] === 'pageScale') return typeof value === 'number' && Number.isFinite(value) && value >= GEOMETRY.pageScaleMin && value <= GEOMETRY.pageScaleMax ? { key, value } : null
   if (isObject(value) && typeof value.text === 'string' && typeof value.createdAt === 'number' && Number.isFinite(value.createdAt)) {
     return { key, value: { text: text(value.text, LONG_TEXT), createdAt: value.createdAt } }
   }

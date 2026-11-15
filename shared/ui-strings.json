@@ -161,12 +161,6 @@
     "de": "Erste Auswahl gehalten — wähle die zweite Stelle zum Verbinden.",
     "es": "Primera selección guardada: elige el segundo lugar que quieres unir."
   },
-  "brushColor": {
-    "tr": "Fırça rengi",
-    "en": "Brush colour",
-    "de": "Pinselfarbe",
-    "es": "Color del pincel"
-  },
   "cameraFocus": {
     "tr": "Odak",
     "en": "Focus",
@@ -425,6 +419,12 @@
     "de": "Gehe zu Seite",
     "es": "Ir a la página"
   },
+  "heicUnsupported": {
+    "tr": "Bu tarayıcı HEIC fotoğraflarını açamıyor. Fotoğrafı JPEG olarak kaydedip yeniden ekleyebilirsin.",
+    "en": "This browser cannot open HEIC photos. Save the photo as JPEG and add it again.",
+    "de": "Dieser Browser kann keine HEIC-Fotos öffnen. Speichere das Foto als JPEG und füge es erneut hinzu.",
+    "es": "Este navegador no puede abrir fotos HEIC. Guarda la foto como JPEG y vuelve a añadirla."
+  },
   "hide": {
     "tr": "Gizle",
     "en": "Hide",
@@ -454,6 +454,12 @@
     "en": "Highlighted and added to the Book Journal",
     "de": "Markiert und ins Buchjournal aufgenommen",
     "es": "Resaltado y añadido al Diario del libro"
+  },
+  "imagesAsBook": {
+    "tr": "{n} fotoğraf tek kitap olarak eklendi.",
+    "en": "{n} photos were added as one book.",
+    "de": "{n} Fotos wurden als ein Buch hinzugefügt.",
+    "es": "Se añadieron {n} fotos como un solo libro."
   },
   "importBackupFailed": {
     "tr": "Bu yedek dosyası okunamadı.",
@@ -558,10 +564,10 @@
     "es": "Última lectura {when}"
   },
   "libraryEmpty": {
-    "tr": "Henüz kitap yok. Bir PDF ya da EPUB dosyasını buraya bırak ya da ekle.",
-    "en": "No books yet. Drop a PDF or EPUB here, or add one.",
-    "de": "Noch keine Bücher. Lege hier eine PDF- oder EPUB-Datei ab oder füge eine hinzu.",
-    "es": "Aún no hay libros. Suelta aquí un PDF o un EPUB, o añade uno."
+    "tr": "Henüz kitap yok. Bir PDF, EPUB ya da sayfa fotoğrafını buraya bırak ya da ekle.",
+    "en": "No books yet. Drop a PDF, an EPUB or a photo of a page here, or add one.",
+    "de": "Noch keine Bücher. Lege hier eine PDF- oder EPUB-Datei oder das Foto einer Seite ab oder füge eine hinzu.",
+    "es": "Aún no hay libros. Suelta aquí un PDF, un EPUB o la foto de una página, o añade uno."
   },
   "libraryTitle": {
     "tr": "Kitaplık",
@@ -887,6 +893,18 @@
     "de": "Größe ändern (Doppelklick: eigene Größe)",
     "es": "Cambiar tamaño (doble clic: tamaño propio)"
   },
+  "resizeCardWidth": {
+    "tr": "Genişliği değiştir",
+    "en": "Change the width",
+    "de": "Breite ändern",
+    "es": "Cambiar el ancho"
+  },
+  "resizePage": {
+    "tr": "Sayfaları boyutlandır (çift tıkla: ilk boyut)",
+    "en": "Resize the pages (double-click: original size)",
+    "de": "Seitengröße ändern (Doppelklick: ursprüngliche Größe)",
+    "es": "Cambiar el tamaño de las páginas (doble clic: tamaño original)"
+  },
   "retranslate": {
     "tr": "Yeniden çevir",
     "en": "Translate again",
@@ -1097,12 +1115,6 @@
     "de": "Bereichsfaden",
     "es": "Hilo de zona"
   },
-  "toolBrush": {
-    "tr": "İlmek fırçası",
-    "en": "Thread brush",
-    "de": "Fadenpinsel",
-    "es": "Pincel de hilo"
-  },
   "toolSelect": {
     "tr": "Seçim ve okuma",
     "en": "Select and read",
@@ -1188,10 +1200,10 @@
     "es": "Hay cambios de claves sin guardar; se pierden si cierras sin guardar."
   },
   "unsupportedFile": {
-    "tr": "Yalnız PDF ve EPUB dosyaları eklenebilir.",
-    "en": "Only PDF and EPUB files can be added.",
-    "de": "Nur PDF- und EPUB-Dateien können hinzugefügt werden.",
-    "es": "Solo se pueden añadir archivos PDF y EPUB."
+    "tr": "Yalnız PDF, EPUB ve fotoğraf (JPEG, PNG, HEIC) dosyaları eklenebilir.",
+    "en": "Only PDF, EPUB and photo (JPEG, PNG, HEIC) files can be added.",
+    "de": "Nur PDF-, EPUB- und Fotodateien (JPEG, PNG, HEIC) können hinzugefügt werden.",
+    "es": "Solo se pueden añadir archivos PDF, EPUB y fotos (JPEG, PNG, HEIC)."
   },
   "upToDate": {
     "tr": "Peryda güncel.",
