@@ -59,7 +59,7 @@ struct FindBar: View {
         let n = reader.findHits.count
         if query.trimmingCharacters(in: .whitespaces).isEmpty { return "" }
         if n == 0 { return reader.findSearching ? "…" : t["findNone"] }
-        return "\((reader.findIndex ?? 0) + 1) / \(n)" + (reader.findSearching ? "…" : "")
+        return "\((reader.findIndex ?? 0) + 1) / \(n)" + (reader.findCapped ? "+" : "") + (reader.findSearching ? "…" : "")
     }
 }
 

@@ -856,14 +856,20 @@ final class ReaderModel {
     }
     /// The book's details are shown.
     var showingInfo = false
-    @ObservationIgnored private var thumbnails: [Int: NSImage] = [:]
+    /// Drawn thumbnails, the least used dropped past 150 (audit 16 Nov, M16-4: kept without limit, a
+    /// long book scrolled through held over a gigabyte).
+    @ObservationIgnored private let thumbnails: NSCache<NSNumber, NSImage> = {
+        let cache = NSCache<NSNumber, NSImage>()
+        cache.countLimit = 150
+        return cache
+    }()
 
-    /// A page's thumbnail, drawn the first time it is asked for and kept while the book is open.
+    /// A page's thumbnail, drawn the first time it is asked for and kept while there is room.
     func thumbnail(_ number: Int) -> NSImage? {
-        if let cached = thumbnails[number] { return cached }
+        if let cached = thumbnails.object(forKey: NSNumber(value: number)) { return cached }
         guard let page = document?.page(at: number - 1) else { return nil }
         let image = page.thumbnail(of: CGSize(width: 240, height: 360), for: .cropBox)
-        thumbnails[number] = image
+        thumbnails.setObject(image, forKey: NSNumber(value: number))
         return image
     }
 
@@ -884,6 +890,8 @@ final class ReaderModel {
     private(set) var findIndex: Int?
     /// Pages are still being searched.
     private(set) var findSearching = false
+    /// The search stopped at its limit (the counter reads "… / 5000+").
+    private(set) var findCapped = false
     private var findTask: Task<Void, Never>?
 
     /// Opens the find bar (PDFs only).
@@ -912,6 +920,7 @@ final class ReaderModel {
     func find(_ query: String) {
         findTask?.cancel()
         setFindHits([])
+        findCapped = false
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, document != nil, let url = try? store.fileURL(for: book) else {
             findSearching = false
@@ -922,9 +931,14 @@ final class ReaderModel {
         findTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            for await batch in DocumentFind.search(url: url, query: q) {
+            for await event in DocumentFind.search(url: url, query: q) {
                 guard let self, !Task.isCancelled else { return }
+                guard case .hits(let batch) = event else {
+                    self.findCapped = true
+                    continue
+                }
                 var hits = self.findHits
+                hits.reserveCapacity(hits.count + batch.count)
                 for hit in batch { hits.append(FindHit(index: hits.count, page: hit.page, rects: hit.rects)) }
                 self.setFindHits(hits)
                 if self.findIndex == nil, let first = hits.firstIndex(where: { $0.page >= start }) {
@@ -1014,10 +1028,21 @@ final class ReaderModel {
     }
 
     func highlighterMarks(onPage page: Int) -> [Mark] {
-        journal.filter { $0.source == .highlight }.flatMap { entry in
-            (entry.marks ?? []).filter { $0.pageNumber == page }.map { Mark(color: HighlightColor.id(entry.highlightColor), rects: $0.lineRects) }
+        // Worked out once per journal, not for every page on every redraw (audit 16 Nov, M16-3).
+        if marksJournal != journal {
+            var byPage: [Int: [Mark]] = [:]
+            for entry in journal where entry.source == .highlight {
+                let color = HighlightColor.id(entry.highlightColor)
+                for mark in entry.marks ?? [] { byPage[mark.pageNumber, default: []].append(Mark(color: color, rects: mark.lineRects)) }
+            }
+            marksByPage = byPage
+            marksJournal = journal
         }
+        return marksByPage[page] ?? []
     }
+
+    @ObservationIgnored private var marksByPage: [Int: [Mark]] = [:]
+    @ObservationIgnored private var marksJournal: [JournalRecord] = []
 
     /// What a card puts in the journal: its passage and its conversation (or note).
     private func journalContent(_ card: YarnCard) -> (quote: String, text: String) {

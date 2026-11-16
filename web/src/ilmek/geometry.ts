@@ -19,9 +19,20 @@ export function bezierPath(from: Point, to: Point): string {
  * Pages stack vertically at one world width (the reader's page size: pageWorldWidth times the book's
  * page scale); sizes are the page boxes in points.
  */
+/**
+ * A page size layout can use: a page with no size (or not a number) is drawn as a letter page, and a
+ * long strip is kept to at most 20 times as long as wide, or as wide as long (audit 16 Nov, M16-1:
+ * an empty MediaBox divided zero by zero). Matches make-vectors.py.
+ */
+export function usablePageSize(w: number, h: number): [number, number] {
+  if (!(Number.isFinite(w) && Number.isFinite(h) && w >= 1 && h >= 1)) return [612, 792]
+  return [w, w * Math.min(Math.max(h / w, 0.05), 20)]
+}
+
 export function pageLayout(sizes: ReadonlyArray<readonly [number, number]>, width: number = GEOMETRY.pageWorldWidth): PageBox[] {
   let y = 0
-  return sizes.map(([w, h]) => {
+  return sizes.map(([rawW, rawH]) => {
+    const [w, h] = usablePageSize(rawW, rawH)
     const height = width * (h / w)
     const box = { x: 0, y, width, height }
     y += height + GEOMETRY.pageGap

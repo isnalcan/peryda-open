@@ -22,6 +22,9 @@ public enum ImageBook {
     /// otherwise ask for gigabytes of memory. Real cameras stay far below it.
     static let maxSourcePixels = 250_000_000
 
+    /// The most photos one book is made of at a time (the web keeps the same limit).
+    public static let maxPhotos = 500
+
     /// Photos in file-name order, as a person numbers them (IMG_2 before IMG_10).
     public static func ordered(_ urls: [URL]) -> [URL] {
         urls.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
@@ -61,7 +64,7 @@ public enum ImageBook {
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let pw = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
               let ph = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
-              pw > 0, ph > 0, pw.multipliedReportingOverflow(by: ph).partialValue <= maxSourcePixels
+              pw > 0, ph > 0, case let (pixels, overflow) = pw.multipliedReportingOverflow(by: ph), !overflow, pixels <= maxSourcePixels
         else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,

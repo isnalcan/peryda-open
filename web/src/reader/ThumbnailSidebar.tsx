@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import type { PDFDocumentProxy } from '../pdf/pdfjs'
 import { useI18n } from '../i18n/I18n'
 import { pageTitle } from '../ai/compose'
+import { cappedScale } from '../pdf/canvasLimit'
 
 /**
  * The pages in small, beside the reading surface (owner, 16 Nov: "like Preview's sidebar"). Thumbnails
@@ -14,7 +15,23 @@ export const THUMB_WIDTH = 116
 /** The sidebar's width (CSS pixels), border included: the reading surface makes room for it. */
 export const SIDEBAR_WIDTH = 164
 
+/**
+ * Thumbnails kept per document, the oldest dropped past this many (audit 16 Nov, W16-3): a long book
+ * scrolled end to end would otherwise keep every page's picture in memory. A dropped one is drawn again
+ * when it comes back into view.
+ */
+const KEEP = 400
 const drawn = new WeakMap<PDFDocumentProxy, Map<number, string>>()
+/** Keeps a drawn thumbnail, dropping the oldest when there are too many. */
+export function keepThumbnail(map: Map<number, string>, n: number, url: string, keep = KEEP): void {
+  map.delete(n)
+  map.set(n, url)
+  while (map.size > keep) {
+    const oldest = map.keys().next().value
+    if (oldest === undefined) break
+    map.delete(oldest)
+  }
+}
 function drawnFor(doc: PDFDocumentProxy): Map<number, string> {
   let map = drawn.get(doc)
   if (!map) {
@@ -45,7 +62,8 @@ async function drawThumbnail(doc: PDFDocumentProxy, n: number): Promise<string> 
   const page = await doc.getPage(n)
   const unit = page.getViewport({ scale: 1 })
   const dpr = Math.min(2, window.devicePixelRatio || 1)
-  const viewport = page.getViewport({ scale: (THUMB_WIDTH * dpr) / unit.width })
+  // A page with an odd shape (a long strip) is drawn no larger than any canvas the reader may draw.
+  const viewport = page.getViewport({ scale: cappedScale(unit.width, unit.height, (THUMB_WIDTH * dpr) / unit.width) })
   const canvas = document.createElement('canvas')
   canvas.width = Math.ceil(viewport.width)
   canvas.height = Math.ceil(viewport.height)
@@ -86,7 +104,7 @@ const Thumb = memo(function Thumb({ doc, number, size, current, label, root, onG
         const known = drawnFor(doc).get(number)
         const made = known ?? (await drawThumbnail(doc, number))
         if (!made) return
-        drawnFor(doc).set(number, made)
+        keepThumbnail(drawnFor(doc), number, made)
         if (alive) setUrl(made)
       } catch {
         /* a page that cannot be drawn keeps its blank frame */

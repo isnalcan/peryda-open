@@ -143,10 +143,17 @@ public enum Backup {
         guard manifest.format == format else { throw Failure.notABackup }
         guard manifest.version <= version else { throw Failure.newerVersion }
         guard idsAreSafe(manifest) else { throw Failure.notABackup }
+        // A crafted file of a few megabytes could declare thousands of books and unpack far more than
+        // any library (audit 16 Nov, K16-2): the number of books and the bytes unpacked are capped.
+        guard manifest.books.count <= Self.maxBooks else { throw Failure.tooLarge }
         let checked = sane(manifest)
+        // Each book's records, found once rather than by scanning everything for every book.
+        let cardsByBook = Dictionary(grouping: checked.cards, by: \.bookId)
+        let journalByBook = Dictionary(grouping: checked.journal, by: \.bookId)
 
         let existing = store.books()
         var restored = 0
+        var unpackedTotal: UInt64 = 0
         for declared in manifest.books {
             if existing.contains(where: { $0.id == declared.id || $0.fingerprint == declared.fingerprint }) { continue }
             guard let fileEntry = archive["books/\(declared.id).\(declared.format.rawValue)"], fileEntry.type == .file,
@@ -154,7 +161,9 @@ public enum Backup {
             else { continue }
             let temp = FileManager.default.temporaryDirectory.appendingPathComponent("peryda-restore-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: temp) }
+            guard unpackedTotal + fileEntry.uncompressedSize <= Self.maxTotalBytes else { throw Failure.tooLarge }
             guard let unpacked = try? unpack(fileEntry, from: archive, to: temp, limit: limits.book), looksLike(declared.format, temp) else { continue }
+            unpackedTotal += UInt64(unpacked.size)
             var book = declared
             book.fingerprint = unpacked.fingerprint
             book.size = unpacked.size
@@ -164,8 +173,8 @@ public enum Backup {
             // Threads, journal, readings and position go down before the book's own record (audit
             // recheck MR-6); a book deleted earlier in this run saves normally again (MR-1).
             let data = LibraryStore.RestoredData(
-                cards: checked.cards.filter { $0.bookId == book.id }.map(clamped),
-                journal: checked.journal.filter { $0.bookId == book.id }.map { clamped($0, pageCount: book.pageCount) },
+                cards: (cardsByBook[book.id] ?? []).map(clamped),
+                journal: (journalByBook[book.id] ?? []).map { clamped($0, pageCount: book.pageCount) },
                 position: checked.positions.first(where: { $0.bookId == book.id }).map(clamped),
                 readings: readings(from: manifest.prefs, bookId: book.id)
             )
@@ -185,6 +194,12 @@ public enum Backup {
     /// per book since the recheck, MR-4). Export refuses a book above them.
     static let maxCards = 20_000
     static let maxJournal = 50_000
+    /// Highlights per book: each draws on its pages every time they are drawn (audit 16 Nov, M16-3).
+    static let maxHighlights = 5_000
+    /// Books in one backup, and the bytes of book files it may unpack in all (audit 16 Nov, K16-2; the
+    /// web keeps 5,000 books and 2 GB, held in memory there).
+    static let maxBooks = 5_000
+    static let maxTotalBytes: UInt64 = 50_000_000_000
     /// Threads in the whole library: with the checks below linear, a stop for a crafted file that
     /// would otherwise keep Restore busy (audit final F-5).
     static let maxTotalCards = 400_000
@@ -312,8 +327,13 @@ public enum Backup {
         out.cards = cards
         var seenJournal = Set<String>()
         var journalPerBook: [String: Int] = [:]
+        var highlightsPerBook: [String: Int] = [:]
         out.journal = m.journal.filter { seenJournal.insert($0.id).inserted }.filter { record in
             journalPerBook[record.bookId, default: 0] += 1
+            if record.source == .highlight {
+                highlightsPerBook[record.bookId, default: 0] += 1
+                if highlightsPerBook[record.bookId]! > maxHighlights { return false }
+            }
             return journalPerBook[record.bookId]! <= maxJournal
         }.map { record in
             var r = record

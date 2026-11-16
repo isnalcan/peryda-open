@@ -28,12 +28,23 @@ public enum Geometry {
         return (CGPoint(x: x1 + span, y: y1), CGPoint(x: x2 - span, y: y2))
     }
 
+    /// A page size layout can use: a page with no size (or not a number) is drawn as a letter page,
+    /// and a long strip is kept to at most 20 times as long as wide, or as wide as long. A PDF page with
+    /// an empty MediaBox otherwise divided zero by zero and crashed the window (audit 16 Nov, M16-1).
+    /// Matches make-vectors.py.
+    public static func usablePageSize(_ s: CGSize) -> CGSize {
+        let w = Double(s.width), h = Double(s.height)
+        guard w.isFinite, h.isFinite, w >= 1, h >= 1 else { return CGSize(width: 612, height: 792) }
+        return CGSize(width: w, height: w * min(max(h / w, 0.05), 20))
+    }
+
     /// Pages stack vertically at one world width (pageWorldWidth times the book's page scale); sizes
     /// are page boxes in points.
     public static func pageLayout(_ sizes: [CGSize], width: Double? = nil) -> [PageBox] {
         let width = width ?? g.pageWorldWidth
         var y = 0.0
-        return sizes.map { size in
+        return sizes.map { raw in
+            let size = usablePageSize(raw)
             let height = width * (size.height / size.width)
             let box = PageBox(x: 0, y: y, width: width, height: height)
             y += height + g.pageGap

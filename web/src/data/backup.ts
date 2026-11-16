@@ -65,6 +65,13 @@ export class BackupError extends Error {}
 /** The manifest is text; a bigger one is not read. Book files keep to the import limit. */
 const MAX_MANIFEST_BYTES = 500_000_000
 const MAX_BOOK_BYTES = MAX_IMPORT_MB * 1_000_000
+/**
+ * A whole backup: at most this many books and this many bytes of book files, read into memory before
+ * anything is written. A crafted file of a few megabytes could otherwise declare thousands of books and
+ * exhaust the tab (audit 16 Nov, K16-2). The Mac keeps the same limits.
+ */
+export const MAX_BACKUP_BOOKS = 5_000
+export const MAX_BACKUP_TOTAL_BYTES = 2_000_000_000
 
 /**
  * Restores what is missing; books already in the library (same id or same file) keep their own data.
@@ -102,14 +109,24 @@ export async function importBackup(file: Blob): Promise<{ books: number }> {
 
   // Each book's file, read within the limits; an EPUB is checked like an imported one. A book whose file
   // is missing or refused is skipped, with its threads and journal.
+  if (rawBooks.length > MAX_BACKUP_BOOKS) throw new BackupError('too many books')
   const books: { record: BookRecord; blob: Blob }[] = []
+  let total = 0
   for (const raw of rawBooks) {
     const book = validBook(raw)
     if (!book) continue
     const entry = zip.file(`books/${book.id}.${book.format}`)
     if (!entry) continue
+    let bytes: Awaited<ReturnType<typeof readEntry>>['bytes']
     try {
-      const { bytes } = await readEntry(entry, MAX_BOOK_BYTES)
+      bytes = (await readEntry(entry, MAX_BOOK_BYTES)).bytes
+    } catch {
+      continue
+    }
+    // Past what a whole backup may hold: refused, and nothing is written.
+    total += bytes.length
+    if (total > MAX_BACKUP_TOTAL_BYTES) throw new BackupError('too large')
+    try {
       if (book.format === 'epub') await checkEpubArchive(bytes)
       const fingerprint = await sha256Hex(bytes)
       const blob = new Blob([bytes], { type: book.format === 'pdf' ? 'application/pdf' : 'application/epub+zip' })

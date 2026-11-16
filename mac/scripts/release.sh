@@ -66,6 +66,11 @@ case "$mode" in
       fi
       rm -rf "$work"
       mkdir -p "$work"
+      # Which commit this release is built from: a resume continues only that one (audit 16 Nov, K16-1).
+      git -C "$here/.." rev-parse HEAD > "$work/commit"
+    else
+      [ -s "$work/commit" ] || fail "$work does not say which commit it was built from; delete it and run release.sh again."
+      [ "$(cat "$work/commit")" = "$(git -C "$here/.." rev-parse HEAD)" ] || fail "$work was built from commit $(cat "$work/commit"), not from the commit checked out now. Delete it and run release.sh again, or check that commit out to resume it."
     fi
     ;;
   *)

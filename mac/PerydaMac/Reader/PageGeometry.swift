@@ -11,10 +11,11 @@ struct PageGeometry {
     /// page space → display space (rotation applied, origin at the displayed page's bottom-left)
     var toDisplay: CGAffineTransform { page.transform(for: box) }
 
+    /// The page's size as shown; a page with no usable size is shown as a letter page (audit M16-1).
     var displaySize: CGSize {
         let b = page.bounds(for: box)
         let rotated = page.rotation % 180 != 0
-        return rotated ? CGSize(width: b.height, height: b.width) : b.size
+        return Geometry.usablePageSize(rotated ? CGSize(width: b.height, height: b.width) : b.size)
     }
 
     func displayRect(fromPage rect: CGRect) -> CGRect {

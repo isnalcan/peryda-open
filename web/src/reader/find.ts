@@ -61,13 +61,23 @@ export function foldQuery(query: string): string {
 }
 
 /** Every match of a folded query in a text, as [start, end) in the original text, in order. */
-export function findInText(haystack: Folded | string, query: string): [number, number][] {
+/**
+ * The most matches a search keeps (audit 16 Nov, W16-1): a one-letter query in a long book would
+ * otherwise find hundreds of thousands and stall the tab. The counter then reads "… / 5000+".
+ * The Mac keeps the same limit (DocumentFind.maxHits).
+ */
+export const MAX_FIND_HITS = 5000
+
+/** The longest query searched for: a longer one is cut (the Mac keeps the same limit). */
+export const MAX_FIND_QUERY = 500
+
+export function findInText(haystack: Folded | string, query: string, limit = MAX_FIND_HITS): [number, number][] {
   const hay = typeof haystack === 'string' ? fold(haystack) : haystack
-  const q = foldQuery(query)
+  const q = foldQuery(query.slice(0, MAX_FIND_QUERY))
   const out: [number, number][] = []
   if (!q) return out
   let from = 0
-  for (;;) {
+  while (out.length < limit) {
     const k = hay.text.indexOf(q, from)
     if (k === -1) break
     out.push([hay.from[k]!, hay.to[k + q.length - 1]!])
@@ -135,6 +145,8 @@ export function pageTextFrom(items: readonly ItemLike[], viewport: { width: numb
 
 export async function pageTextOf(page: PDFPageProxy): Promise<PageText> {
   const viewport = page.getViewport({ scale: 1 })
+  // A page with no usable size has nothing to find on it (audit 16 Nov, M16-1).
+  if (!(viewport.width >= 1 && viewport.height >= 1)) return { text: '', runs: [], folded: fold('') }
   const content = await page.getTextContent()
   const items = content.items.filter((i): i is ItemLike & (typeof content.items)[number] => 'str' in i)
   return pageTextFrom(items, viewport)
@@ -159,8 +171,8 @@ export interface FindHit {
   rects: NormalizedRect[]
 }
 
-export function hitsOnPage(page: PageText, pageNumber: number, query: string): FindHit[] {
-  return findInText(page.folded, query)
+export function hitsOnPage(page: PageText, pageNumber: number, query: string, limit = MAX_FIND_HITS): FindHit[] {
+  return findInText(page.folded, query, limit)
     .map(([s, e]) => ({ page: pageNumber, rects: rectsFor(page, s, e) }))
     .filter((h) => h.rects.length > 0)
 }
@@ -173,10 +185,11 @@ export async function searchDocument(
   doc: PDFDocumentProxy,
   query: string,
   options: { signal: AbortSignal; cache: Map<number, PageText>; onHits: (hits: FindHit[]) => void },
-): Promise<void> {
-  if (!foldQuery(query)) return
+): Promise<boolean> {
+  if (!foldQuery(query)) return false
+  let found = 0
   for (let n = 1; n <= doc.numPages; n += 1) {
-    if (options.signal.aborted) return
+    if (options.signal.aborted) return false
     let text = options.cache.get(n)
     if (!text) {
       try {
@@ -185,13 +198,17 @@ export async function searchDocument(
         continue
       }
       options.cache.set(n, text)
-      if (options.signal.aborted) return
+      if (options.signal.aborted) return false
     } else if (n % 25 === 0) {
       // Cached pages are quick; still let the window breathe now and then.
       await new Promise((resolve) => window.setTimeout(resolve, 0))
-      if (options.signal.aborted) return
+      if (options.signal.aborted) return false
     }
-    const hits = hitsOnPage(text, n, query)
+    const hits = hitsOnPage(text, n, query, MAX_FIND_HITS - found)
+    found += hits.length
     if (hits.length) options.onHits(hits)
+    // Enough: the reader narrows the query rather than paging through thousands.
+    if (found >= MAX_FIND_HITS) return true
   }
+  return false
 }

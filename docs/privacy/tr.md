@@ -30,8 +30,8 @@ Anahtarların yalnızca bu cihazda saklanır ve yalnızca kendi sağlayıcısın
 - Windows'ta ve web'de uygulamanın bu cihazdaki kendi alanında, AES-256 ile şifrelenmiş olarak dururlar. Şifreyi açan anahtarı tarayıcı motoru (Windows'ta Microsoft Edge WebView2) üretir ve dışarı vermez; bu yüzden anahtarların hiçbir dosyada düz yazı olarak görünmez.
 - Sınırını da bilmeni isteriz: bu şifreleme, bilgisayarındaki kullanıcı hesabını kullanabilen birine ya da orada çalışan zararlı bir yazılıma karşı tam koruma değildir. Ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat; o zaman anahtarların hiç kaydedilmez ve uygulamayı kapatınca (web'de sayfayı kapatınca) unutulur. Web'de ayrıca: her sitedeki verileri okuma izni olan bir tarayıcı eklentisi açık bir sayfadaki her şeyi görebilir; Peryda'yı yalnız güvendiğin eklentilerin olduğu bir tarayıcıda kullan.
 - Her anahtar şifreli bağlantıyla (HTTPS) yalnızca kendi sağlayıcısına gider; isteğin başlığında taşınır, adres satırına yazılmaz. Windows'ta ve web'de uygulamanın güvenlik kuralı (Content Security Policy), kendi dosyaları ve bu dört sağlayıcı dışında hiçbir adrese bağlanmaya izin vermez. Peryda internetten kod yüklemez; reklam, ölçüm ya da sohbet eklentisi gibi başka şirketlerin betiklerini içermez.
-- Anahtarların yedeklere ve dışa aktarılan dosyalara hiç girmez.
-- Önerimiz: Peryda için ayrı bir anahtar oluştur ve sağlayıcında bir harcama sınırı koy. Anahtarının ele geçtiğinden şüphelenirsen onu sağlayıcının sitesinden iptal et; iptal edilen anahtar hemen çalışmaz olur.
+- Anahtarların Peryda'nın yedeklerine ve dışa aktardığı dosyalara hiç girmez. (Mac'in kendi yedekleri, örneğin Time Machine, Anahtar Zinciri'ni de kapsar; orada macOS'un şifrelemesiyle korunur.)
+- Önerimiz: Peryda için ayrı bir anahtar oluştur ve sağlayıcında bir harcama sınırı koy. Anahtarının ele geçtiğinden şüphelenirsen onu sağlayıcının sitesinden iptal et; iptal edilen anahtar artık çalışmaz.
 - Peryda açık kaynaklıdır: anahtarların nasıl saklanıp gönderildiğini herkes kodda denetleyebilir (github.com/isnalcan/peryda-open).
 
 ## Yapay zekâ sağlayıcına gidenler

@@ -87,6 +87,14 @@ struct SharedVectorsTests {
         for c in v["clamp"] as! [[String: Any]] {
             #expect(Geometry.clampPageScale(d(c["scale"])) == d(c["clamped"]))
         }
+        // Pages with no size or a strip's shape still lay out (audit 16 Nov, M16-1).
+        let bad = v["degenerate"] as! [String: Any]
+        let badSizes = (bad["sizes"] as! [[Any]]).map { CGSize(width: d($0[0]), height: d($0[1])) }
+        let badPages = Geometry.pageLayout(badSizes + [CGSize(width: Double.nan, height: 792), CGSize(width: 612, height: Double.infinity)])
+        for (i, e) in (bad["pages"] as! [[String: Any]]).enumerated() {
+            #expect(close(badPages[i].y, d(e["y"])) && close(badPages[i].height, d(e["height"])), "page \(i + 1)")
+        }
+        for page in badPages { #expect(page.height.isFinite && page.height > 0 && page.y.isFinite) }
     }
 
     @Test func pdfCoordinates() throws {

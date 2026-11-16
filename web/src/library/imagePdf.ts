@@ -11,6 +11,62 @@ export const MAX_IMAGE_SIDE = 3200
 export const IMAGE_JPEG_QUALITY = 0.88
 /** A page's longer side in points. */
 export const IMAGE_PAGE_SIDE = 842
+/**
+ * A photo larger than this (in pixels, read from its header before decoding) is refused: a small file
+ * can declare huge dimensions and fill the tab's memory when decoded (audit 16 Nov, W16-2). Real
+ * cameras stay well below it.
+ */
+export const MAX_IMAGE_PIXELS = 100_000_000
+/** The most photos one book is made of at a time (the Mac keeps the same limit). */
+export const MAX_PHOTOS_PER_BOOK = 500
+/** The narrowest page side, in points: a picture that is a thin strip still makes a page you can see. */
+const MIN_PAGE_SIDE = 24
+
+/** The photo's size from its header (PNG, JPEG, WebP), without decoding it; null when unknown (HEIC). */
+export function imageDimensions(b: Uint8Array): { width: number; height: number } | null {
+  const at = (i: number) => b[i] ?? 0
+  const ascii = (from: number, to: number) => String.fromCharCode(...b.subarray(from, to))
+  // PNG: the IHDR chunk comes first.
+  if (b.length >= 24 && at(0) === 0x89 && ascii(1, 4) === 'PNG') {
+    return { width: ((at(16) << 24) >>> 0) + (at(17) << 16) + (at(18) << 8) + at(19), height: ((at(20) << 24) >>> 0) + (at(21) << 16) + (at(22) << 8) + at(23) }
+  }
+  // JPEG: the first start-of-frame marker carries the size.
+  if (b.length >= 4 && at(0) === 0xff && at(1) === 0xd8) {
+    let i = 2
+    while (i + 8 < b.length) {
+      if (at(i) !== 0xff) {
+        i += 1
+        continue
+      }
+      const marker = at(i + 1)
+      if (marker === 0xff || marker === 0x01 || marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7)) {
+        i += marker === 0xff ? 1 : 2
+        continue
+      }
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { width: (at(i + 7) << 8) + at(i + 8), height: (at(i + 5) << 8) + at(i + 6) }
+      }
+      const length = (at(i + 2) << 8) + at(i + 3)
+      if (length < 2) return null
+      i += 2 + length
+    }
+    return null
+  }
+  // WebP: lossy, lossless or extended.
+  if (b.length >= 30 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') {
+    const chunk = ascii(12, 16)
+    if (chunk === 'VP8X') return { width: 1 + (at(24) | (at(25) << 8) | (at(26) << 16)), height: 1 + (at(27) | (at(28) << 8) | (at(29) << 16)) }
+    if (chunk === 'VP8L') {
+      const bits = (at(21) | (at(22) << 8) | (at(23) << 16) | (at(24) << 24)) >>> 0
+      return { width: 1 + (bits & 0x3fff), height: 1 + ((bits >>> 14) & 0x3fff) }
+    }
+    if (chunk === 'VP8 ') return { width: (at(26) | (at(27) << 8)) & 0x3fff, height: (at(28) | (at(29) << 8)) & 0x3fff }
+  }
+  return null
+}
+
+/** The photo declares more pixels than MAX_IMAGE_PIXELS. */
+export class PictureTooLargeError extends Error {}
 
 const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|heic|heif)$/i
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'])
@@ -41,7 +97,7 @@ export interface PdfPicture {
 export function pageSizeFor(width: number, height: number): { width: number; height: number } {
   const k = IMAGE_PAGE_SIDE / Math.max(width, height)
   const round = (v: number) => Math.round(v * 100) / 100
-  return { width: round(width * k), height: round(height * k) }
+  return { width: Math.max(MIN_PAGE_SIDE, round(width * k)), height: Math.max(MIN_PAGE_SIDE, round(height * k)) }
 }
 
 /** The size a picture is drawn at: at most MAX_IMAGE_SIDE on its longer side, never enlarged. */
@@ -132,7 +188,13 @@ async function decode(file: Blob): Promise<{ source: CanvasImageSource; width: n
 
 /** Decodes a photo and draws it on white as a JPEG at most MAX_IMAGE_SIDE on its longer side. */
 export async function pictureFromFile(file: Blob): Promise<PdfPicture> {
+  const size = imageDimensions(new Uint8Array(await file.arrayBuffer()))
+  if (size && size.width * size.height > MAX_IMAGE_PIXELS) throw new PictureTooLargeError('too many pixels')
   const image = await decode(file)
+  if (image.width * image.height > MAX_IMAGE_PIXELS) {
+    image.close()
+    throw new PictureTooLargeError('too many pixels')
+  }
   try {
     const size = drawnSize(image.width, image.height)
     const canvas = document.createElement('canvas')
@@ -145,7 +207,7 @@ export async function pictureFromFile(file: Blob): Promise<PdfPicture> {
     ctx.fillRect(0, 0, size.width, size.height)
     ctx.drawImage(image.source, 0, 0, size.width, size.height)
     const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new PictureDecodeError('encode failed'))), 'image/jpeg', IMAGE_JPEG_QUALITY),
+      canvas.toBlob((b) => (b && b.type === 'image/jpeg' ? resolve(b) : reject(new PictureDecodeError('encode failed'))), 'image/jpeg', IMAGE_JPEG_QUALITY),
     )
     canvas.width = 0
     canvas.height = 0

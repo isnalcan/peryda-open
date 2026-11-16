@@ -155,3 +155,17 @@ describe('the root safety net', () => {
     expect(await db.books.count()).toBe(1)
   })
 })
+
+describe('keys at start with "Remember keys" off (audit 16 Nov, K16-6)', () => {
+  it('removes any keys left in storage instead of loading them', async () => {
+    const { saveSettings, loadSettings } = await import('../data/keyVault')
+    const { DEFAULT_SETTINGS } = await import('../ai/provider')
+    await saveSettings({ ...DEFAULT_SETTINGS, geminiApiKey: 'AIza-placeholder-left-behind' })
+    await db.prefs.put({ key: 'rememberKeys', value: false })
+    await renderApp()
+    await waitFor(() => host.querySelector('.library-title') !== null)
+    for (let i = 0; i < 20; i++) await act(async () => new Promise((r) => setTimeout(r, 10)))
+    expect((await loadSettings()).geminiApiKey).toBe('')
+  })
+})
+

@@ -738,22 +738,22 @@
     "es": "¿Está segura tu clave?"
   },
   "keySafetyWhereLocal": {
-    "tr": "Anahtarın yalnız bu cihazda, şifrelenmiş olarak durur; yedeklere ve dışa aktarılan dosyalara girmez.",
-    "en": "Your key is kept only on this device, encrypted; it never goes into backups or exports.",
-    "de": "Dein Schlüssel liegt nur auf diesem Gerät, verschlüsselt; er kommt nie in Sicherungen oder Exporte.",
-    "es": "Tu clave se guarda solo en este dispositivo, cifrada; nunca entra en copias de seguridad ni exportaciones."
+    "tr": "Anahtarın yalnız bu cihazda, şifrelenmiş olarak durur; Peryda'nın yedeklerine ve dışa aktardığı dosyalara girmez.",
+    "en": "Your key is kept only on this device, encrypted; it never goes into Peryda's backups or exports.",
+    "de": "Dein Schlüssel liegt nur auf diesem Gerät, verschlüsselt; er kommt nie in Perydas Sicherungen oder Exporte.",
+    "es": "Tu clave se guarda solo en este dispositivo, cifrada; nunca entra en las copias de seguridad ni en las exportaciones de Peryda."
   },
   "keySafetyWhereMac": {
-    "tr": "Anahtarın bu Mac'te, macOS Anahtar Zinciri'nde şifreli durur; yedeklere ve dışa aktarılan dosyalara girmez.",
-    "en": "Your key is kept encrypted on this Mac, in the macOS Keychain; it never goes into backups or exports.",
-    "de": "Dein Schlüssel liegt verschlüsselt auf diesem Mac, im macOS-Schlüsselbund; er kommt nie in Sicherungen oder Exporte.",
-    "es": "Tu clave se guarda cifrada en este Mac, en el llavero de macOS; nunca entra en copias de seguridad ni exportaciones."
+    "tr": "Anahtarın bu Mac'te, macOS Anahtar Zinciri'nde şifreli durur; Peryda'nın yedeklerine ve dışa aktardığı dosyalara girmez.",
+    "en": "Your key is kept encrypted on this Mac, in the macOS Keychain; it never goes into Peryda's backups or exports.",
+    "de": "Dein Schlüssel liegt verschlüsselt auf diesem Mac, im macOS-Schlüsselbund; er kommt nie in Perydas Sicherungen oder Exporte.",
+    "es": "Tu clave se guarda cifrada en este Mac, en el llavero de macOS; nunca entra en las copias de seguridad ni en las exportaciones de Peryda."
   },
   "keySafetyYou": {
-    "tr": "Peryda için ayrı bir anahtar oluştur ve sağlayıcında harcama sınırı ya da uyarısı koy. Şüphelenirsen anahtarı sağlayıcının sitesinden iptal et; iptal edilen anahtar hemen çalışmaz olur.",
-    "en": "Make a separate key for Peryda and set a spending limit or alert with your provider. If in doubt, revoke the key on the provider's site; a revoked key stops working at once.",
-    "de": "Erstelle einen eigenen Schlüssel für Peryda und lege bei deinem Anbieter ein Ausgabenlimit oder eine Warnung fest. Im Zweifel widerrufe den Schlüssel auf der Website des Anbieters; ein widerrufener Schlüssel funktioniert sofort nicht mehr.",
-    "es": "Crea una clave aparte para Peryda y pon un límite o una alerta de gasto en tu proveedor. Si tienes dudas, revoca la clave en el sitio del proveedor; una clave revocada deja de funcionar al instante."
+    "tr": "Peryda için ayrı bir anahtar oluştur ve sağlayıcında harcama sınırı ya da uyarısı koy. Şüphelenirsen anahtarı sağlayıcının sitesinden iptal et; iptal edilen anahtar artık çalışmaz.",
+    "en": "Make a separate key for Peryda and set a spending limit or alert with your provider. If in doubt, revoke the key on the provider's site; a revoked key no longer works.",
+    "de": "Erstelle einen eigenen Schlüssel für Peryda und lege bei deinem Anbieter ein Ausgabenlimit oder eine Warnung fest. Im Zweifel widerrufe den Schlüssel auf der Website des Anbieters; ein widerrufener Schlüssel funktioniert nicht mehr.",
+    "es": "Crea una clave aparte para Peryda y pon un límite o una alerta de gasto en tu proveedor. Si tienes dudas, revoca la clave en el sitio del proveedor; una clave revocada deja de funcionar."
   },
   "keychainFailed": {
     "tr": "Anahtar Zinciri'ne yazılamadı; değişiklik bu Mac'te kalıcı olmadı. Mac'in kilidini açıp yeniden dene.",
@@ -768,16 +768,16 @@
     "es": "No se pudieron guardar las claves en este dispositivo; no cambió nada. Vuelve a intentarlo."
   },
   "keysStoredLocal": {
-    "tr": "Anahtarların bu cihazda şifrelenmiş olarak saklanır; yedeklere ve dışa aktarılan dosyalara hiç girmez. Bu şifreleme cihaza erişebilen birine karşı tam koruma değildir: ortak bir bilgisayardaysan \"Anahtarları bu cihazda hatırla\" seçeneğini kapat.",
-    "en": "Your keys are kept on this device, encrypted; they never go into backups or exported files. The encryption does not fully protect them from someone who can use this device: on a shared computer, turn off \"Remember keys on this device\".",
-    "de": "Deine Schlüssel werden verschlüsselt auf diesem Gerät gespeichert; sie gelangen nie in Sicherungen oder exportierte Dateien. Vor jemandem, der dieses Gerät benutzen kann, schützt die Verschlüsselung sie nicht ganz: Schalte auf einem geteilten Computer „Schlüssel auf diesem Gerät merken“ aus.",
-    "es": "Tus claves se guardan cifradas en este dispositivo; nunca entran en las copias de seguridad ni en los archivos exportados. El cifrado no las protege del todo de alguien que pueda usar este dispositivo: en un ordenador compartido, desactiva «Recordar las claves en este dispositivo»."
+    "tr": "Anahtarların bu cihazda şifrelenmiş olarak saklanır; Peryda'nın yedeklerine ve dışa aktardığı dosyalara hiç girmez. Bu şifreleme cihaza erişebilen birine karşı tam koruma değildir: ortak bir bilgisayardaysan \"Anahtarları bu cihazda hatırla\" seçeneğini kapat.",
+    "en": "Your keys are kept on this device, encrypted; they never go into Peryda's backups or exported files. The encryption does not fully protect them from someone who can use this device: on a shared computer, turn off \"Remember keys on this device\".",
+    "de": "Deine Schlüssel werden verschlüsselt auf diesem Gerät gespeichert; sie gelangen nie in Perydas Sicherungen oder exportierte Dateien. Vor jemandem, der dieses Gerät benutzen kann, schützt die Verschlüsselung sie nicht ganz: Schalte auf einem geteilten Computer „Schlüssel auf diesem Gerät merken“ aus.",
+    "es": "Tus claves se guardan cifradas en este dispositivo; nunca entran en las copias de seguridad ni en los archivos exportados de Peryda. El cifrado no las protege del todo de alguien que pueda usar este dispositivo: en un ordenador compartido, desactiva «Recordar las claves en este dispositivo»."
   },
   "keysStoredMac": {
-    "tr": "Anahtarların macOS Anahtar Zinciri'nde saklanır; kitaplığa, yedeklere ve dışa aktarılan dosyalara hiç girmez.",
-    "en": "Your keys are kept in the macOS Keychain; they never go into the library, backups or exported files.",
-    "de": "Deine Schlüssel liegen im macOS-Schlüsselbund; sie gelangen nie in die Bibliothek, in Sicherungen oder in exportierte Dateien.",
-    "es": "Tus claves se guardan en el llavero de macOS; nunca entran en la biblioteca, las copias de seguridad ni los archivos exportados."
+    "tr": "Anahtarların macOS Anahtar Zinciri'nde saklanır; kitaplığa, Peryda'nın yedeklerine ve dışa aktardığı dosyalara hiç girmez.",
+    "en": "Your keys are kept in the macOS Keychain; they never go into the library or Peryda's backups and exported files.",
+    "de": "Deine Schlüssel liegen im macOS-Schlüsselbund; sie gelangen nie in die Bibliothek, in Perydas Sicherungen oder in exportierte Dateien.",
+    "es": "Tus claves se guardan en el llavero de macOS; nunca entran en la biblioteca ni en las copias de seguridad y archivos exportados de Peryda."
   },
   "language": {
     "tr": "Dil",
@@ -1354,6 +1354,12 @@
     "en": "Last page",
     "de": "Letzte Seite",
     "es": "Última página"
+  },
+  "tooManyPhotos": {
+    "tr": "Bir seferde en fazla {n} fotoğraf tek kitap olabilir.",
+    "en": "At most {n} photos can become one book at a time.",
+    "de": "Höchstens {n} Fotos können auf einmal ein Buch werden.",
+    "es": "Como máximo {n} fotos pueden formar un libro a la vez."
   },
   "toolArea": {
     "tr": "Alan ilmeği",

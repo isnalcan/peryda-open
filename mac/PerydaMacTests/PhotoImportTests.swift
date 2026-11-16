@@ -2,6 +2,7 @@ import AppKit
 import ImageIO
 import PDFKit
 import PerydaKit
+import SwiftUI
 import UniformTypeIdentifiers
 import XCTest
 
@@ -86,4 +87,45 @@ final class PhotoImportTests: XCTestCase {
         XCTAssertEqual(app.lastError, UIText(.tr)["importFailed"])
         XCTAssertTrue(app.books.isEmpty)
     }
+
+    /// Final audit 16 Nov, M16-1: a PDF page with an empty MediaBox crashed the reading window.
+    func testABookWithAPageOfNoSizeOpens() async throws {
+        let pdf = """
+        %PDF-1.4
+        1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+        2 0 obj << /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >> endobj
+        3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 0 0] >> endobj
+        4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj
+        trailer << /Root 1 0 R >>
+        %%EOF
+        """
+        let store = try LibraryStore(root: dir.appendingPathComponent("lib"))
+        let doc = try XCTUnwrap(PDFDocument(data: Data(pdf.utf8)), "PDFKit reads the file")
+        XCTAssertEqual(doc.pageCount, 2)
+        let book = try store.importBook(data: Data(pdf.utf8), fileName: "bos-sayfa.pdf", title: nil, author: nil, pageCount: 2)
+        let reader = try XCTUnwrap(ReaderModel(book: book, store: store, lang: .tr, settings: ByokSettings(), streamer: InstantStreamer()))
+        for page in reader.pages { XCTAssertTrue(page.height.isFinite && page.height > 0) }
+        let world = WorldView(model: reader) { _ in AnyView(EmptyView()) }
+        let window = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 1200, height: 800), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = world
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil) }
+        window.layoutIfNeeded()
+        world.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        for view in world.documentView.subviews.compactMap({ $0 as? PageView }) {
+            XCTAssertTrue(view.frame.height.isFinite && view.frame.width.isFinite)
+        }
+    }
+
+    /// At most 500 photos become one book at a time (as on the web).
+    func testTooManyPhotosAreRefused() async throws {
+        let app = AppModel(store: try LibraryStore(root: dir.appendingPathComponent("lib")), settings: ByokSettings(), lang: .tr)
+        let urls = (0...ImageBook.maxPhotos).map { dir.appendingPathComponent("IMG_\($0).jpg") }
+        let book = await app.importFiles(urls)
+        XCTAssertNil(book)
+        XCTAssertEqual(app.lastError, UIText(.tr)("tooManyPhotos", ["n": ImageBook.maxPhotos]))
+        XCTAssertTrue(app.books.isEmpty)
+    }
 }
+

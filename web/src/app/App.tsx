@@ -42,12 +42,14 @@ export function App() {
 
   useEffect(() => {
     void (async () => {
-      const [savedLang, savedTheme, savedRemember, keys] = await Promise.all([
+      const [savedLang, savedTheme, savedRemember] = await Promise.all([
         getPref<unknown>('lang', null),
         getPref<unknown>('theme', 'system'),
         getPref<unknown>('rememberKeys', true),
-        loadSettings(),
       ])
+      // With "Remember" off the keys were never meant to stay: any left behind (a removal that failed)
+      // are removed now, not loaded (audit 16 Nov, K16-6).
+      const keys = savedRemember === false ? await clearSettings().then(() => ({ ...DEFAULT_SETTINGS }), () => ({ ...DEFAULT_SETTINGS })) : await loadSettings()
       // Stored values are checked: one odd value must not keep the app from starting.
       if (LANGS.includes(savedLang as Lang)) setLang(savedLang as Lang)
       if (!(await getPref<boolean>('welcomed', false))) setShowWelcome(true)

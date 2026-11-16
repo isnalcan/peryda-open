@@ -273,7 +273,9 @@ final class AppModel {
             }.value
             if let result { last = result } else { lastError = t["importFailed"] }
         }
-        if !photos.isEmpty {
+        if photos.count > ImageBook.maxPhotos {
+            lastError = t("tooManyPhotos", ["n": ImageBook.maxPhotos])
+        } else if !photos.isEmpty {
             let scoped = photos.map { $0.startAccessingSecurityScopedResource() }
             defer { for (url, s) in zip(photos, scoped) where s { url.stopAccessingSecurityScopedResource() } }
             let total = photos.reduce(0) { $0 + ((try? $1.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }

@@ -87,6 +87,7 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
       if (refused?.kind === 'unsupported') setMessage(t.unsupportedFile)
       else if (refused?.kind === 'tooLarge') setMessage(t.fileTooLarge(refused.limitMb))
       else if (refused?.kind === 'heic') setMessage(t.heicUnsupported)
+      else if (refused?.kind === 'tooManyPhotos') setMessage(t.tooManyPhotos(refused.limitPhotos))
       else setMessage(t.importFailed)
     }
     // Photos chosen or dropped together become one book, a page each; PDFs and EPUBs are added one by one.

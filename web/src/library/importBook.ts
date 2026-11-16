@@ -3,16 +3,17 @@ import { closePdf, openPdf, readPdfMetadata } from '../pdf/pdfjs'
 import { readEpubMetadata } from '../epub/epub'
 import { checkEpubArchive } from '../epub/zipLimits'
 import { MAX_IMPORT_MB } from './importLimits'
-import { PictureDecodeError, isHeic, isImageFile, naturalOrder, pictureFromFile, picturesToPdf, type PdfPicture } from './imagePdf'
+import { MAX_PHOTOS_PER_BOOK, PictureDecodeError, isHeic, isImageFile, naturalOrder, pictureFromFile, picturesToPdf, type PdfPicture } from './imagePdf'
 
 export { MAX_IMPORT_MB }
 const MAX_IMPORT_BYTES = MAX_IMPORT_MB * 1_000_000
 
 export class ImportError extends Error {
   /** 'heic': a HEIC/HEIF photo this browser cannot decode. */
-  readonly kind: 'unsupported' | 'unreadable' | 'tooLarge' | 'heic'
+  readonly kind: 'unsupported' | 'unreadable' | 'tooLarge' | 'heic' | 'tooManyPhotos'
   readonly limitMb = MAX_IMPORT_MB
-  constructor(kind: 'unsupported' | 'unreadable' | 'tooLarge' | 'heic') {
+  readonly limitPhotos = MAX_PHOTOS_PER_BOOK
+  constructor(kind: 'unsupported' | 'unreadable' | 'tooLarge' | 'heic' | 'tooManyPhotos') {
     super(kind)
     this.kind = kind
   }
@@ -63,6 +64,7 @@ async function addBook(book: BookRecord, blob: Blob): Promise<BookRecord> {
 export async function importImages(files: readonly File[], picture: (file: File) => Promise<PdfPicture> = pictureFromFile): Promise<BookRecord> {
   if (!files.length) throw new ImportError('unsupported')
   if (files.some((f) => !isImageFile(f))) throw new ImportError('unsupported')
+  if (files.length > MAX_PHOTOS_PER_BOOK) throw new ImportError('tooManyPhotos')
   if (files.reduce((sum, f) => sum + f.size, 0) > MAX_IMPORT_BYTES) throw new ImportError('tooLarge')
   const ordered = naturalOrder(files)
   const hashes: string[] = []

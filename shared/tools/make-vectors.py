@@ -18,13 +18,23 @@ def bezier(x1, y1, x2, y2):
     return {"c1": [x1 + span, y1], "c2": [x2 - span, y2]}
 
 
+def usable_page_size(w, h):
+    """A page size layout can use: no size (or not a number) is a letter page, and a long strip is kept
+    to 20 times as long as wide, 20 times as wide as long at most (audit 16 Nov, M16-1)."""
+    import math
+    if not (math.isfinite(w) and math.isfinite(h) and w >= 1 and h >= 1):
+        return 612.0, 792.0
+    return float(w), float(w) * min(max(h / w, 0.05), 20.0)
+
+
 def page_layout(sizes, width=None):
     """sizes: list of [widthPt, heightPt]; pages stack vertically at one world width (the reader's page
     size: pageWorldWidth times the book's page scale)."""
     width = float(G["pageWorldWidth"] if width is None else width)
     y = 0.0
     pages = []
-    for w, h in sizes:
+    for raw_w, raw_h in sizes:
+        w, h = usable_page_size(raw_w, raw_h)
         height = width * (h / w)
         pages.append({"x": 0.0, "y": y, "width": width, "height": height})
         y += height + G["pageGap"]
@@ -257,6 +267,9 @@ def main():
         "basePages": base,
         "scaled": scaled,
         "clamp": [{"scale": s, "clamped": clamp_page_scale(s)} for s in [0.1, 0.5, 1, 1.8, 2.5, 4]],
+        # Pages with no size, a negative size or the shape of a long strip (audit 16 Nov, M16-1).
+        "degenerate": {"sizes": [[0, 0], [612, -5], [0.5, 800], [10, 100000], [100000, 10], [595.28, 841.89]],
+                       "pages": page_layout([[0, 0], [612, -5], [0.5, 800], [10, 100000], [100000, 10], [595.28, 841.89]])},
     })
 
 

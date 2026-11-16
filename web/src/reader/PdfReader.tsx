@@ -416,6 +416,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const [findHits, setFindHits] = useState<FindHit[]>([])
   const [findIndex, setFindIndex] = useState(-1)
   const [findSearching, setFindSearching] = useState(false)
+  /** The search stopped at MAX_FIND_HITS matches. */
+  const [findCapped, setFindCapped] = useState(false)
   const findInputRef = useRef<HTMLInputElement>(null)
   const findTexts = useRef(new Map<number, PageText>())
   const findHitsRef = useRef(findHits)
@@ -514,6 +516,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     const timer = window.setTimeout(() => {
       const all: FindHit[] = []
       let chosen = -1
+      setFindCapped(false)
       setFindHits([])
       setFindIndex(-1)
       setFindSearching(true)
@@ -522,8 +525,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
         cache: findTexts.current,
         onHits: (hits) => {
           if (controller.signal.aborted) return
-          all.push(...hits)
-          const snapshot = [...all]
+          // One at a time: spreading a huge page's matches into push() overflowed the stack (W16-1).
+          for (const hit of hits) all.push(hit)
+          const snapshot = all.slice()
           findHitsRef.current = snapshot
           setFindHits(snapshot)
           if (chosen === -1) {
@@ -534,8 +538,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
             }
           }
         },
-      }).then(() => {
+      }).then((capped) => {
         if (controller.signal.aborted) return
+        setFindCapped(capped)
         setFindSearching(false)
         if (chosen === -1 && all.length) chooseHit(0)
       })
@@ -563,6 +568,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
+      // A dialog over the book (Settings, book info…) keeps the browser's own keys (audit W16-7).
+      if (document.querySelector('dialog[open]')) return
       const target = e.target instanceof Element ? e.target : null
       if (e.altKey) {
         if (e.code === 'Digit2' && !target?.closest('textarea, input, select, [contenteditable="true"]')) {
@@ -1355,6 +1362,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
               count={findHits.length}
               index={findIndex}
               searching={findSearching}
+              capped={findCapped}
               onNext={() => stepFind(1)}
               onPrevious={() => stepFind(-1)}
               onClose={closeFind}

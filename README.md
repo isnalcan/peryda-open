@@ -27,7 +27,8 @@ Status: early development.
   see an open page: use Peryda in a browser with only extensions you trust, or the Mac or Windows app.
 - Each key is sent only to its own provider, over HTTPS, in a request header. On Windows and the web the
   Content Security Policy allows connections only to the app's own files and the four providers.
-- Keys never go into backups or exports. We recommend a separate key with a spending limit.
+- Keys never go into Peryda's backups or exports (the Mac's own backups, such as Time Machine, include
+  the Keychain). We recommend a separate key with a spending limit.
 
 The code that does this: [`web/src/data/keyVault.ts`](web/src/data/keyVault.ts) and
 [`mac/PerydaKit/Sources/PerydaKit/Store/KeyVault.swift`](mac/PerydaKit/Sources/PerydaKit/Store/KeyVault.swift).

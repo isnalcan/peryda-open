@@ -9,6 +9,8 @@ interface Props {
   count: number
   index: number
   searching: boolean
+  /** The search stopped at its limit: the count reads "5000+". */
+  capped?: boolean
   onNext: () => void
   onPrevious: () => void
   onClose: () => void
@@ -32,7 +34,7 @@ export const FindBar = forwardRef<HTMLInputElement, Props>(function FindBar(prop
     }
   }
   const blank = !props.query.trim()
-  const counter = blank ? '' : props.count > 0 ? `${Math.max(props.index, 0) + 1} / ${props.count}` : props.searching ? '…' : t.findNone
+  const counter = blank ? '' : props.count > 0 ? `${Math.max(props.index, 0) + 1} / ${props.count}${props.capped ? '+' : ''}` : props.searching ? '…' : t.findNone
   return (
     <div className="find-bar" role="search" onPointerDown={(e) => e.stopPropagation()}>
       <SearchIcon size={15} className="find-icon" />

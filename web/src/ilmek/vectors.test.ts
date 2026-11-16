@@ -87,6 +87,13 @@ describe('shared vectors: resizing the pages', () => {
   it.each(pageScaleVectors.clamp)('clamps $scale', (c) => {
     close(clampPageScale(c.scale), c.clamped)
   })
+
+  it('lays out pages with no size or a strip\'s shape (audit 16 Nov, M16-1)', () => {
+    const bad = pageScaleVectors.degenerate
+    const pages = pageLayout([...bad.sizes.map((s) => [s[0]!, s[1]!] as const), [Number.NaN, 792], [612, Number.POSITIVE_INFINITY]])
+    bad.pages.forEach((e, i) => closeAll([pages[i]!.y, pages[i]!.height], [e.y, e.height]))
+    for (const p of pages) expect(Number.isFinite(p.height) && p.height > 0 && Number.isFinite(p.y)).toBe(true)
+  })
 })
 
 describe('shared vectors: PDF coordinates', () => {

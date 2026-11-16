@@ -90,6 +90,8 @@ function PdfPageViewImpl(props: Props) {
       const page = await doc.getPage(pageNumber)
       if (cancelled || !textRef.current || !pageRef.current) return
       const unit = page.getViewport({ scale: 1 })
+      // A page with no usable size stays a blank page (audit 16 Nov, M16-1).
+      if (!(unit.width >= 1 && unit.height >= 1)) return
       const viewport = page.getViewport({ scale: drawnWidth / unit.width })
       pageRef.current.style.setProperty('--total-scale-factor', String(viewport.scale))
       textRef.current.replaceChildren()
@@ -118,6 +120,7 @@ function PdfPageViewImpl(props: Props) {
       const canvas = canvasRef.current
       if (cancelled || !canvas) return
       const unit = page.getViewport({ scale: 1 })
+      if (!(unit.width >= 1 && unit.height >= 1)) return
       const dpr = window.devicePixelRatio || 1
       const scale = cappedScale(unit.width, unit.height, (drawnWidth * renderScale * dpr) / unit.width)
       const viewport = page.getViewport({ scale })
