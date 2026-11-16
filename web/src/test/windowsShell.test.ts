@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { KEY_PAGES } from '../settings/keyPages'
 
 const read = (path: string) => readFileSync(new URL(`../../../windows/src-tauri/${path}`, import.meta.url), 'utf8')
 
@@ -21,3 +22,15 @@ describe('Windows shell: what the page may call', () => {
     expect([...capability.permissions].sort()).toEqual(handlers.map((h) => `allow-${h.replace(/_/g, '-')}`).sort())
   })
 })
+
+// Owner, 16 Nov: the (i) beside each key opens that provider's key page. The Windows shell opens only
+// its own four fixed addresses; they must be exactly the ones the page offers.
+describe('Windows shell: the key pages it may open', () => {
+  it('matches the four key pages of Settings, and nothing else', () => {
+    const body = /fn key_page\(provider: &str\)[\s\S]*?\n\}/.exec(read('src/lib.rs'))![0]
+    const arms = [...body.matchAll(/"(\w+)" => Some\("([^"]+)"\)/g)].map((m) => [m[1], m[2]])
+    expect(Object.fromEntries(arms)).toEqual(Object.fromEntries(Object.entries(KEY_PAGES).map(([p, v]) => [p, v.url])))
+    for (const [, url] of arms) expect(url).toMatch(/^https:\/\//)
+  })
+})
+

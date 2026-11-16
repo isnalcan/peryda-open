@@ -3010,3 +3010,53 @@ p.extract-status {
   line-height: 1.5;
 }
 
+/* How to get a key: the (i) left of each provider, and its note (owner, 16 Nov). */
+.provider-field legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key-help-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.key-help-toggle:hover,
+.key-help-toggle[aria-expanded='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.key-help {
+  margin: 2px 0 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.key-help p {
+  margin: 0 0 6px;
+}
+
+.key-help a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.key-help a:hover {
+  text-decoration: underline;
+}
+

@@ -18,7 +18,8 @@ import {
   type ProviderId,
 } from '../ai/provider'
 import { maskKey } from '../data/keyVault'
-import { CloseIcon, KeyIcon } from '../ui/icons'
+import { CloseIcon, InfoIcon, KeyIcon } from '../ui/icons'
+import { KEY_PAGES, keyHelpText, openKeyPageInShell } from './keyPages'
 import { privacyFor } from './privacy'
 import { inDesktopApp, type DesktopUpdates } from '../updates/desktopUpdates'
 import { UpdateSection } from '../updates/UpdateViews'
@@ -87,6 +88,7 @@ function ProviderField(props: { provider: ProviderId; settings: ByokSettings; on
   const [models, setModels] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -101,9 +103,42 @@ function ProviderField(props: { provider: ProviderId; settings: ByokSettings; on
     }
   }
 
+  const page = KEY_PAGES[props.provider]
   return (
     <fieldset className="provider-field">
-      <legend>{keyLabel(t, props.provider)}</legend>
+      <legend>
+        {/* How to get this provider's key, with a link to its key page (owner, 16 Nov). */}
+        <button
+          type="button"
+          className="key-help-toggle"
+          aria-expanded={helpOpen}
+          aria-controls={`${id}-help`}
+          aria-label={t.keyHelp}
+          title={t.keyHelp}
+          onClick={() => setHelpOpen(!helpOpen)}
+        >
+          <InfoIcon size={15} />
+        </button>
+        {keyLabel(t, props.provider)}
+      </legend>
+      {helpOpen && (
+        <div className="key-help" id={`${id}-help`}>
+          <p>{keyHelpText(t, props.provider)}</p>
+          <a
+            href={page.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              if (inDesktopApp()) {
+                e.preventDefault()
+                void openKeyPageInShell(props.provider).catch(() => undefined)
+              }
+            }}
+          >
+            {t.keyHelpOpen(page.site)} ↗
+          </a>
+        </div>
+      )}
       {editing ? (
         <input
           id={id}

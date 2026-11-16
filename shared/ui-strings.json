@@ -671,6 +671,42 @@
     "de": "Dauerhaft verbinden",
     "es": "Enlazar"
   },
+  "keyHelp": {
+    "tr": "Anahtar nasıl alınır?",
+    "en": "How to get a key",
+    "de": "So bekommst du einen Schlüssel",
+    "es": "Cómo conseguir una clave"
+  },
+  "keyHelpClaude": {
+    "tr": "Claude Console'da oturum aç ve API anahtarları sayfasında yeni bir anahtar oluştur. Anahtar yalnız bir kez gösterilir: hemen kopyalayıp buraya yapıştır. Kullanım ücretlidir; önce hesabına kredi eklemen gerekir.",
+    "en": "Sign in to the Claude Console and create a new key on the API keys page. It is shown only once: copy it straight away and paste it here. Use is paid; you first need to add credit to your account.",
+    "de": "Melde dich bei der Claude Console an und erstelle auf der Seite mit den API-Schlüsseln einen neuen Schlüssel. Er wird nur einmal angezeigt: Kopiere ihn sofort und füge ihn hier ein. Die Nutzung ist kostenpflichtig; zuerst musst du Guthaben hinzufügen.",
+    "es": "Inicia sesión en Claude Console y crea una clave nueva en la página de claves de API. Solo se muestra una vez: cópiala enseguida y pégala aquí. El uso es de pago; primero tienes que añadir crédito a tu cuenta."
+  },
+  "keyHelpDeepseek": {
+    "tr": "DeepSeek Platform'da oturum aç ve API anahtarları sayfasında yeni bir anahtar oluştur. Anahtar yalnız bir kez gösterilir: hemen kopyalayıp buraya yapıştır. Kullanım ücretlidir; önce hesabına bakiye yüklemen gerekir.",
+    "en": "Sign in to the DeepSeek Platform and create a new key on the API keys page. It is shown only once: copy it straight away and paste it here. Use is paid; you first need to top up your balance.",
+    "de": "Melde dich bei der DeepSeek Platform an und erstelle auf der Seite mit den API-Schlüsseln einen neuen Schlüssel. Er wird nur einmal angezeigt: Kopiere ihn sofort und füge ihn hier ein. Die Nutzung ist kostenpflichtig; zuerst musst du Guthaben aufladen.",
+    "es": "Inicia sesión en DeepSeek Platform y crea una clave nueva en la página de claves de API. Solo se muestra una vez: cópiala enseguida y pégala aquí. El uso es de pago; primero tienes que recargar saldo."
+  },
+  "keyHelpGemini": {
+    "tr": "Google hesabınla Google AI Studio'ya gir ve yeni bir API anahtarı oluştur. Anahtarı kopyalayıp buraya yapıştır. Gemini'nin ücretsiz bir kullanım katmanı var; sınırlarını Google belirler.",
+    "en": "Sign in to Google AI Studio with your Google account and create a new API key. Copy it and paste it here. Gemini has a free tier; Google sets its limits.",
+    "de": "Melde dich mit deinem Google-Konto bei Google AI Studio an und erstelle einen neuen API-Schlüssel. Kopiere ihn und füge ihn hier ein. Gemini hat eine kostenlose Stufe; ihre Grenzen legt Google fest.",
+    "es": "Entra en Google AI Studio con tu cuenta de Google y crea una clave de API nueva. Cópiala y pégala aquí. Gemini tiene un nivel gratuito; sus límites los fija Google."
+  },
+  "keyHelpOpen": {
+    "tr": "{site} sayfasını aç",
+    "en": "Open {site}",
+    "de": "{site} öffnen",
+    "es": "Abrir {site}"
+  },
+  "keyHelpOpenai": {
+    "tr": "OpenAI Platform'da oturum aç ve API anahtarları sayfasında yeni bir gizli anahtar oluştur. Anahtar yalnız bir kez gösterilir: hemen kopyalayıp buraya yapıştır. Kullanım ücretlidir; önce hesabına ödeme yöntemi ya da kredi eklemen gerekir.",
+    "en": "Sign in to the OpenAI Platform and create a new secret key on the API keys page. It is shown only once: copy it straight away and paste it here. Use is paid; you first need to add a payment method or credit to your account.",
+    "de": "Melde dich bei der OpenAI Platform an und erstelle auf der Seite mit den API-Schlüsseln einen neuen geheimen Schlüssel. Er wird nur einmal angezeigt: Kopiere ihn sofort und füge ihn hier ein. Die Nutzung ist kostenpflichtig; zuerst musst du eine Zahlungsmethode oder Guthaben hinzufügen.",
+    "es": "Inicia sesión en OpenAI Platform y crea una clave secreta nueva en la página de claves de API. Solo se muestra una vez: cópiala enseguida y pégala aquí. El uso es de pago; primero tienes que añadir un método de pago o crédito a tu cuenta."
+  },
   "keySafetyGoes": {
     "tr": "Yalnız seçtiğin sağlayıcıya, doğrudan gider. Peryda'nın sunucusu yok; anahtarını biz hiç görmeyiz. Kod açık kaynaklı; isteyen kendisi denetleyebilir.",
     "en": "It goes only to the provider you chose, directly. Peryda has no server; we never see your key. The code is open source, so anyone can check.",

@@ -157,9 +157,48 @@ struct ProviderSection: View {
         }
     }
 
+    @State private var helpOpen: Bool
+
+    init(provider: ProviderID, settings: Binding<ByokSettings>, helpOpen: Bool = false) {
+        self.provider = provider
+        _settings = settings
+        _helpOpen = State(initialValue: helpOpen)
+    }
+
+    /// Where this provider hands out API keys (the same four pages as the web and Windows apps).
+    static func keyPage(_ provider: ProviderID) -> (url: URL, site: String) {
+        switch provider {
+        case .gemini: (URL(string: "https://aistudio.google.com/apikey")!, "Google AI Studio")
+        case .openai: (URL(string: "https://platform.openai.com/api-keys")!, "OpenAI Platform")
+        case .deepseek: (URL(string: "https://platform.deepseek.com/api_keys")!, "DeepSeek Platform")
+        case .claude: (URL(string: "https://platform.claude.com/settings/keys")!, "Claude Console")
+        }
+    }
+
+    static func helpKey(_ provider: ProviderID) -> String {
+        switch provider {
+        case .gemini: "keyHelpGemini"
+        case .openai: "keyHelpOpenai"
+        case .deepseek: "keyHelpDeepseek"
+        case .claude: "keyHelpClaude"
+        }
+    }
+
     var body: some View {
         let t = model.t
-        Section(t["\(provider.rawValue)Key"]) {
+        let page = Self.keyPage(provider)
+        Section {
+            if helpOpen {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(t[Self.helpKey(provider)])
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Link(t("keyHelpOpen", ["site": page.site]) + " ↗", destination: page.url)
+                        .font(.callout.weight(.semibold))
+                }
+                .padding(.vertical, 2)
+            }
             SecureField(placeholder, text: keyBinding)
                 .textContentType(.password)
             if ByokSettings.hasUsableKey(settings.chosenKey(provider)) {
@@ -187,6 +226,18 @@ struct ProviderSection: View {
             }
             if let error {
                 Text(error).font(.caption).foregroundStyle(.red)
+            }
+        } header: {
+            // How to get this provider's key, left of its name (owner, 16 Nov).
+            HStack(spacing: 6) {
+                Button { helpOpen.toggle() } label: {
+                    Image(systemName: helpOpen ? "info.circle.fill" : "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(helpOpen ? Color.peryda : Color.secondary)
+                .help(t["keyHelp"])
+                .accessibilityLabel(t["keyHelp"])
+                Text(t["\(provider.rawValue)Key"])
             }
         }
     }

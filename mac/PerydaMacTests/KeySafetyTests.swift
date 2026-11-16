@@ -29,4 +29,30 @@ final class KeySafetyTests: XCTestCase {
         host.cacheDisplay(in: host.bounds, to: rep)
         try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-key-safety.png"))
     }
+
+    /// Owner, 16 Nov: the (i) beside each key says how to get one and links to the provider's key page,
+    /// the same four pages as the web and Windows apps.
+    func testEachProviderSaysHowToGetAKey() async throws {
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let web = try String(contentsOf: repo.appendingPathComponent("web/src/settings/keyPages.ts"), encoding: .utf8)
+        for provider in ProviderID.allCases {
+            let page = ProviderSection.keyPage(provider)
+            XCTAssertTrue(web.contains("\(provider.rawValue): { url: '\(page.url.absoluteString)', site: '\(page.site)' }"), "\(provider) matches the web")
+            XCTAssertNotEqual(UIText(.tr)[ProviderSection.helpKey(provider)], ProviderSection.helpKey(provider))
+        }
+        let store = try LibraryStore(root: FileManager.default.temporaryDirectory.appendingPathComponent("peryda-keyhelp-\(UUID().uuidString)"))
+        let app = AppModel(store: store, settings: ByokSettings(), lang: .tr)
+        var settings = ByokSettings()
+        let binding = Binding(get: { settings }, set: { settings = $0 })
+        let host = NSHostingView(rootView: Form { ProviderSection(provider: .openai, settings: binding, helpOpen: true) }.formStyle(.grouped).environment(app).frame(width: 520, height: 300))
+        let window = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 520, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil) }
+        try await Task.sleep(for: .milliseconds(300))
+        let rep = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: rep)
+        try rep.representation(using: .png, properties: [:])!.write(to: Self.outDir.appendingPathComponent("peryda-mac-key-help.png"))
+    }
 }
+

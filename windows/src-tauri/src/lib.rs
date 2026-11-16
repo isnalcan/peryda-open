@@ -1,7 +1,8 @@
 //! Peryda for Windows: a native window around the web reading engine (web/). Reading, threads, the
 //! journal and the reader's own AI keys all live in the web engine; requests go from this computer
-//! straight to the reader's provider. The shell adds one thing of its own: the update check, which the
-//! web engine runs only when the reader has allowed it (three commands below, nothing else).
+//! straight to the reader's provider. The shell adds two things of its own: the update check, which the
+//! web engine runs only when the reader has allowed it (three commands below), and opening a provider's
+//! API key page in the reader's browser (one command, four fixed addresses). Nothing else.
 
 use std::sync::Mutex;
 
@@ -34,6 +35,45 @@ struct Updates {
     available: bool,
     /// What the last check found, waiting for the reader to install it.
     pending: Mutex<Option<Update>>,
+}
+
+/// The page where each provider hands out API keys (Settings, the (i) beside each key; owner, 16 Nov).
+/// These four are the only addresses the window can open: the page names a provider, and the address
+/// always comes from here, never from the page.
+fn key_page(provider: &str) -> Option<&'static str> {
+    match provider {
+        "gemini" => Some("https://aistudio.google.com/apikey"),
+        "openai" => Some("https://platform.openai.com/api-keys"),
+        "deepseek" => Some("https://platform.deepseek.com/api_keys"),
+        "claude" => Some("https://platform.claude.com/settings/keys"),
+        _ => None,
+    }
+}
+
+/// Opens a provider's API key page in the reader's default browser (outside the app's window).
+#[tauri::command]
+fn open_key_page(provider: String) -> Result<(), String> {
+    let url = key_page(&provider).ok_or("unknown provider")?;
+    open_in_browser(url).map_err(|e| e.to_string())
+}
+
+/// Windows: explorer.exe from the Windows folder (not whatever comes first on PATH) hands the address
+/// to the default browser.
+#[cfg(windows)]
+fn open_in_browser(url: &'static str) -> std::io::Result<()> {
+    let windows = std::env::var_os("SystemRoot").map(std::path::PathBuf::from).unwrap_or_else(|| "C:\\Windows".into());
+    std::process::Command::new(windows.join("explorer.exe")).arg(url).spawn().map(|_| ())
+}
+
+/// Development on a Mac.
+#[cfg(target_os = "macos")]
+fn open_in_browser(url: &'static str) -> std::io::Result<()> {
+    std::process::Command::new("/usr/bin/open").arg(url).spawn().map(|_| ())
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn open_in_browser(url: &'static str) -> std::io::Result<()> {
+    std::process::Command::new("xdg-open").arg(url).spawn().map(|_| ())
 }
 
 /// Whether this build can update itself, and its version.
@@ -84,7 +124,7 @@ pub fn run() {
     }
     builder
         .manage(Updates { available, pending: Mutex::new(None) })
-        .invoke_handler(tauri::generate_handler![updater_state, updater_check, updater_install])
+        .invoke_handler(tauri::generate_handler![updater_state, updater_check, updater_install, open_key_page])
         .setup(|app| {
             let config = app
                 .config()
@@ -113,3 +153,20 @@ pub fn run() {
         .run(context)
         .expect("Peryda could not start");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::key_page;
+
+    #[test]
+    fn only_the_four_key_pages_can_be_opened() {
+        assert_eq!(key_page("gemini"), Some("https://aistudio.google.com/apikey"));
+        assert_eq!(key_page("openai"), Some("https://platform.openai.com/api-keys"));
+        assert_eq!(key_page("deepseek"), Some("https://platform.deepseek.com/api_keys"));
+        assert_eq!(key_page("claude"), Some("https://platform.claude.com/settings/keys"));
+        for other in ["", "https://evil.example", "gemini ", "GEMINI", "file:///C:/Windows/System32/calc.exe"] {
+            assert_eq!(key_page(other), None, "{other}");
+        }
+    }
+}
+
