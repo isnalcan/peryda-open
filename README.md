@@ -17,6 +17,21 @@ What stays on your device and what goes to your provider is set out in [PRIVACY.
 
 Status: early development.
 
+## Download
+
+- **Mac** (macOS 14 or later): [Peryda.dmg](https://github.com/isnalcan/peryda-open/releases/latest/download/Peryda.dmg), notarized by Apple.
+- **Windows** (10 and 11, 64-bit): [Peryda-Setup.exe](https://github.com/isnalcan/peryda-open/releases/latest/download/Peryda-Setup.exe).
+- **Web:** [app.peryda.com](https://app.peryda.com)
+
+All releases and their checksums: [Releases](https://github.com/isnalcan/peryda-open/releases).
+
+### Code signing policy
+
+Windows: free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
+[SignPath Foundation](https://signpath.org/) (applied for; until it is approved the Windows installer is
+unsigned). Mac: Apple Developer ID, notarized by Apple. What is signed, the team roles and the privacy
+statement: [CODE_SIGNING.md](CODE_SIGNING.md).
+
 ## Your keys
 
 - **Mac:** kept in the macOS Keychain.
