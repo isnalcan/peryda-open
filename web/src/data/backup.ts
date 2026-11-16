@@ -35,6 +35,14 @@ export async function exportBackup(): Promise<Blob> {
     db.files.toArray(),
   ])
   const bookIds = new Set(books.map((b) => b.id))
+  // A library a restore would refuse (or trim) is refused here, so export and restore agree (recheck
+  // R16-3): the number of books, the bytes of book files, and highlights per book (the Mac keeps 5,000).
+  const highlights = new Map<string, number>()
+  for (const j of journal) if (j.source === 'highlight') highlights.set(j.bookId, (highlights.get(j.bookId) ?? 0) + 1)
+  const fileBytes = files.reduce((sum, f) => sum + f.blob.size, 0)
+  if (books.length > MAX_BACKUP_BOOKS || fileBytes > MAX_BACKUP_TOTAL_BYTES || [...highlights.values()].some((n) => n > MAX_HIGHLIGHTS_PER_BOOK)) {
+    throw new BackupError('too large')
+  }
   const manifest: BackupManifest = {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -72,6 +80,8 @@ const MAX_BOOK_BYTES = MAX_IMPORT_MB * 1_000_000
  */
 export const MAX_BACKUP_BOOKS = 5_000
 export const MAX_BACKUP_TOTAL_BYTES = 2_000_000_000
+/** Highlights per book a Mac restore keeps (Backup.maxHighlights); a backup is refused above it. */
+export const MAX_HIGHLIGHTS_PER_BOOK = 5_000
 
 /**
  * Restores what is missing; books already in the library (same id or same file) keep their own data.

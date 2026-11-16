@@ -24,6 +24,10 @@ cd mac && xcodegen generate            # PerydaMac.xcodeproj from project.yml
 Keep Xcode's derived data outside folders synced by iCloud: their extended attributes break code
 signing.
 
+The app's own tests (`xcodebuild test -scheme PerydaMacTests`) read two sample books, `okuma.pdf` and
+`kenar.epub`, from `web/dev-samples/`, which is not in the repository, and check their text; without them
+those tests fail. The core tests (`swift test`) need nothing extra.
+
 A downloadable build needs a *Developer ID Application* certificate in the keychain and a stored
 notarytool profile (`xcrun notarytool store-credentials peryda-notary …`). Then:
 

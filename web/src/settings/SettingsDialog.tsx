@@ -312,6 +312,9 @@ function BackupSection() {
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 10_000)
       setMessage(t.exported)
+    } catch (error) {
+      // A library a restore would refuse is not written (recheck R16-3); the reader is told why.
+      if (error instanceof Error && error.message === 'too large') setMessage(t.backupTooLarge)
     } finally {
       setBusy(false)
     }

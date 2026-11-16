@@ -19,12 +19,13 @@ def bezier(x1, y1, x2, y2):
 
 
 def usable_page_size(w, h):
-    """A page size layout can use: no size (or not a number) is a letter page, and a long strip is kept
-    to 20 times as long as wide, 20 times as wide as long at most (audit 16 Nov, M16-1)."""
+    """A page size layout can use: no size (or not a number) is a letter page, and a strip is kept to
+    200 times as long as wide, or as wide as long, at most (audit 16 Nov, M16-1; recheck R16-1: 20:1
+    cut real long pages, such as an article saved as one page)."""
     import math
     if not (math.isfinite(w) and math.isfinite(h) and w >= 1 and h >= 1):
         return 612.0, 792.0
-    return float(w), float(w) * min(max(h / w, 0.05), 20.0)
+    return float(w), float(w) * min(max(h / w, 0.005), 200.0)
 
 
 def page_layout(sizes, width=None):

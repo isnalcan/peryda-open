@@ -29,13 +29,14 @@ public enum Geometry {
     }
 
     /// A page size layout can use: a page with no size (or not a number) is drawn as a letter page,
-    /// and a long strip is kept to at most 20 times as long as wide, or as wide as long. A PDF page with
-    /// an empty MediaBox otherwise divided zero by zero and crashed the window (audit 16 Nov, M16-1).
+    /// and a strip is kept to at most 200 times as long as wide, or as wide as long (real long pages,
+    /// such as an article saved as one page, reach about 30:1). A PDF page with an empty MediaBox
+    /// otherwise divided zero by zero and crashed the window (audit 16 Nov, M16-1; recheck R16-1).
     /// Matches make-vectors.py.
     public static func usablePageSize(_ s: CGSize) -> CGSize {
         let w = Double(s.width), h = Double(s.height)
         guard w.isFinite, h.isFinite, w >= 1, h >= 1 else { return CGSize(width: 612, height: 792) }
-        return CGSize(width: w, height: w * min(max(h / w, 0.05), 20))
+        return CGSize(width: w, height: w * min(max(h / w, 0.005), 200))
     }
 
     /// Pages stack vertically at one world width (pageWorldWidth times the book's page scale); sizes

@@ -145,7 +145,9 @@ final class ReaderModel {
     var toast: String?
     var showJournal = false
     var offscreenCard: String?
-    var journal: [JournalRecord] = []
+    var journal: [JournalRecord] = [] {
+        didSet { marksByPage = nil }
+    }
     /// 1-based chapter at the top of the EPUB view.
     var epubChapter: Int?
     var summary: (text: String, createdAt: Date)?
@@ -1028,21 +1030,19 @@ final class ReaderModel {
     }
 
     func highlighterMarks(onPage page: Int) -> [Mark] {
-        // Worked out once per journal, not for every page on every redraw (audit 16 Nov, M16-3).
-        if marksJournal != journal {
-            var byPage: [Int: [Mark]] = [:]
-            for entry in journal where entry.source == .highlight {
-                let color = HighlightColor.id(entry.highlightColor)
-                for mark in entry.marks ?? [] { byPage[mark.pageNumber, default: []].append(Mark(color: color, rects: mark.lineRects)) }
-            }
-            marksByPage = byPage
-            marksJournal = journal
+        // Worked out once per journal (dropped when the journal changes), not for every page on every
+        // redraw (audit 16 Nov, M16-3).
+        if let marksByPage { return marksByPage[page] ?? [] }
+        var byPage: [Int: [Mark]] = [:]
+        for entry in journal where entry.source == .highlight {
+            let color = HighlightColor.id(entry.highlightColor)
+            for mark in entry.marks ?? [] { byPage[mark.pageNumber, default: []].append(Mark(color: color, rects: mark.lineRects)) }
         }
-        return marksByPage[page] ?? []
+        marksByPage = byPage
+        return byPage[page] ?? []
     }
 
-    @ObservationIgnored private var marksByPage: [Int: [Mark]] = [:]
-    @ObservationIgnored private var marksJournal: [JournalRecord] = []
+    @ObservationIgnored private var marksByPage: [Int: [Mark]]?
 
     /// What a card puts in the journal: its passage and its conversation (or note).
     private func journalContent(_ card: YarnCard) -> (quote: String, text: String) {

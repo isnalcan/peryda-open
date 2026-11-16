@@ -188,8 +188,12 @@ async function decode(file: Blob): Promise<{ source: CanvasImageSource; width: n
 
 /** Decodes a photo and draws it on white as a JPEG at most MAX_IMAGE_SIDE on its longer side. */
 export async function pictureFromFile(file: Blob): Promise<PdfPicture> {
-  const size = imageDimensions(new Uint8Array(await file.arrayBuffer()))
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const size = imageDimensions(bytes)
   if (size && size.width * size.height > MAX_IMAGE_PIXELS) throw new PictureTooLargeError('too many pixels')
+  // A picture whose size cannot be read first is not decoded, unless it is HEIC/HEIF (an ISO "ftyp"
+  // box), which only Safari opens and the check after decoding still measures (recheck R16-4).
+  if (!size && String.fromCharCode(...bytes.subarray(4, 8)) !== 'ftyp') throw new PictureDecodeError('unknown format')
   const image = await decode(file)
   if (image.width * image.height > MAX_IMAGE_PIXELS) {
     image.close()

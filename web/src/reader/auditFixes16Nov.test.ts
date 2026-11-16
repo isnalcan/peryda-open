@@ -4,9 +4,10 @@ import JSZip from 'jszip'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { MAX_FIND_HITS, findInText } from './find'
 import { keepThumbnail } from './ThumbnailSidebar'
-import { MAX_IMAGE_PIXELS, MAX_PHOTOS_PER_BOOK, PictureTooLargeError, imageDimensions, pageSizeFor, pictureFromFile } from '../library/imagePdf'
+import { MAX_IMAGE_PIXELS, MAX_PHOTOS_PER_BOOK, PictureDecodeError, PictureTooLargeError, imageDimensions, pageSizeFor, pictureFromFile } from '../library/imagePdf'
 import { importImages } from '../library/importBook'
-import { BACKUP_FORMAT, BackupError, MAX_BACKUP_BOOKS, importBackup } from '../data/backup'
+import { BACKUP_FORMAT, BackupError, MAX_BACKUP_BOOKS, MAX_HIGHLIGHTS_PER_BOOK, exportBackup, importBackup } from '../data/backup'
+import { db } from '../data/db'
 
 beforeAll(() => vi.stubGlobal('Blob', NodeBlob))
 
@@ -63,5 +64,18 @@ describe('audit 16 Nov: limits', () => {
     zip.file('peryda.json', JSON.stringify({ format: BACKUP_FORMAT, version: 1, createdAt: 1, books, cards: [], journal: [], positions: [], prefs: [] }))
     const file = await zip.generateAsync({ type: 'blob' })
     await expect(importBackup(file)).rejects.toBeInstanceOf(BackupError)
+  })
+
+  it('R16-4: a picture whose size cannot be read is refused unless it is HEIC/HEIF', async () => {
+    const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0])
+    await expect(pictureFromFile(new Blob([gif]))).rejects.toBeInstanceOf(PictureDecodeError)
+  })
+
+  it('R16-3: a library a restore would trim is not exported', async () => {
+    await db.delete()
+    await db.open()
+    await db.books.add({ id: 'b1', title: 't', author: '', format: 'pdf', pageCount: 1, size: 1, fingerprint: 'f', addedAt: 1, openedAt: 0 })
+    await db.journal.bulkAdd(Array.from({ length: MAX_HIGHLIGHTS_PER_BOOK + 1 }, (_, i) => ({ id: `h${i}`, bookId: 'b1', source: 'highlight' as const, quote: 'q', text: '', pageNumber: 1, createdAt: 1 })))
+    await expect(exportBackup()).rejects.toThrow('too large')
   })
 })

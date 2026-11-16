@@ -68,8 +68,17 @@ public enum Backup {
         var cardsPerBook: [String: Int] = [:]
         for card in cards { cardsPerBook[card.bookId, default: 0] += 1 }
         var journalPerBook: [String: Int] = [:]
-        for record in journal { journalPerBook[record.bookId, default: 0] += 1 }
+        var highlightsPerBook: [String: Int] = [:]
+        for record in journal {
+            journalPerBook[record.bookId, default: 0] += 1
+            if record.source == .highlight { highlightsPerBook[record.bookId, default: 0] += 1 }
+        }
         if cards.count > maxTotalCards || cardsPerBook.values.contains(where: { $0 > maxCards }) || journalPerBook.values.contains(where: { $0 > maxJournal }) {
+            throw Failure.tooLarge
+        }
+        // The restore limits added on 16 Nov, so export and restore still agree (recheck R16-3).
+        let fileBytes = books.reduce(UInt64(0)) { $0 + UInt64(max($1.size, 0)) }
+        if books.count > maxBooks || fileBytes > maxTotalBytes || highlightsPerBook.values.contains(where: { $0 > maxHighlights }) {
             throw Failure.tooLarge
         }
         for book in books where store.readings(for: book.id).filter({ $0.state == .done && !$0.text.isEmpty }).count > maxReadings {
@@ -152,6 +161,14 @@ public enum Backup {
         let journalByBook = Dictionary(grouping: checked.journal, by: \.bookId)
 
         let existing = store.books()
+        // The book files this restore would unpack, by their declared sizes, before anything is written
+        // (recheck R16-2); the running total below still holds if a size was understated.
+        let declaredTotal = manifest.books.reduce(UInt64(0)) { sum, book in
+            guard !existing.contains(where: { $0.id == book.id || $0.fingerprint == book.fingerprint }),
+                  let entry = archive["books/\(book.id).\(book.format.rawValue)"], entry.uncompressedSize <= limits.book else { return sum }
+            return sum + entry.uncompressedSize
+        }
+        guard declaredTotal <= Self.maxTotalBytes else { throw Failure.tooLarge }
         var restored = 0
         var unpackedTotal: UInt64 = 0
         for declared in manifest.books {
