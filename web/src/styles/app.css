@@ -2983,3 +2983,30 @@ p.extract-status {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* "Is your key safe?" in Settings (owner, 16 Nov): folded until opened. */
+.key-safety {
+  margin: 4px 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.key-safety summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.key-safety ul {
+  margin: 10px 0 2px;
+  padding-left: 18px;
+  display: grid;
+  gap: 7px;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+

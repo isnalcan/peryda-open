@@ -20,7 +20,7 @@ import {
 import { maskKey } from '../data/keyVault'
 import { CloseIcon, KeyIcon } from '../ui/icons'
 import { privacyFor } from './privacy'
-import type { DesktopUpdates } from '../updates/desktopUpdates'
+import { inDesktopApp, type DesktopUpdates } from '../updates/desktopUpdates'
 import { UpdateSection } from '../updates/UpdateViews'
 
 export type ThemePref = 'system' | 'light' | 'dark'
@@ -206,6 +206,7 @@ export function SettingsDialog(props: Props) {
         <p className="dialog-intro">{t.aiKeysIntro}</p>
         <p className="dialog-note">{t.modelsNote}</p>
         <p className="dialog-note">{t.keysStoredLocal}</p>
+        <KeySafety />
         {PROVIDERS.map((p) => (
           <ProviderField key={p} provider={p} settings={draft} onChange={setDraft} onRemove={remove} />
         ))}
@@ -347,5 +348,25 @@ function PrivacySection({ lang }: { lang: Lang }) {
         ))}
       </details>
     </section>
+  )
+}
+
+/**
+ * "Is your key safe?" (owner, 16 Nov): where the key is kept, where it goes, what the reader can do,
+ * and the limit, plainly; folded until opened. The Windows app has no browser extensions, so its limit
+ * differs from the web's.
+ */
+export function KeySafety() {
+  const { t } = useI18n()
+  return (
+    <details className="key-safety">
+      <summary>{t.keySafetyTitle}</summary>
+      <ul>
+        <li>{t.keySafetyWhereLocal}</li>
+        <li>{t.keySafetyGoes}</li>
+        <li>{t.keySafetyYou}</li>
+        <li>{inDesktopApp() ? t.keySafetyLimitWindows : t.keySafetyLimitWeb}</li>
+      </ul>
+    </details>
   )
 }

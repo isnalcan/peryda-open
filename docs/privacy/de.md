@@ -2,7 +2,7 @@
 
 # Datenschutz
 
-*Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 15. November 2026*
+*Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 16. November 2026*
 
 [English](../../PRIVACY.md) · [Türkçe](../../docs/privacy/tr.md) · [Español](../../docs/privacy/es.md)
 
@@ -28,7 +28,7 @@ Deine Schlüssel werden nur auf diesem Gerät gespeichert und nur an ihren eigen
 
 - Auf dem Mac liegen sie im macOS-Schlüsselbund, der sie verschlüsselt und entsperrt, wenn du dich an deinem Mac anmeldest; eine andere App kommt nur an sie heran, wenn du es erlaubst.
 - Unter Windows und im Web liegen sie im eigenen Speicher der App auf diesem Gerät, mit AES-256 verschlüsselt. Den Schlüssel zum Entschlüsseln erzeugt die Browser-Engine (unter Windows Microsoft Edge WebView2), die ihn nie herausgibt; deshalb stehen deine Schlüssel in keiner Datei als lesbarer Text.
-- Auch die Grenze solltest du kennen: Diese Verschlüsselung schützt nicht vollständig vor jemandem, der dein Benutzerkonto auf dem Computer verwenden kann, oder vor Schadsoftware, die dort läuft. Schalte auf einem gemeinsam genutzten Computer „Schlüssel auf diesem Gerät merken“ aus: Dann werden deine Schlüssel nie gespeichert und beim Beenden der App (im Web beim Schließen der Seite) vergessen.
+- Auch die Grenze solltest du kennen: Diese Verschlüsselung schützt nicht vollständig vor jemandem, der dein Benutzerkonto auf dem Computer verwenden kann, oder vor Schadsoftware, die dort läuft. Schalte auf einem gemeinsam genutzten Computer „Schlüssel auf diesem Gerät merken“ aus: Dann werden deine Schlüssel nie gespeichert und beim Beenden der App (im Web beim Schließen der Seite) vergessen. Im Web außerdem: Eine Browsererweiterung, die jede Website lesen darf, kann alles auf einer offenen Seite sehen; nutze Peryda in einem Browser, in dem nur Erweiterungen laufen, denen du vertraust.
 - Jeder Schlüssel geht über eine verschlüsselte Verbindung (HTTPS) nur an seinen eigenen Anbieter, im Kopf der Anfrage, nie in der Adresse. Unter Windows und im Web erlaubt die Sicherheitsrichtlinie der App (Content Security Policy) keine Verbindung zu einer anderen Adresse als ihren eigenen Dateien und diesen vier Anbietern. Peryda lädt keinen Code aus dem Internet und enthält keine Skripte anderer Firmen wie Werbung, Analyse oder Chat-Widgets.
 - Deine Schlüssel gelangen nie in Sicherungen oder exportierte Dateien.
 - Unser Rat: Lege für Peryda einen eigenen Schlüssel an und setze bei deinem Anbieter ein Ausgabenlimit. Wenn du glaubst, dass ein Schlüssel in fremde Hände geraten ist, widerrufe ihn auf der Website des Anbieters; ein widerrufener Schlüssel funktioniert sofort nicht mehr.

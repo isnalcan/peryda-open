@@ -47,6 +47,7 @@
 		81719565CDA08B0CB6392576 /* LayoutAndPagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */; };
 		82838690608AF0C3289D7197 /* DevFakeAI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89DDEC344F0A5FD3EF8126C5 /* DevFakeAI.swift */; };
 		830BC6D94D8C4D0FE8BAC031 /* MarkdownRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2301F31954CB84F9730137 /* MarkdownRenderingTests.swift */; };
+		863DFE763A4E253FB1EE223C /* KeySafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2755FD3EC3E70658D632FDB /* KeySafetyTests.swift */; };
 		88C6ED7C0C9FF7FEA8A09F33 /* DocumentFind.swift in Sources */ = {isa = PBXBuildFile; fileRef = F17C906AB61D5CD173B0A1B3 /* DocumentFind.swift */; };
 		893C89907786DCCDE993335B /* Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D43B5DB46C00E60B242F8C /* Updates.swift */; };
 		8967D1837A142B4D15F1EDD6 /* PageTranslationSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A07F05E9327B702E199D9E17 /* PageTranslationSurfaceTests.swift */; };
@@ -128,6 +129,7 @@
 		CC8605DE3FB542A24A0E640C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CE6289DD6252F06364FCD4C1 /* PerydaMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PerydaMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE90B1E1C09206E29E20BBBD /* ReaderPanels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPanels.swift; sourceTree = "<group>"; };
+		D2755FD3EC3E70658D632FDB /* KeySafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeySafetyTests.swift; sourceTree = "<group>"; };
 		D490E1220CB8C386D7FF8E57 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		DFD64C8DC50DB7C6D66FEB81 /* EpubReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpubReaderView.swift; sourceTree = "<group>"; };
 		E31673A504D3A3A2B2A54EF4 /* ZoomedHostingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomedHostingView.swift; sourceTree = "<group>"; };
@@ -213,6 +215,7 @@
 				EE332840F53722FA49510DE3 /* HiddenControlRoutingTests.swift */,
 				284F501E0821B5F4803B6689 /* JournalTests.swift */,
 				882D632BA87425817290FA57 /* KeyChangeTests.swift */,
+				D2755FD3EC3E70658D632FDB /* KeySafetyTests.swift */,
 				4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */,
 				86CC1B2CA7442B4F92AB4DE5 /* LibraryAndJournalTests.swift */,
 				7D1E170DBE15A62FDAEE2579 /* ManyThreadsTests.swift */,
@@ -453,6 +456,7 @@
 				ACB3E73DBEA890E4D9B7B8F2 /* JournalPanel.swift in Sources */,
 				7C330164536E464518A442F0 /* JournalTests.swift in Sources */,
 				7093121449E53F0C6C20B227 /* KeyChangeTests.swift in Sources */,
+				863DFE763A4E253FB1EE223C /* KeySafetyTests.swift in Sources */,
 				81719565CDA08B0CB6392576 /* LayoutAndPagingTests.swift in Sources */,
 				BF2A6EF6A3FDC0C7BDB18B1B /* LibraryAndJournalTests.swift in Sources */,
 				A2B404AE95BD44CA013CA7A5 /* LibraryArt.swift in Sources */,

@@ -2,7 +2,7 @@
 
 # Privacidad
 
-*Peryda para Mac, Windows y la web · Última actualización: 15 de noviembre de 2026*
+*Peryda para Mac, Windows y la web · Última actualización: 16 de noviembre de 2026*
 
 [English](../../PRIVACY.md) · [Türkçe](../../docs/privacy/tr.md) · [Deutsch](../../docs/privacy/de.md)
 
@@ -28,7 +28,7 @@ Tus claves se guardan solo en este dispositivo y se envían solo a su propio pro
 
 - En el Mac se guardan en el llavero de macOS, que las cifra y las desbloquea cuando inicias sesión en tu Mac; otra app solo puede llegar a ellas si tú lo permites.
 - En Windows y en la web se guardan en el almacenamiento propio de la app en este dispositivo, cifradas con AES-256. La clave que las descifra la genera el motor del navegador (en Windows, Microsoft Edge WebView2), que nunca la deja salir; por eso tus claves no aparecen como texto legible en ningún archivo.
-- Conoce también el límite: este cifrado no protege del todo frente a alguien que pueda usar tu cuenta en el ordenador ni frente a software malicioso que se ejecute en él. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»: así tus claves no se guardan nunca y se olvidan al cerrar la app (en la web, al cerrar la página).
+- Conoce también el límite: este cifrado no protege del todo frente a alguien que pueda usar tu cuenta en el ordenador ni frente a software malicioso que se ejecute en él. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»: así tus claves no se guardan nunca y se olvidan al cerrar la app (en la web, al cerrar la página). En la web, además: una extensión del navegador con permiso para leer todos los sitios puede ver todo lo que hay en una página abierta; usa Peryda en un navegador con solo extensiones de confianza.
 - Cada clave viaja por una conexión cifrada (HTTPS) solo a su propio proveedor, en la cabecera de la petición y nunca en la dirección. En Windows y en la web, la política de seguridad de la app (Content Security Policy) no permite conectarse a ninguna dirección salvo sus propios archivos y estos cuatro proveedores. Peryda no carga código de internet ni incluye scripts de otras empresas, como publicidad, analítica o widgets de chat.
 - Tus claves nunca entran en las copias de seguridad ni en los archivos exportados.
 - Nuestro consejo: crea una clave aparte para Peryda y fija un límite de gasto en tu proveedor. Si crees que una clave se ha filtrado, revócala en el sitio del proveedor; una clave revocada deja de funcionar al instante.

@@ -2,7 +2,7 @@
 
 # Privacy
 
-*Peryda for Mac, Windows and the web · Last updated 15 November 2026*
+*Peryda for Mac, Windows and the web · Last updated 16 November 2026*
 
 [Türkçe](docs/privacy/tr.md) · [Deutsch](docs/privacy/de.md) · [Español](docs/privacy/es.md)
 
@@ -28,7 +28,7 @@ Your keys are kept only on this device and are sent only to their own provider. 
 
 - On a Mac they are kept in the macOS Keychain, which encrypts them and unlocks them when you log in to your Mac; another app can reach them only if you allow it.
 - On Windows and the web they are kept in the app's own storage on this device, encrypted with AES-256. The key that decrypts them is made by the browser engine (on Windows, Microsoft Edge WebView2), which never lets it out, so your keys never appear as plain text in any file.
-- Know the limit, too: this encryption is not full protection against someone who can use your account on the computer, or against malware running there. On a shared computer, turn off “Remember keys on this device”: your keys are then never saved and are forgotten when you quit the app (on the web, when you close the page).
+- Know the limit, too: this encryption is not full protection against someone who can use your account on the computer, or against malware running there. On a shared computer, turn off “Remember keys on this device”: your keys are then never saved and are forgotten when you quit the app (on the web, when you close the page). On the web, also: a browser extension allowed to read every site can see everything on an open page; use Peryda in a browser with only extensions you trust.
 - Each key goes over an encrypted connection (HTTPS) to its own provider only, in the request's header, never in the address. On Windows and the web, the app's security policy (Content Security Policy) allows no connection to any address other than its own files and these four providers. Peryda loads no code from the internet and contains no scripts from other companies, such as advertising, analytics or chat widgets.
 - Your keys never go into backups or exported files.
 - Our advice: create a separate key for Peryda and set a spending limit at your provider. If you think a key has leaked, revoke it on the provider's site; a revoked key stops working at once.

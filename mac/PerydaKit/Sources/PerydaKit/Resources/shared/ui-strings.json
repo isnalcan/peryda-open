@@ -671,6 +671,54 @@
     "de": "Dauerhaft verbinden",
     "es": "Enlazar"
   },
+  "keySafetyGoes": {
+    "tr": "Yalnız seçtiğin sağlayıcıya, doğrudan gider. Peryda'nın sunucusu yok; anahtarını biz hiç görmeyiz. Kod açık kaynaklı; isteyen kendisi denetleyebilir.",
+    "en": "It goes only to the provider you chose, directly. Peryda has no server; we never see your key. The code is open source, so anyone can check.",
+    "de": "Er geht nur direkt an den Anbieter, den du gewählt hast. Peryda hat keinen Server; wir sehen deinen Schlüssel nie. Der Code ist quelloffen, jeder kann ihn prüfen.",
+    "es": "Solo va, directamente, al proveedor que elegiste. Peryda no tiene servidor; nunca vemos tu clave. El código es abierto: cualquiera puede comprobarlo."
+  },
+  "keySafetyLimitMac": {
+    "tr": "Sınırı: Mac'ine senin hesabınla giriş yapabilen biri ona ulaşabilir. Ortak bir Mac'te “Anahtarları bu cihazda hatırla”yı kapat; o zaman anahtar hiç kaydedilmez.",
+    "en": "Its limit: someone who can sign in to your Mac account can reach it. On a shared Mac, turn off “Remember keys on this device”; the key is then never saved.",
+    "de": "Die Grenze: Wer sich mit deinem Konto an deinem Mac anmelden kann, kommt an ihn heran. Auf einem gemeinsam genutzten Mac schalte „Schlüssel auf diesem Gerät merken“ aus; dann wird der Schlüssel nie gespeichert.",
+    "es": "Su límite: quien pueda iniciar sesión con tu cuenta en el Mac puede llegar a ella. En un Mac compartido, desactiva «Recordar las claves en este dispositivo»; así la clave nunca se guarda."
+  },
+  "keySafetyLimitWeb": {
+    "tr": "Sınırı: tarayıcıdaki hiçbir şey tam güvende değildir. Bilgisayardaki zararlı bir yazılım ya da her sitedeki verileri okuyabilen bir tarayıcı eklentisi açık bir sayfayı görebilir. Ortak bir bilgisayarda “Anahtarları bu cihazda hatırla”yı kapat. En sağlam seçenek Mac ya da Windows uygulamasıdır.",
+    "en": "Its limit: nothing in a browser is completely safe. Malware on the computer, or a browser extension that can read every site, can see an open page. On a shared computer, turn off “Remember keys on this device”. The Mac or Windows app is the sturdier choice.",
+    "de": "Die Grenze: Nichts im Browser ist völlig sicher. Schadsoftware auf dem Computer oder eine Browsererweiterung, die jede Website lesen darf, kann eine offene Seite sehen. Auf einem gemeinsam genutzten Computer schalte „Schlüssel auf diesem Gerät merken“ aus. Die Mac- oder Windows-App ist die robustere Wahl.",
+    "es": "Su límite: nada en un navegador es del todo seguro. Un programa malicioso en el ordenador, o una extensión del navegador que puede leer todos los sitios, puede ver una página abierta. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo». La app de Mac o de Windows es la opción más sólida."
+  },
+  "keySafetyLimitWindows": {
+    "tr": "Sınırı: bu bilgisayardaki Windows hesabını kullanabilen biri ya da orada çalışan zararlı bir yazılım ona ulaşabilir. Ortak bir bilgisayarda “Anahtarları bu cihazda hatırla”yı kapat; o zaman anahtar hiç kaydedilmez.",
+    "en": "Its limit: someone who can use your Windows account on this computer, or malware running there, can reach it. On a shared computer, turn off “Remember keys on this device”; the key is then never saved.",
+    "de": "Die Grenze: Wer dein Windows-Konto auf diesem Computer benutzen kann, oder Schadsoftware, die dort läuft, kommt an ihn heran. Auf einem gemeinsam genutzten Computer schalte „Schlüssel auf diesem Gerät merken“ aus; dann wird der Schlüssel nie gespeichert.",
+    "es": "Su límite: quien pueda usar tu cuenta de Windows en este ordenador, o un programa malicioso que se ejecute en ella, puede llegar a ella. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»; así la clave nunca se guarda."
+  },
+  "keySafetyTitle": {
+    "tr": "Anahtarın güvende mi?",
+    "en": "Is your key safe?",
+    "de": "Ist dein Schlüssel sicher?",
+    "es": "¿Está segura tu clave?"
+  },
+  "keySafetyWhereLocal": {
+    "tr": "Anahtarın yalnız bu cihazda, şifrelenmiş olarak durur; yedeklere ve dışa aktarılan dosyalara girmez.",
+    "en": "Your key is kept only on this device, encrypted; it never goes into backups or exports.",
+    "de": "Dein Schlüssel liegt nur auf diesem Gerät, verschlüsselt; er kommt nie in Sicherungen oder Exporte.",
+    "es": "Tu clave se guarda solo en este dispositivo, cifrada; nunca entra en copias de seguridad ni exportaciones."
+  },
+  "keySafetyWhereMac": {
+    "tr": "Anahtarın bu Mac'te, macOS Anahtar Zinciri'nde şifreli durur; yedeklere ve dışa aktarılan dosyalara girmez.",
+    "en": "Your key is kept encrypted on this Mac, in the macOS Keychain; it never goes into backups or exports.",
+    "de": "Dein Schlüssel liegt verschlüsselt auf diesem Mac, im macOS-Schlüsselbund; er kommt nie in Sicherungen oder Exporte.",
+    "es": "Tu clave se guarda cifrada en este Mac, en el llavero de macOS; nunca entra en copias de seguridad ni exportaciones."
+  },
+  "keySafetyYou": {
+    "tr": "Peryda için ayrı bir anahtar oluştur ve sağlayıcında harcama sınırı ya da uyarısı koy. Şüphelenirsen anahtarı sağlayıcının sitesinden iptal et; iptal edilen anahtar hemen çalışmaz olur.",
+    "en": "Make a separate key for Peryda and set a spending limit or alert with your provider. If in doubt, revoke the key on the provider's site; a revoked key stops working at once.",
+    "de": "Erstelle einen eigenen Schlüssel für Peryda und lege bei deinem Anbieter ein Ausgabenlimit oder eine Warnung fest. Im Zweifel widerrufe den Schlüssel auf der Website des Anbieters; ein widerrufener Schlüssel funktioniert sofort nicht mehr.",
+    "es": "Crea una clave aparte para Peryda y pon un límite o una alerta de gasto en tu proveedor. Si tienes dudas, revoca la clave en el sitio del proveedor; una clave revocada deja de funcionar al instante."
+  },
   "keychainFailed": {
     "tr": "Anahtar Zinciri'ne yazılamadı; değişiklik bu Mac'te kalıcı olmadı. Mac'in kilidini açıp yeniden dene.",
     "en": "Could not write to the Keychain; the change was not kept on this Mac. Unlock your Mac and try again.",

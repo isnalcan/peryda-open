@@ -1,7 +1,7 @@
 {
   "tr": {
     "title": "Gizlilik",
-    "updated": "Peryda Mac, Windows ve web · Son güncelleme: 15 Kasım 2026",
+    "updated": "Peryda Mac, Windows ve web · Son güncelleme: 16 Kasım 2026",
     "sections": [
       {
         "heading": "Kısaca",
@@ -42,7 +42,7 @@
             "ul": [
               "Mac'te macOS Anahtar Zinciri'nde dururlar. Anahtar Zinciri onları şifreler ve Mac'ine giriş yaptığında açar; başka bir uygulama onlara ancak sen izin verirsen ulaşabilir.",
               "Windows'ta ve web'de uygulamanın bu cihazdaki kendi alanında, AES-256 ile şifrelenmiş olarak dururlar. Şifreyi açan anahtarı tarayıcı motoru (Windows'ta Microsoft Edge WebView2) üretir ve dışarı vermez; bu yüzden anahtarların hiçbir dosyada düz yazı olarak görünmez.",
-              "Sınırını da bilmeni isteriz: bu şifreleme, bilgisayarındaki kullanıcı hesabını kullanabilen birine ya da orada çalışan zararlı bir yazılıma karşı tam koruma değildir. Ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat; o zaman anahtarların hiç kaydedilmez ve uygulamayı kapatınca (web'de sayfayı kapatınca) unutulur.",
+              "Sınırını da bilmeni isteriz: bu şifreleme, bilgisayarındaki kullanıcı hesabını kullanabilen birine ya da orada çalışan zararlı bir yazılıma karşı tam koruma değildir. Ortak bir bilgisayardaysan “Anahtarları bu cihazda hatırla” seçeneğini kapat; o zaman anahtarların hiç kaydedilmez ve uygulamayı kapatınca (web'de sayfayı kapatınca) unutulur. Web'de ayrıca: her sitedeki verileri okuma izni olan bir tarayıcı eklentisi açık bir sayfadaki her şeyi görebilir; Peryda'yı yalnız güvendiğin eklentilerin olduğu bir tarayıcıda kullan.",
               "Her anahtar şifreli bağlantıyla (HTTPS) yalnızca kendi sağlayıcısına gider; isteğin başlığında taşınır, adres satırına yazılmaz. Windows'ta ve web'de uygulamanın güvenlik kuralı (Content Security Policy), kendi dosyaları ve bu dört sağlayıcı dışında hiçbir adrese bağlanmaya izin vermez. Peryda internetten kod yüklemez; reklam, ölçüm ya da sohbet eklentisi gibi başka şirketlerin betiklerini içermez.",
               "Anahtarların yedeklere ve dışa aktarılan dosyalara hiç girmez.",
               "Önerimiz: Peryda için ayrı bir anahtar oluştur ve sağlayıcında bir harcama sınırı koy. Anahtarının ele geçtiğinden şüphelenirsen onu sağlayıcının sitesinden iptal et; iptal edilen anahtar hemen çalışmaz olur.",
@@ -124,7 +124,7 @@
   },
   "en": {
     "title": "Privacy",
-    "updated": "Peryda for Mac, Windows and the web · Last updated 15 November 2026",
+    "updated": "Peryda for Mac, Windows and the web · Last updated 16 November 2026",
     "sections": [
       {
         "heading": "In short",
@@ -165,7 +165,7 @@
             "ul": [
               "On a Mac they are kept in the macOS Keychain, which encrypts them and unlocks them when you log in to your Mac; another app can reach them only if you allow it.",
               "On Windows and the web they are kept in the app's own storage on this device, encrypted with AES-256. The key that decrypts them is made by the browser engine (on Windows, Microsoft Edge WebView2), which never lets it out, so your keys never appear as plain text in any file.",
-              "Know the limit, too: this encryption is not full protection against someone who can use your account on the computer, or against malware running there. On a shared computer, turn off “Remember keys on this device”: your keys are then never saved and are forgotten when you quit the app (on the web, when you close the page).",
+              "Know the limit, too: this encryption is not full protection against someone who can use your account on the computer, or against malware running there. On a shared computer, turn off “Remember keys on this device”: your keys are then never saved and are forgotten when you quit the app (on the web, when you close the page). On the web, also: a browser extension allowed to read every site can see everything on an open page; use Peryda in a browser with only extensions you trust.",
               "Each key goes over an encrypted connection (HTTPS) to its own provider only, in the request's header, never in the address. On Windows and the web, the app's security policy (Content Security Policy) allows no connection to any address other than its own files and these four providers. Peryda loads no code from the internet and contains no scripts from other companies, such as advertising, analytics or chat widgets.",
               "Your keys never go into backups or exported files.",
               "Our advice: create a separate key for Peryda and set a spending limit at your provider. If you think a key has leaked, revoke it on the provider's site; a revoked key stops working at once.",
@@ -247,7 +247,7 @@
   },
   "de": {
     "title": "Datenschutz",
-    "updated": "Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 15. November 2026",
+    "updated": "Peryda für Mac, Windows und das Web · Zuletzt aktualisiert am 16. November 2026",
     "sections": [
       {
         "heading": "Kurz gesagt",
@@ -288,7 +288,7 @@
             "ul": [
               "Auf dem Mac liegen sie im macOS-Schlüsselbund, der sie verschlüsselt und entsperrt, wenn du dich an deinem Mac anmeldest; eine andere App kommt nur an sie heran, wenn du es erlaubst.",
               "Unter Windows und im Web liegen sie im eigenen Speicher der App auf diesem Gerät, mit AES-256 verschlüsselt. Den Schlüssel zum Entschlüsseln erzeugt die Browser-Engine (unter Windows Microsoft Edge WebView2), die ihn nie herausgibt; deshalb stehen deine Schlüssel in keiner Datei als lesbarer Text.",
-              "Auch die Grenze solltest du kennen: Diese Verschlüsselung schützt nicht vollständig vor jemandem, der dein Benutzerkonto auf dem Computer verwenden kann, oder vor Schadsoftware, die dort läuft. Schalte auf einem gemeinsam genutzten Computer „Schlüssel auf diesem Gerät merken“ aus: Dann werden deine Schlüssel nie gespeichert und beim Beenden der App (im Web beim Schließen der Seite) vergessen.",
+              "Auch die Grenze solltest du kennen: Diese Verschlüsselung schützt nicht vollständig vor jemandem, der dein Benutzerkonto auf dem Computer verwenden kann, oder vor Schadsoftware, die dort läuft. Schalte auf einem gemeinsam genutzten Computer „Schlüssel auf diesem Gerät merken“ aus: Dann werden deine Schlüssel nie gespeichert und beim Beenden der App (im Web beim Schließen der Seite) vergessen. Im Web außerdem: Eine Browsererweiterung, die jede Website lesen darf, kann alles auf einer offenen Seite sehen; nutze Peryda in einem Browser, in dem nur Erweiterungen laufen, denen du vertraust.",
               "Jeder Schlüssel geht über eine verschlüsselte Verbindung (HTTPS) nur an seinen eigenen Anbieter, im Kopf der Anfrage, nie in der Adresse. Unter Windows und im Web erlaubt die Sicherheitsrichtlinie der App (Content Security Policy) keine Verbindung zu einer anderen Adresse als ihren eigenen Dateien und diesen vier Anbietern. Peryda lädt keinen Code aus dem Internet und enthält keine Skripte anderer Firmen wie Werbung, Analyse oder Chat-Widgets.",
               "Deine Schlüssel gelangen nie in Sicherungen oder exportierte Dateien.",
               "Unser Rat: Lege für Peryda einen eigenen Schlüssel an und setze bei deinem Anbieter ein Ausgabenlimit. Wenn du glaubst, dass ein Schlüssel in fremde Hände geraten ist, widerrufe ihn auf der Website des Anbieters; ein widerrufener Schlüssel funktioniert sofort nicht mehr.",
@@ -370,7 +370,7 @@
   },
   "es": {
     "title": "Privacidad",
-    "updated": "Peryda para Mac, Windows y la web · Última actualización: 15 de noviembre de 2026",
+    "updated": "Peryda para Mac, Windows y la web · Última actualización: 16 de noviembre de 2026",
     "sections": [
       {
         "heading": "En resumen",
@@ -411,7 +411,7 @@
             "ul": [
               "En el Mac se guardan en el llavero de macOS, que las cifra y las desbloquea cuando inicias sesión en tu Mac; otra app solo puede llegar a ellas si tú lo permites.",
               "En Windows y en la web se guardan en el almacenamiento propio de la app en este dispositivo, cifradas con AES-256. La clave que las descifra la genera el motor del navegador (en Windows, Microsoft Edge WebView2), que nunca la deja salir; por eso tus claves no aparecen como texto legible en ningún archivo.",
-              "Conoce también el límite: este cifrado no protege del todo frente a alguien que pueda usar tu cuenta en el ordenador ni frente a software malicioso que se ejecute en él. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»: así tus claves no se guardan nunca y se olvidan al cerrar la app (en la web, al cerrar la página).",
+              "Conoce también el límite: este cifrado no protege del todo frente a alguien que pueda usar tu cuenta en el ordenador ni frente a software malicioso que se ejecute en él. En un ordenador compartido, desactiva «Recordar las claves en este dispositivo»: así tus claves no se guardan nunca y se olvidan al cerrar la app (en la web, al cerrar la página). En la web, además: una extensión del navegador con permiso para leer todos los sitios puede ver todo lo que hay en una página abierta; usa Peryda en un navegador con solo extensiones de confianza.",
               "Cada clave viaja por una conexión cifrada (HTTPS) solo a su propio proveedor, en la cabecera de la petición y nunca en la dirección. En Windows y en la web, la política de seguridad de la app (Content Security Policy) no permite conectarse a ninguna dirección salvo sus propios archivos y estos cuatro proveedores. Peryda no carga código de internet ni incluye scripts de otras empresas, como publicidad, analítica o widgets de chat.",
               "Tus claves nunca entran en las copias de seguridad ni en los archivos exportados.",
               "Nuestro consejo: crea una clave aparte para Peryda y fija un límite de gasto en tu proveedor. Si crees que una clave se ha filtrado, revócala en el sitio del proveedor; una clave revocada deja de funcionar al instante.",

@@ -23,7 +23,8 @@ Status: early development.
 - **Windows and web:** kept in the app's own storage on your device, encrypted with AES-256 under a key
   the browser engine generates and never lets out. This keeps keys out of files as plain text; it does
   not protect against someone who can use your account on that computer, so on a shared computer turn
-  off "Remember keys on this device".
+  off "Remember keys on this device". On the web, a browser extension allowed to read every site can also
+  see an open page: use Peryda in a browser with only extensions you trust, or the Mac or Windows app.
 - Each key is sent only to its own provider, over HTTPS, in a request header. On Windows and the web the
   Content Security Policy allows connections only to the app's own files and the four providers.
 - Keys never go into backups or exports. We recommend a separate key with a spending limit.

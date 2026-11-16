@@ -31,6 +31,7 @@ struct SettingsView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    KeySafety(t: t)
                 }
                 ForEach(ProviderID.allCases, id: \.self) { provider in
                     ProviderSection(provider: provider, settings: $draft)
@@ -331,3 +332,34 @@ struct PrivacySettings: View {
         }
     }
 }
+
+/// "Is your key safe?" (owner, 16 Nov): where the key is kept, where it goes, what the reader can do,
+/// and the limit, plainly; folded until opened.
+struct KeySafety: View {
+    let t: UIText
+    @State private var open: Bool
+
+    init(t: UIText, open: Bool = false) {
+        self.t = t
+        _open = State(initialValue: open)
+    }
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $open) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(["keySafetyWhereMac", "keySafetyGoes", "keySafetyYou", "keySafetyLimitMac"], id: \.self) { key in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("•")
+                        Text(t[key]).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .padding(.top, 6)
+        } label: {
+            Label(t["keySafetyTitle"], systemImage: "checkmark.shield").font(.callout.weight(.semibold))
+        }
+    }
+}
+
