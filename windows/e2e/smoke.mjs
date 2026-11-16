@@ -111,9 +111,13 @@ await step(page, 'first-launch', async () => {
 })
 
 await step(page, 'welcome-dismissed', async () => {
-  const later = page.locator('dialog[open] .welcome-actions button').first()
+  // First the language (the system's own is offered first): Continue. Then "Not now" (16 Nov).
+  if (await page.locator('dialog[open] .welcome-languages').count()) {
+    await page.locator('dialog[open] .welcome-actions .primary-button').click()
+  }
+  const later = page.locator('dialog[open] .welcome-actions .ghost-button:not(.welcome-back)')
   if (await later.count()) await later.click()
-  await page.waitForSelector('dialog[open]', { state: 'detached', timeout: 5000 }).catch(() => undefined)
+  await page.waitForSelector('dialog[open]', { state: 'detached', timeout: 5000 })
 })
 
 await step(page, 'settings-four-providers', async () => {
@@ -206,7 +210,8 @@ await step(page, 'extract-closed', async () => {
 })
 
 await step(page, 'journal-note', async () => {
-  await page.locator('.reader-topbar .icon-button[aria-pressed]').nth(1).click()
+  // The journal is the last toggle in the bar (the thumbnails and "hide threads" come before it).
+  await page.locator('.reader-topbar .icon-button[aria-pressed]').last().click()
   const box = page.locator('.journal-panel textarea').first()
   await box.fill('Windows deneme notu')
   await box.press('Enter')
