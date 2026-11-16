@@ -1844,6 +1844,54 @@ button:disabled {
   margin-top: 22px;
 }
 
+/* First run, first step: the language (owner, 16 Nov). */
+.welcome-languages-hint {
+  margin: -6px 0 16px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.welcome-languages {
+  display: grid;
+  gap: 8px;
+}
+
+.welcome-language {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.welcome-language:hover {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.welcome-language.is-current {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.welcome-language.is-current span:last-child {
+  color: var(--accent);
+}
+
+.welcome-back {
+  margin-right: auto;
+  color: var(--ink-soft);
+}
+
 /* ---------- Reader: bar, pages, camera (same behaviour as the Mac app) ---------- */
 
 .reader-main {

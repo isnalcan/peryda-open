@@ -164,6 +164,11 @@ export function App() {
       </ErrorBoundary>
       {showWelcome && (
         <WelcomeDialog
+          lang={lang}
+          onLang={(l) => {
+            setLang(l)
+            void setPref('lang', l)
+          }}
           onAddKey={() => {
             setShowWelcome(false)
             void setPref('welcomed', true)

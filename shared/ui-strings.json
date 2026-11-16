@@ -203,6 +203,12 @@
     "de": "Jetzt suchen",
     "es": "Buscar ahora"
   },
+  "chooseLanguage": {
+    "tr": "Dilini seç",
+    "en": "Choose your language",
+    "de": "Wähle deine Sprache",
+    "es": "Elige tu idioma"
+  },
   "claudeKey": {
     "tr": "Claude anahtarı",
     "en": "Claude key",
@@ -754,6 +760,12 @@
     "en": "My note",
     "de": "Meine Notiz",
     "es": "Mi nota"
+  },
+  "next": {
+    "tr": "Devam",
+    "en": "Continue",
+    "de": "Weiter",
+    "es": "Continuar"
   },
   "nextPage": {
     "tr": "Sonraki sayfa",
@@ -1482,10 +1494,10 @@
     "es": "Ahora no"
   },
   "welcomeRead": {
-    "tr": "Kendi PDF ve EPUB dosyalarını oku. Her şey bu cihazda kalır.",
-    "en": "Read your own PDF and EPUB files. Everything stays on this device.",
-    "de": "Lies deine eigenen PDF- und EPUB-Dateien. Alles bleibt auf diesem Gerät.",
-    "es": "Lee tus propios archivos PDF y EPUB. Todo se queda en este dispositivo."
+    "tr": "Kendi PDF ve EPUB dosyalarını, sayfa fotoğraflarını oku. Her şey bu cihazda kalır.",
+    "en": "Read your own PDF and EPUB files, or photos of pages. Everything stays on this device.",
+    "de": "Lies deine eigenen PDF- und EPUB-Dateien oder Fotos von Seiten. Alles bleibt auf diesem Gerät.",
+    "es": "Lee tus propios archivos PDF y EPUB, o fotos de páginas. Todo se queda en este dispositivo."
   },
   "welcomeTitle": {
     "tr": "Peryda'ya hoş geldin",

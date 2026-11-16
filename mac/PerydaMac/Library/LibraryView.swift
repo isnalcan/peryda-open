@@ -214,14 +214,76 @@ struct BookTile: View {
     }
 }
 
+/// First run: the language first, in every language (owner, 16 Nov: the app goes on in the language
+/// chosen), then what Peryda does here and where the reader's text goes. The language the Mac uses is
+/// offered first; it can be changed later in Settings.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
     let onAddKey: () -> Void
     let onLater: () -> Void
+    @State private var languageChosen = false
+
+    /// The four languages, the Mac's own first.
+    static func languages(first: Lang) -> [Lang] {
+        [first] + Lang.allCases.filter { $0 != first }
+    }
 
     var body: some View {
-        let t = model.t
+        Group {
+            if languageChosen { welcome } else { languageStep }
+        }
+        .padding(28)
+        .frame(width: 460)
+        .animation(.easeOut(duration: 0.18), value: languageChosen)
+    }
+
+    private var languageStep: some View {
         VStack(alignment: .leading, spacing: 16) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 56, height: 56)
+            // Not yet known which language the reader reads: the question in all four.
+            VStack(alignment: .leading, spacing: 4) {
+                Text(UIText(model.lang)["chooseLanguage"]).font(.reading(26).weight(.medium))
+                Text(Lang.allCases.filter { $0 != model.lang }.map { UIText($0)["chooseLanguage"] }.joined(separator: " · "))
+                    .font(.callout)
+                    .foregroundStyle(Color.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(spacing: 8) {
+                ForEach(Self.languages(first: Lang.preferred()), id: \.self) { lang in
+                    Button {
+                        model.lang = lang
+                        languageChosen = true
+                    } label: {
+                        HStack {
+                            Text(lang.languageName.capitalized(with: Locale(identifier: lang.rawValue)))
+                                .font(.system(size: 15, weight: .medium))
+                            Spacer()
+                            if lang == model.lang { Image(systemName: "checkmark").foregroundStyle(Color.peryda) }
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: 40)
+                        .contentShape(Rectangle())
+                        .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(lang == model.lang ? 0.07 : 0.03)))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(Color.ink)
+                    .accessibilityLabel(lang.languageName)
+                }
+            }
+            HStack {
+                Spacer()
+                Button(UIText(model.lang)["next"]) { languageChosen = true }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private var welcome: some View {
+        let t = model.t
+        return VStack(alignment: .leading, spacing: 16) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 56, height: 56)
@@ -234,14 +296,19 @@ struct WelcomeView: View {
             .foregroundStyle(Color.inkSoft)
             .labelStyle(.titleAndIcon)
             HStack {
+                // Back to the language, should the wrong one have been chosen.
+                Button { languageChosen = false } label: {
+                    Label(model.lang.languageName.capitalized(with: Locale(identifier: model.lang.rawValue)), systemImage: "globe")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Color.inkSoft)
+                .help(t["language"])
                 Spacer()
                 Button(t["welcomeLater"], action: onLater)
                 Button(t["welcomeAddKey"], action: onAddKey).keyboardShortcut(.defaultAction)
             }
             .padding(.top, 8)
         }
-        .padding(28)
-        .frame(width: 460)
     }
 }
 
