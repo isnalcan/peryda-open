@@ -176,7 +176,7 @@ describe('Gemini models and settings', () => {
     )
     const text = await collect(streamAnswer({ ...base, provider: 'gemini', model: 'gemini-old', candidates: ModelAdvice.geminiChain('gemini-old') }))
     expect(text).toBe('ok')
-    expect(urls.map((u) => u.split('/models/')[1]!.split(':')[0])).toEqual(['gemini-old', 'gemini-3.8-flash', 'gemini-3-flash-preview'])
+    expect(urls.map((u) => u.split('/models/')[1]!.split(':')[0])).toEqual(['gemini-old', 'gemini-3.8-flash', 'gemini-4-hydrogen'])
   })
 
   it('a rejected key does not try other models', async () => {

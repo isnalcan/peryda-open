@@ -1,4 +1,4 @@
-import { ModelAdvice, thinkingFor, type GeminiThinking, type ModelCandidate, type ProviderId } from './provider'
+import { ModelAdvice, thinkingFor, type Effort, type GeminiThinking, type ModelCandidate, type ProviderId } from './provider'
 
 /**
  * Bring-your-own-key streaming clients. Requests go straight from this device to the reader's provider;
@@ -26,6 +26,11 @@ export interface AiRequest {
   maxOutputTokens?: number
   /** The wanted temperature; left out for models that refuse or are better without one. */
   temperature?: number
+  /**
+   * How hard the model thinks (the job's level). Gemini carries it in its candidates; OpenAI and
+   * DeepSeek get `reasoning_effort`, Claude `output_config.effort`. Absent: the provider's default.
+   */
+  effort?: Effort | null
   candidates?: ModelCandidate[]
 }
 
@@ -197,6 +202,7 @@ export function claudeBody(model: string, system: string, turns: AiTurn[], maxOu
 export function buildRequest(req: AiRequest, candidate: ModelCandidate, temperature: number | undefined): { url: string; headers: Record<string, string>; body: unknown } {
   const model = candidate.model
   const temp = temperature !== undefined && ModelAdvice.acceptsTemperature(req.provider, model) ? temperature : undefined
+  const effort = req.effort && ModelAdvice.acceptsEffort(req.provider, model) ? req.effort : null
   const json = { 'content-type': 'application/json' }
   switch (req.provider) {
     case 'gemini':
@@ -210,20 +216,20 @@ export function buildRequest(req: AiRequest, candidate: ModelCandidate, temperat
       return {
         url: `${OPENAI_BASE}/chat/completions`,
         headers: { ...json, authorization: `Bearer ${req.apiKey}` },
-        body: { ...chatBody(model, req.system, req.turns, req.maxOutputTokens, temp), store: false },
+        body: { ...chatBody(model, req.system, req.turns, req.maxOutputTokens, temp), store: false, ...(effort ? { reasoning_effort: effort } : {}) },
       }
     case 'deepseek':
       return {
         url: `${DEEPSEEK_BASE}/chat/completions`,
         headers: { ...json, authorization: `Bearer ${req.apiKey}` },
-        body: chatBody(model, req.system, req.turns, req.maxOutputTokens, temp),
+        body: { ...chatBody(model, req.system, req.turns, req.maxOutputTokens, temp), ...(effort ? { reasoning_effort: effort } : {}) },
       }
     case 'claude':
       return {
         url: `${CLAUDE_BASE}/messages`,
         // Anthropic accepts requests from a browser only with this header; the key is the reader's own.
         headers: { ...json, 'x-api-key': req.apiKey, 'anthropic-version': CLAUDE_VERSION, 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: claudeBody(model, req.system, req.turns, req.maxOutputTokens, temp),
+        body: { ...claudeBody(model, req.system, req.turns, req.maxOutputTokens, temp), ...(effort ? { output_config: { effort } } : {}) },
       }
   }
 }
@@ -311,7 +317,7 @@ async function* attempt(req: AiRequest, candidate: ModelCandidate, temperature: 
 export async function* streamAnswer(req: AiRequest): AsyncGenerator<string> {
   const candidates = req.candidates?.length
     ? req.candidates
-    : [{ model: req.model, thinking: req.provider === 'gemini' ? thinkingFor(req.model) : null }]
+    : [{ model: req.model, thinking: req.provider === 'gemini' ? thinkingFor(req.model, req.effort ?? 'high') : null }]
   let last: HttpFailure | null = null
   try {
     for (const candidate of candidates) {

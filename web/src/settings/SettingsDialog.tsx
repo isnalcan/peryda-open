@@ -3,18 +3,25 @@ import { useI18n } from '../i18n/I18n'
 import { LANGS, type Lang, type Strings } from '../i18n/strings'
 import { listModels } from '../ai/client'
 import {
+  AI_TASKS,
+  EFFORTS,
   ModelAdvice,
   PROVIDERS,
+  chosenEffort,
   chosenKey,
   hasUsableKey,
   keyFor,
   modelFor,
   providersWithKeys,
   resolveActiveProvider,
+  usesRecommended,
+  withEffort,
   withKey,
   withModel,
+  withRecommended,
   type AiTask,
   type ByokSettings,
+  type Effort,
   type ProviderId,
 } from '../ai/provider'
 import { maskKey } from '../data/keyVault'
@@ -51,31 +58,99 @@ function keyLabel(t: Strings, p: ProviderId): string {
   return { gemini: t.geminiKey, openai: t.openaiKey, deepseek: t.deepseekKey, claude: t.claudeKey }[p]
 }
 
-/** A model menu: recommended models first with their badge, then the rest the key can use. */
-function ModelPicker(props: { title: string; provider: ProviderId; task: AiTask; settings: ByokSettings; loaded: string[]; onChange: (s: ByokSettings) => void }) {
+function jobLabel(t: Strings, task: AiTask): string {
+  return { thread: t.jobThread, area: t.jobArea, translation: t.jobTranslation, scan: t.jobScan, summary: t.jobSummary }[task]
+}
+
+function effortLabel(t: Strings, effort: Effort): string {
+  return { low: t.effort_low, medium: t.effort_medium, high: t.effort_high }[effort]
+}
+
+/**
+ * One job (owner, 17 Nov 2026): its model and its thinking level, the recommended ones chosen by
+ * default and marked; the reader may pick others. Choosing the recommended model again stores nothing,
+ * so a later recommendation reaches the reader.
+ */
+function JobRow(props: { provider: ProviderId; task: AiTask; settings: ByokSettings; loaded: string[]; onChange: (s: ByokSettings) => void }) {
   const { t } = useI18n()
+  const id = useId()
   const recommended = ModelAdvice.recommended(props.provider, props.task)
   const current = modelFor(props.settings, props.provider, props.task)
   const others = [...new Set([...props.loaded, current])].filter((m) => !recommended.includes(m)).sort()
+  const recommendedEffort = ModelAdvice.recommendedEffort(props.provider, props.task)
+  const effort = chosenEffort(props.settings, props.provider, props.task)
+  const takesEffort = ModelAdvice.acceptsEffort(props.provider, current)
+  const label = jobLabel(t, props.task)
   return (
-    <label className="model-picker">
-      <span>{props.title}</span>
-      <select value={current} onChange={(e) => props.onChange(withModel(props.settings, props.provider, props.task, e.target.value))}>
+    <div className="job-row" role="group" aria-labelledby={`${id}-label`}>
+      <span className="job-label" id={`${id}-label`}>
+        {label}
+      </span>
+      <select
+        aria-label={`${label}: ${t.jobModel}`}
+        value={current}
+        onChange={(e) => props.onChange(withModel(props.settings, props.provider, props.task, e.target.value === recommended[0] ? '' : e.target.value))}
+      >
         <optgroup label={t.recommended}>
-          {recommended.map((m) => (
-            <option key={m} value={m}>{m}</option>
+          {recommended.map((m, i) => (
+            <option key={m} value={m}>
+              {i === 0 ? `${m} · ${t.recommended}` : m}
+            </option>
           ))}
         </optgroup>
         {others.length > 0 && (
           <optgroup label={t.otherModels}>
             {others.map((m) => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </optgroup>
         )}
       </select>
-      {ModelAdvice.isRecommended(current, props.provider, props.task) && <span className="recommended-badge">{t.recommended}</span>}
-    </label>
+      <select
+        aria-label={`${label}: ${t.jobEffort}`}
+        value={takesEffort ? effort : ''}
+        disabled={!takesEffort}
+        onChange={(e) => props.onChange(withEffort(props.settings, props.provider, props.task, e.target.value as Effort | ''))}
+      >
+        <option value="">{recommendedEffort ? `${effortLabel(t, recommendedEffort)} · ${t.recommended}` : t.effortProviderDefault}</option>
+        {EFFORTS.filter((e) => e !== recommendedEffort).map((e) => (
+          <option key={e} value={e}>
+            {effortLabel(t, e)}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+/** The provider's jobs, with the note that the recommended combination is chosen by default. */
+function JobTable(props: { provider: ProviderId; settings: ByokSettings; loaded: string[]; onChange: (s: ByokSettings) => void }) {
+  const { t } = useI18n()
+  const recommended = usesRecommended(props.settings, props.provider)
+  return (
+    <div className="job-table">
+      <div className="job-head">
+        <strong>{t.jobsTitle}</strong>
+        {recommended ? (
+          <span className="recommended-badge">{t.usingRecommended}</span>
+        ) : (
+          <button type="button" className="text-button" onClick={() => props.onChange(withRecommended(props.settings, props.provider))}>
+            {t.resetRecommended}
+          </button>
+        )}
+      </div>
+      <p className="job-note">{props.provider === 'deepseek' ? t.comboNoteUntested : t.comboNote}</p>
+      <div className="job-columns" aria-hidden="true">
+        <span />
+        <span>{t.jobModel}</span>
+        <span>{t.jobEffort}</span>
+      </div>
+      {AI_TASKS.map((task) => (
+        <JobRow key={task} provider={props.provider} task={task} settings={props.settings} loaded={props.loaded} onChange={props.onChange} />
+      ))}
+    </div>
   )
 }
 
@@ -168,8 +243,7 @@ function ProviderField(props: { provider: ProviderId; settings: ByokSettings; on
       )}
       {hasUsableKey(apiKey) && (
         <div className="model-rows">
-          <ModelPicker title={t.threadModel} provider={props.provider} task="thread" settings={props.settings} loaded={models} onChange={props.onChange} />
-          <ModelPicker title={t.translationModel} provider={props.provider} task="translation" settings={props.settings} loaded={models} onChange={props.onChange} />
+          <JobTable provider={props.provider} settings={props.settings} loaded={models} onChange={props.onChange} />
           <button type="button" className="text-button load-models" disabled={loading} onClick={() => void load()}>
             {loading ? '…' : t.loadModels}
           </button>

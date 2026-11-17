@@ -2730,6 +2730,47 @@ p.extract-status {
   color: var(--ink-soft);
 }
 
+.job-table {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.job-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--ink);
+}
+
+.job-note {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.job-columns,
+.job-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.job-columns {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.job-row select {
+  min-width: 0;
+  width: 100%;
+}
+
 .recommended-badge {
   padding: 2px 7px;
   border-radius: 999px;
@@ -2788,6 +2829,17 @@ p.extract-status {
   }
   .model-picker > span:first-child {
     grid-column: 1 / -1;
+  }
+  .job-columns {
+    display: none;
+  }
+  .job-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  .job-label {
+    color: var(--ink);
   }
 }
 

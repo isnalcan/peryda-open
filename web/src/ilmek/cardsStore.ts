@@ -4,7 +4,7 @@ import { AiError, streamAnswer, type AiRequest } from '../ai/client'
 import { fakeStream } from '../ai/fake'
 import { JobGone, KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type BatchStatus, type PageBatching } from '../ai/batch'
 import { composeTurns, kindPrompt, pageTranslationSystem, pageTranslationTurns, runsAI, systemPrompt } from '../ai/compose'
-import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
+import { ModelAdvice, effortFor, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
 import { isSettlingElsewhere, onJobSettled } from '../ai/settlingJobs'
 import type { Lang } from '../i18n/strings'
 import { GEOMETRY } from './geometry'
@@ -513,18 +513,20 @@ export class CardsStore {
     const anchor = card.anchors[0]
     const picture = await this.pictureFor(card)
     const target = (card.translationLanguage as Lang | undefined) ?? this.lang
-    let model = modelFor(this.settings, provider, 'translation')
-    // DeepSeek's reasoning model takes no pictures; scanned pages always go to deepseek-flash.
-    if (provider === 'deepseek' && picture) model = 'deepseek-flash'
+    // A page without a text layer goes as a picture: the "scan" job's model and level.
+    const task = picture ? 'scan' : 'translation'
+    const model = modelFor(this.settings, provider, task)
+    const effort = effortFor(this.settings, provider, task, model)
     return {
       provider,
       apiKey: keyFor(this.settings, provider),
       model,
       system: pageTranslationSystem(target, this.explainTerms),
       turns: pageTranslationTurns(target, this.bookTitle, card.translatedPage ?? anchor?.pageNumber ?? 1, this.pageCount, anchor?.selectedText ?? '', picture ?? undefined, this.explainTerms),
-      maxOutputTokens: ModelAdvice.maxOutputTokens(provider, 'translation'),
-      temperature: ModelAdvice.temperature('translation'),
-      candidates: provider === 'gemini' ? ModelAdvice.geminiChain(model) : undefined,
+      maxOutputTokens: ModelAdvice.maxOutputTokens(provider, task),
+      temperature: ModelAdvice.temperature(task),
+      effort,
+      candidates: provider === 'gemini' ? ModelAdvice.geminiChain(model, effort ?? 'high') : undefined,
     }
   }
 
@@ -588,7 +590,7 @@ export class CardsStore {
     const ids = items.map((item) => item.key)
     let name: string
     try {
-      name = await this.batcher.create(key, model, items)
+      name = await this.batcher.create(key, model, items, effortFor(this.settings, 'gemini', 'translation', model) ?? undefined)
     } catch (error) {
       // Never a silent fall back to full-price direct requests: each page says the batch could not
       // start, and its Retry translates that page directly.
@@ -767,16 +769,20 @@ export class CardsStore {
     const makeRequest = async (): Promise<AiRequest> => {
       if (translation) return this.translationRequest(card, p)
       const pages = card.anchors.filter((a) => a.sourceType !== 'card').map((a) => a.pageNumber)
-      const model = modelFor(this.settings, p, 'thread')
+      // A thread on an area of a page carries its picture: the "area" job's model and level.
+      const task = card.anchors.some((a) => a.sourceType === 'pdf_area' && a.croppedImage) ? 'area' : 'thread'
+      const model = modelFor(this.settings, p, task)
+      const effort = effortFor(this.settings, p, task, model)
       return {
         provider: p,
         apiKey: keyFor(this.settings, p),
         model,
         system: systemPrompt(this.lang, this.bookTitle, pages),
         turns: composeTurns(this.lang, card),
-        maxOutputTokens: ModelAdvice.maxOutputTokens(p, 'thread'),
-        temperature: ModelAdvice.temperature('thread'),
-        candidates: p === 'gemini' ? ModelAdvice.geminiChain(model) : undefined,
+        maxOutputTokens: ModelAdvice.maxOutputTokens(p, task),
+        temperature: ModelAdvice.temperature(task),
+        effort,
+        candidates: p === 'gemini' ? ModelAdvice.geminiChain(model, effort ?? 'high') : undefined,
       }
     }
     this.stream(cardId, answerId, makeRequest, translation)

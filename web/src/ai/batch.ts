@@ -1,5 +1,5 @@
 import { AiError, GEMINI_BASE, fetchOrFail, geminiBody, type AiTurn } from './client'
-import { ModelAdvice, thinkingFor } from './provider'
+import { ModelAdvice, thinkingFor, type Effort } from './provider'
 
 /**
  * Whole-page translation of more than two pages runs as one Gemini batch job (half the price of direct
@@ -27,7 +27,8 @@ export class JobGone extends Error {}
 export class BatchUnavailable extends Error {}
 
 export interface PageBatching {
-  create(apiKey: string, model: string, items: BatchItem[]): Promise<string>
+  /** `effort`: the job's thinking level (Gemini 3 and later). */
+  create(apiKey: string, model: string, items: BatchItem[], effort?: Effort): Promise<string>
   status(apiKey: string, name: string): Promise<BatchStatus>
   /** Stops a job nobody waits for any more, so it is not billed. Never throws. */
   cancel(apiKey: string, name: string): Promise<void>
@@ -51,7 +52,7 @@ export const KEY_CHANGED = 'key-changed'
 export const BATCH_MAX_OUTPUT_TOKENS = 16_384
 
 /** Each request carries the model's thinking and the translation temperature where the model takes one. */
-export function batchCreateBody(items: readonly BatchItem[], model: string) {
+export function batchCreateBody(items: readonly BatchItem[], model: string, effort: Effort = 'high') {
   const temperature = ModelAdvice.acceptsTemperature('gemini', model) ? ModelAdvice.temperature('translation') : undefined
   return {
     batch: {
@@ -59,7 +60,7 @@ export function batchCreateBody(items: readonly BatchItem[], model: string) {
       input_config: {
         requests: {
           requests: items.map((item) => ({
-            request: geminiBody(item.system, item.turns, BATCH_MAX_OUTPUT_TOKENS, thinkingFor(model), temperature),
+            request: geminiBody(item.system, item.turns, BATCH_MAX_OUTPUT_TOKENS, thinkingFor(model, effort), temperature),
             metadata: { key: item.key },
           })),
         },
@@ -132,13 +133,13 @@ export function parseBatchStatus(json: any): BatchStatus {
 }
 
 export const geminiBatch: PageBatching = {
-  async create(apiKey, model, items) {
+  async create(apiKey, model, items, effort) {
     let json: any
     try {
       json = await send(`${GEMINI_BASE}/models/${encodeURIComponent(model)}:batchGenerateContent`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(batchCreateBody(items, model)),
+        body: JSON.stringify(batchCreateBody(items, model, effort ?? 'high')),
       })
     } catch (error) {
       // No such model or endpoint for batches.

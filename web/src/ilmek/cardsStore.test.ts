@@ -104,7 +104,8 @@ describe('page translation', () => {
     expect(requests).toHaveLength(2)
     const req = requests[0]!
     expect(req.provider).toBe('gemini')
-    expect(req.candidates?.[0]).toEqual({ model: 'gemini-3.8-flash', thinking: { level: 'high' } })
+    // Blind test of 17 Nov 2026: page translation with Gemini 4 Hydrogen at low thinking.
+    expect(req.candidates?.[0]).toEqual({ model: 'gemini-4-hydrogen', thinking: { level: 'low' } })
     expect(req.temperature).toBe(0.35)
     expect(req.system.startsWith('Sen okuma ve çalışma atölyesinin baş çevirmeni')).toBe(true)
     const prompt = req.turns[0]!.parts[0]!
@@ -137,7 +138,7 @@ describe('page translation', () => {
     const ids = s.translatePages([page(1), page(2), page(3)], 'tr')
     await s.waitForIdle()
     expect(batcher.created).toHaveLength(1)
-    expect(batcher.created[0]!.model).toBe('gemini-3.8-flash')
+    expect(batcher.created[0]!.model).toBe('gemini-4-hydrogen')
     expect(batcher.created[0]!.items.map((i) => i.key)).toEqual(ids)
     expect(requests).toHaveLength(0)
     expect(s.waitingTranslations).toHaveLength(3)
@@ -447,7 +448,8 @@ describe('threads', () => {
     await s.waitForIdle()
     const req = requests[0]!
     expect(req.temperature).toBe(0.55)
-    expect(req.candidates?.map((c) => c.model)).toEqual(['gemini-3.8-flash', 'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash'])
+    expect(req.candidates?.map((c) => c.model)).toEqual(['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash'])
+    expect(req.candidates?.[0]!.thinking).toEqual({ level: 'medium' })
     const first = req.turns[0]!.parts[0]!
     expect(first.type === 'text' && first.text.startsWith('Seçilen Metin: "Bilinçdışı"')).toBe(true)
     expect(first.type === 'text' && first.text.includes('Sayfanın başı.')).toBe(true)

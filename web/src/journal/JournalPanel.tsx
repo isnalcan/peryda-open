@@ -7,7 +7,7 @@ import { Markdown } from '../ui/Markdown'
 import { journalSummarySystem, pageTitle } from '../ai/compose'
 import { AiError, streamAnswer } from '../ai/client'
 import { fakeStream, useFakeAi } from '../ai/fake'
-import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings } from '../ai/provider'
+import { ModelAdvice, effortFor, keyFor, modelFor, resolveActiveProvider, type ByokSettings } from '../ai/provider'
 import { AsterismIcon, ChevronDownIcon, ChevronUpIcon, CloseIcon, PlusIcon, StopIcon, TrashIcon } from '../ui/icons'
 import './journal.css'
 
@@ -108,13 +108,14 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
         : streamAnswer({
             provider: provider!,
             apiKey: keyFor(settings, provider!),
-            model: modelFor(settings, provider!, 'thread'),
+            model: modelFor(settings, provider!, 'summary'),
             // One pass with fill(): `$&` and the like in a title stay as written.
             system: journalSummarySystem(lang, bookTitle),
             turns: [{ role: 'user', parts: [{ type: 'text', text: body }] }],
-            maxOutputTokens: ModelAdvice.maxOutputTokens(provider!, 'thread'),
-            temperature: ModelAdvice.temperature('thread'),
-            candidates: provider === 'gemini' ? ModelAdvice.geminiChain(modelFor(settings, 'gemini', 'thread')) : undefined,
+            maxOutputTokens: ModelAdvice.maxOutputTokens(provider!, 'summary'),
+            temperature: ModelAdvice.temperature('summary'),
+            effort: effortFor(settings, provider!, 'summary'),
+            candidates: provider === 'gemini' ? ModelAdvice.geminiChain(modelFor(settings, 'gemini', 'summary'), effortFor(settings, 'gemini', 'summary') ?? 'high') : undefined,
             signal: ac.signal,
           })
       for await (const piece of stream) {

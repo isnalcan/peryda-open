@@ -2,7 +2,7 @@ import { AiError, streamAnswer, type AiRequest } from '../ai/client'
 import { fakeStream } from '../ai/fake'
 import { JobGone, KEY_CHANGED, abandonBatchJob, geminiBatch, isBatchName, type BatchItem, type BatchStatus, type PageBatching } from '../ai/batch'
 import { pageTranscriptionSystem, pageTranscriptionTurns } from '../ai/compose'
-import { ModelAdvice, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
+import { ModelAdvice, effortFor, keyFor, modelFor, resolveActiveProvider, type ByokSettings, type ProviderId } from '../ai/provider'
 import { db, getPref } from '../data/db'
 import { isSettlingElsewhere, onJobSettled } from '../ai/settlingJobs'
 import type { Lang } from '../i18n/strings'
@@ -340,17 +340,19 @@ export class PageReadingsStore {
 
   private request(page: number, image: string, provider: ProviderId, lang: Lang, signal?: AbortSignal): AiRequest {
     const { settings } = this.options
-    // DeepSeek's reasoning model takes no pictures.
-    const model = provider === 'deepseek' ? 'deepseek-flash' : modelFor(settings, provider, 'translation')
+    // Reading a page from its picture is the "scan" job (DeepSeek's pictures go to deepseek-flash).
+    const model = modelFor(settings, provider, 'scan')
+    const effort = effortFor(settings, provider, 'scan', model)
     return {
       provider,
       apiKey: keyFor(settings, provider),
       model,
       system: pageTranscriptionSystem(lang),
       turns: pageTranscriptionTurns(lang, this.options.bookTitle, page, this.options.pageCount, image),
-      maxOutputTokens: ModelAdvice.maxOutputTokens(provider, 'translation'),
-      temperature: ModelAdvice.temperature('translation'),
-      candidates: provider === 'gemini' ? ModelAdvice.geminiChain(model) : undefined,
+      maxOutputTokens: ModelAdvice.maxOutputTokens(provider, 'scan'),
+      temperature: ModelAdvice.temperature('scan'),
+      effort,
+      candidates: provider === 'gemini' ? ModelAdvice.geminiChain(model, effort ?? 'high') : undefined,
       signal,
     }
   }
@@ -406,7 +408,7 @@ export class PageReadingsStore {
     for (const p of pages) this.sending.add(p)
     const { settings } = this.options
     const key = keyFor(settings, 'gemini')
-    const model = modelFor(settings, 'gemini', 'translation')
+    const model = modelFor(settings, 'gemini', 'scan')
     let group: BatchItem[] = []
     let bytes = 0
     const send = async () => {
@@ -443,7 +445,7 @@ export class PageReadingsStore {
     const batcher = this.options.batcher ?? geminiBatch
     const pages = items.map((i) => Number(i.key))
     try {
-      const name = await batcher.create(key, model, items)
+      const name = await batcher.create(key, model, items, effortFor(this.options.settings, 'gemini', 'scan', model) ?? undefined)
       const still = pages.filter((p) => this.sending.has(p) && this.readings.get(p)?.state === 'waiting' && !this.readings.get(p)?.job)
       for (const p of pages) this.sending.delete(p)
       // Stopped, read again, or the key changed while the job was being made: nobody waits for it, and it is
