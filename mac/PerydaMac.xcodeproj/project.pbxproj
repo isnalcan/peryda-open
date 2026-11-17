@@ -18,6 +18,7 @@
 		211A956B2CB39B7CA919B1B4 /* PerydaMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF106CC7BCBBB4ED80799EC7 /* PerydaMacApp.swift */; };
 		232AE0AFAF184EF1A79238E4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D490E1220CB8C386D7FF8E57 /* AppModel.swift */; };
 		2528E6AE504B8280FFA06155 /* JournalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E2041ACA3F92D0941A2129 /* JournalPanel.swift */; };
+		2A5B6066D22EFC7308C5BDA0 /* JobTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48638B159255F0E83E3669D8 /* JobTableTests.swift */; };
 		2A9C91860E15ED8A291E61D3 /* PageText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8351C05C06C517B963564756 /* PageText.swift */; };
 		3272345CC217CCCEC30099DC /* SelectionMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57678108D2287CDDE9E0A743 /* SelectionMenuView.swift */; };
 		3DFF099A88F56D5F5EB9CF4B /* ReaderPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE90B1E1C09206E29E20BBBD /* ReaderPanels.swift */; };
@@ -101,6 +102,7 @@
 		384629AFB0332DB3E57CAB7E /* SelectableAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableAnswer.swift; sourceTree = "<group>"; };
 		3B62B3803B64B46121737A39 /* OwnerRound4Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerRound4Tests.swift; sourceTree = "<group>"; };
 		3DBB1A9A3C29FF1913D08577 /* NestedThreadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedThreadsTests.swift; sourceTree = "<group>"; };
+		48638B159255F0E83E3669D8 /* JobTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobTableTests.swift; sourceTree = "<group>"; };
 		4C9C0C7E5323B5D8385B4016 /* LayoutAndPagingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutAndPagingTests.swift; sourceTree = "<group>"; };
 		54DBE56B259D9027DC42F75C /* OwnerFeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnerFeedbackTests.swift; sourceTree = "<group>"; };
 		57678108D2287CDDE9E0A743 /* SelectionMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionMenuView.swift; sourceTree = "<group>"; };
@@ -213,6 +215,7 @@
 				0539C82F1607F8355034EDC2 /* CardButtonTests.swift */,
 				FB876352ABDD3CBA19CE9C79 /* EpubReaderTests.swift */,
 				EE332840F53722FA49510DE3 /* HiddenControlRoutingTests.swift */,
+				48638B159255F0E83E3669D8 /* JobTableTests.swift */,
 				284F501E0821B5F4803B6689 /* JournalTests.swift */,
 				882D632BA87425817290FA57 /* KeyChangeTests.swift */,
 				D2755FD3EC3E70658D632FDB /* KeySafetyTests.swift */,
@@ -453,6 +456,7 @@
 				52AF5DF75ED8735E44A4EB2E /* ExtractedTextSheet.swift in Sources */,
 				DF12AE55C4A3CCD06FD7FCCE /* HiddenControlRoutingTests.swift in Sources */,
 				F3E1B251045C8F406F454425 /* Importing.swift in Sources */,
+				2A5B6066D22EFC7308C5BDA0 /* JobTableTests.swift in Sources */,
 				ACB3E73DBEA890E4D9B7B8F2 /* JournalPanel.swift in Sources */,
 				7C330164536E464518A442F0 /* JournalTests.swift in Sources */,
 				7093121449E53F0C6C20B227 /* KeyChangeTests.swift in Sources */,

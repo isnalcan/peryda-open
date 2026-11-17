@@ -481,16 +481,18 @@ final class ReaderModel {
         let body = journal.reversed().map { j in
             [j.quote.isEmpty ? nil : "> \(j.quote)", j.text.isEmpty ? nil : j.text].compactMap { $0 }.joined(separator: "\n")
         }.joined(separator: "\n\n---\n\n")
-        let model = cards.settings.model(for: provider, task: .thread)
+        let model = cards.settings.model(for: provider, task: .summary)
+        let effort = cards.settings.effort(for: provider, task: .summary, model: model)
         let request = AIRequest(
             provider: provider,
             apiKey: cards.settings.key(for: provider),
             model: model,
             system: Compose.journalSummarySystem(lang, bookTitle: book.title),
             turns: [AITurn(role: .user, parts: [.text(body)])],
-            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .thread),
-            temperature: ModelAdvice.temperature(.thread),
-            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil
+            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .summary),
+            temperature: ModelAdvice.temperature(.summary),
+            effort: effort,
+            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model, effort: effort ?? .high) : nil
         )
         summarizing = true
         summaryCollapsed = false

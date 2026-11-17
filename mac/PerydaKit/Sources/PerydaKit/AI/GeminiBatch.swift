@@ -5,10 +5,19 @@ import Foundation
 /// to Google with the reader's own key.
 public protocol PageBatching: Sendable {
     func create(apiKey: String, model: String, items: [GeminiBatch.Item]) async throws -> String
+    /// With the job's thinking level (Gemini 3 and later).
+    func create(apiKey: String, model: String, items: [GeminiBatch.Item], effort: Effort?) async throws -> String
     func status(apiKey: String, name: String) async throws -> GeminiBatch.Status
     func cancel(apiKey: String, name: String) async
     /// Removes a job and what Google keeps of it (the pages sent and their translations).
     func delete(apiKey: String, name: String) async
+}
+
+public extension PageBatching {
+    /// Fakes and older batchers ignore the level.
+    func create(apiKey: String, model: String, items: [GeminiBatch.Item], effort: Effort?) async throws -> String {
+        try await create(apiKey: apiKey, model: model, items: items)
+    }
 }
 
 extension PageBatching {
@@ -94,7 +103,7 @@ public struct GeminiBatch: PageBatching {
 
     /// Each request carries the model's thinking (level for Gemini 3, budget for 2.5) and the
     /// translation temperature where the model takes one.
-    public static func createBody(_ items: [Item], model: String = model) -> [String: Any] {
+    public static func createBody(_ items: [Item], model: String = model, effort: Effort = .high) -> [String: Any] {
         let temperature = ModelAdvice.acceptsTemperature(.gemini, model) ? ModelAdvice.temperature(.translation) : nil
         return [
             "batch": [
@@ -103,7 +112,7 @@ public struct GeminiBatch: PageBatching {
                     "requests": [
                         "requests": items.map { item in
                             [
-                                "request": AIClient.geminiBody(system: item.system, turns: item.turns, maxOutputTokens: maxOutputTokens, thinking: .forModel(model), temperature: temperature),
+                                "request": AIClient.geminiBody(system: item.system, turns: item.turns, maxOutputTokens: maxOutputTokens, thinking: .forModel(model, effort: effort), temperature: temperature),
                                 "metadata": ["key": item.key],
                             ] as [String: Any]
                         },
@@ -144,8 +153,12 @@ public struct GeminiBatch: PageBatching {
     }
 
     public func create(apiKey: String, model: String, items: [Item]) async throws -> String {
+        try await create(apiKey: apiKey, model: model, items: items, effort: nil)
+    }
+
+    public func create(apiKey: String, model: String, items: [Item], effort: Effort?) async throws -> String {
         guard let path = AIClient.modelPath(model) else { throw Unavailable() }
-        let r = try request("\(Self.base)/models/\(path):batchGenerateContent", method: "POST", apiKey: apiKey, body: Self.createBody(items, model: model))
+        let r = try request("\(Self.base)/models/\(path):batchGenerateContent", method: "POST", apiKey: apiKey, body: Self.createBody(items, model: model, effort: effort ?? .high))
         let json: [String: Any]
         do { json = try await send(r) } catch is JobGone { throw Unavailable() }
         guard let name = json["name"] as? String, Self.isValidName(name) else { throw AIError(.unknown) }

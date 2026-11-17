@@ -15,6 +15,38 @@ public enum SharedContract {
     public static let prompts: Prompts = load("prompts", as: Prompts.self)
     public static let ui: [String: Localized] = load("ui-strings", as: [String: Localized].self)
     public static let privacy: [String: PrivacyText] = load("privacy", as: [String: PrivacyText].self)
+    public static let costs: CostEstimates = load("cost-estimates", as: CostEstimates.self)
+}
+
+/// Measured cost of one request (blind test of 17 Nov 2026, shared/cost-estimates.json), for the (i)
+/// next to each job in Settings. Only an estimate: the real cost shows in the provider's console. The
+/// web reads the same file (web/src/settings/costEstimates.ts).
+public struct CostEstimates: Decodable, Sendable {
+    public let measured: String
+    /// Cents by model, thinking level and job.
+    let cents: [String: [String: [String: Double]]]
+
+    /// Dollars for one request with this model, level and job; nil when it was not measured.
+    public func dollars(model: String, effort: Effort?, task: AITask) -> Double? {
+        guard let effort, let c = cents[model]?[effort.rawValue]?[task.rawValue] else { return nil }
+        return c / 100
+    }
+
+    /// Whether a Gemini batch (half price) can apply to this job.
+    public static func batchApplies(_ provider: ProviderID, _ task: AITask) -> Bool {
+        provider == .gemini && (task == .translation || task == .scan)
+    }
+
+    /// A small dollar amount in the reader's language: "$0,014" (tr), "$0.014" (en).
+    public static func format(_ amount: Double, lang: Lang) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencyCode = "USD"
+        f.locale = Locale(identifier: lang.rawValue)
+        f.usesSignificantDigits = true
+        f.maximumSignificantDigits = 2
+        return f.string(from: NSNumber(value: amount)) ?? String(format: "$%.3f", amount)
+    }
 }
 
 /// The privacy text for Mac, Windows and the web (shared/privacy.json): the same words as the web

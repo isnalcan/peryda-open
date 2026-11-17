@@ -205,7 +205,8 @@ struct PageTranslationTests {
         #expect(streamer.requests.count == 2)
         let req = try #require(streamer.requests.first)
         #expect(req.provider == .gemini)
-        #expect(req.candidates.first == ModelCandidate("gemini-3.8-flash", thinking: .level("high")))
+        // Blind test of 17 Nov 2026: page translation with Gemini 4 Hydrogen at low thinking.
+        #expect(req.candidates.first == ModelCandidate("gemini-4-hydrogen", thinking: .level("low")))
         #expect(req.temperature == 0.35)
         #expect(req.system.hasPrefix("Sen okuma ve çalışma atölyesinin baş çevirmeni"))
         guard case .text(let prompt) = req.turns[0].parts[0] else { Issue.record("text"); return }
@@ -225,7 +226,7 @@ struct PageTranslationTests {
         for _ in 0..<100 where m.waitingTranslations.count < 3 { try await Task.sleep(for: .milliseconds(10)) }
         let jobs = await batcher.created
         #expect(jobs.count == 1)
-        #expect(jobs[0].model == "gemini-3.8-flash")
+        #expect(jobs[0].model == "gemini-4-hydrogen")
         #expect(jobs[0].items.map(\.key) == ids)
         #expect(streamer.requests.isEmpty)
 

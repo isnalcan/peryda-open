@@ -1,0 +1,191 @@
+{
+ "$comment": "Measured average cost of one request, in US cents, per model, thinking level and job: blind test of 17 Nov 2026 (Kant sample, list prices of that day, without batch discount). An estimate only: the real cost shows in the provider's console. Free tiers may cost nothing.",
+ "version": 1,
+ "measured": "2026-11-17",
+ "cents": {
+  "claude-haiku-5-5": {
+   "low": {
+    "thread": 0.091,
+    "area": 0.101,
+    "translation": 0.057,
+    "scan": 0.076,
+    "summary": 0.056
+   },
+   "medium": {
+    "thread": 0.11,
+    "area": 0.104,
+    "translation": 0.107,
+    "scan": 0.114,
+    "summary": 0.064
+   },
+   "high": {
+    "thread": 0.164,
+    "area": 0.166,
+    "translation": 0.14,
+    "scan": 0.121,
+    "summary": 0.07
+   }
+  },
+  "claude-sonnet-5-5": {
+   "low": {
+    "thread": 1.26,
+    "area": 1.418,
+    "translation": 1.089,
+    "scan": 1.295,
+    "summary": 0.568
+   },
+   "medium": {
+    "thread": 1.304,
+    "area": 1.426,
+    "translation": 1.134,
+    "scan": 1.303,
+    "summary": 0.581
+   },
+   "high": {
+    "thread": 1.63,
+    "area": 1.957,
+    "translation": 1.12,
+    "scan": 1.347,
+    "summary": 1.094
+   }
+  },
+  "gemini-3.5-flash-lite": {
+   "low": {
+    "thread": 0.136,
+    "area": 0.148,
+    "translation": 0.13,
+    "scan": 0.165,
+    "summary": 0.057
+   },
+   "medium": {
+    "thread": 0.321,
+    "area": 0.36,
+    "translation": 0.549,
+    "scan": 0.334,
+    "summary": 0.288
+   },
+   "high": {
+    "thread": 0.379,
+    "area": 0.353,
+    "translation": 0.65,
+    "scan": 0.65,
+    "summary": 0.305
+   }
+  },
+  "gemini-3.8-flash": {
+   "low": {
+    "thread": 0.279,
+    "area": 0.393,
+    "translation": 0.219,
+    "scan": 0.294,
+    "summary": 0.125
+   },
+   "medium": {
+    "thread": 0.44,
+    "area": 0.459,
+    "translation": 0.78,
+    "scan": 0.648,
+    "summary": 0.435
+   },
+   "high": {
+    "thread": 0.742,
+    "area": 0.912,
+    "translation": 1.038,
+    "scan": 0.831,
+    "summary": 0.587
+   }
+  },
+  "gemini-4-hydrogen": {
+   "low": {
+    "thread": 0.78,
+    "area": 1.111,
+    "translation": 1.089,
+    "scan": 1.175,
+    "summary": 0.594
+   },
+   "medium": {
+    "thread": 1.379,
+    "area": 1.319,
+    "translation": 1.631,
+    "scan": 1.708,
+    "summary": 0.916
+   },
+   "high": {
+    "thread": 1.631,
+    "area": 2.231,
+    "translation": 1.352,
+    "scan": 1.756,
+    "summary": 1.695
+   }
+  },
+  "gpt-6-luna": {
+   "low": {
+    "thread": 0.029,
+    "area": 0.037,
+    "translation": 0.028,
+    "scan": 0.05,
+    "summary": 0.01
+   },
+   "medium": {
+    "thread": 0.044,
+    "area": 0.044,
+    "translation": 0.053,
+    "scan": 0.083,
+    "summary": 0.013
+   },
+   "high": {
+    "thread": 0.051,
+    "area": 0.051,
+    "translation": 0.108,
+    "scan": 0.107,
+    "summary": 0.014
+   }
+  },
+  "gpt-6.1-sol": {
+   "low": {
+    "thread": 0.583,
+    "area": 0.798,
+    "translation": 0.603,
+    "scan": 0.913,
+    "summary": 0.182
+   },
+   "medium": {
+    "thread": 0.621,
+    "area": 0.761,
+    "translation": 0.614,
+    "scan": 0.938,
+    "summary": 0.196
+   },
+   "high": {
+    "thread": 1.079,
+    "area": 1.158,
+    "translation": 1.572,
+    "scan": 1.451,
+    "summary": 0.305
+   }
+  },
+  "gpt-6.1-terra": {
+   "low": {
+    "thread": 0.198,
+    "area": 0.33,
+    "translation": 0.293,
+    "scan": 0.442,
+    "summary": 0.076
+   },
+   "medium": {
+    "thread": 0.247,
+    "area": 0.379,
+    "translation": 0.334,
+    "scan": 0.469,
+    "summary": 0.098
+   },
+   "high": {
+    "thread": 0.361,
+    "area": 0.435,
+    "translation": 0.669,
+    "scan": 0.786,
+    "summary": 0.17
+   }
+  }
+ }
+}

@@ -114,7 +114,8 @@ struct AIClientTests {
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer \(placeholderKey)")
         let body = try #require(MockProtocol.sent.last?.body)
         #expect(body["store"] as? Bool == false)
-        #expect(body["temperature"] as? Double == 0.55)
+        // GPT-6 accepts only the default temperature (400 otherwise, measured 17 Nov 2026): none is sent.
+        #expect(body["temperature"] == nil)
         let messages = try #require(body["messages"] as? [[String: Any]])
         #expect(messages.first?["role"] as? String == "system")
         let parts = try #require(messages[1]["content"] as? [[String: Any]])
@@ -125,7 +126,7 @@ struct AIClientTests {
         reset()
         MockProtocol.queue = [(400, #"{"error":{"message":"Unsupported value: 'temperature' does not support 0.55 with this model.","code":"unsupported_value"}}"#)]
         MockProtocol.response = (200, "data: {\"choices\":[{\"delta\":{\"content\":\"Tamam\"}}]}\n\ndata: [DONE]\n\n")
-        let text = try await collect(mockClient().stream(AIRequest(provider: .openai, apiKey: placeholderKey, model: "gpt-6.1-terra", system: "", turns: turns, temperature: 0.35)))
+        let text = try await collect(mockClient().stream(AIRequest(provider: .openai, apiKey: placeholderKey, model: "gpt-4o-mini", system: "", turns: turns, temperature: 0.35)))
         #expect(text == "Tamam")
         #expect(MockProtocol.sent.count == 2)
         #expect(MockProtocol.sent[0].body["temperature"] as? Double == 0.35)
@@ -303,14 +304,15 @@ struct ComposeTests {
         let old = #"{"activeProvider":"openai","geminiApiKey":"AIzaSyExampleKey1234","geminiModel":"","openaiApiKey":"","openaiModel":""}"#
         let s = try JSONDecoder().decode(ByokSettings.self, from: Data(old.utf8))
         #expect(s.resolvedProvider == .gemini, "the chosen provider has no key: the first with one")
-        #expect(s.model(for: .gemini, task: .thread) == "gemini-3.8-flash")
-        #expect(s.model(for: .openai, task: .translation) == "gpt-6.1-terra")
+        #expect(s.model(for: .gemini, task: .thread) == "gemini-4-hydrogen")
+        #expect(s.model(for: .openai, task: .translation) == "gpt-6.1-sol")
+        #expect(s.choices.isEmpty)
         var four = ByokSettings(activeProvider: .claude, claudeApiKey: "sk-ant-placeholder-0000")
         #expect(four.resolvedProvider == .claude)
         four.setModel("claude-haiku-5-5", for: .claude, task: .thread)
         #expect(four.model(for: .claude) == "claude-haiku-5-5")
         #expect(ModelAdvice.recommended(.deepseek, .translation) == ["deepseek-flash"])
-        #expect(ModelAdvice.geminiChain(selected: "gemini-3.8-flash").map(\.model) == ["gemini-3.8-flash", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash"])
+        #expect(ModelAdvice.geminiChain(selected: "gemini-3.8-flash").map(\.model) == ["gemini-3.8-flash", "gemini-4-hydrogen", "gemini-2.5-flash", "gemini-2.5-flash"])
     }
 
     @Test func translatePromptNamesTheLanguage() {

@@ -239,6 +239,18 @@
     "de": "Zum Knoten falten",
     "es": "Plegar en un nudo"
   },
+  "comboNote": {
+    "tr": "Hesaplamalarımıza göre bu sağlayıcıda en iyi kombin aşağıda varsayılan olarak seçili. İstersen her birini değiştirebilirsin.",
+    "en": "By our measurements, the best combination for this provider is selected below by default. You can change any of them.",
+    "de": "Nach unseren Messungen ist unten die beste Kombination für diesen Anbieter voreingestellt. Du kannst jede Wahl ändern.",
+    "es": "Según nuestras mediciones, abajo está seleccionada por defecto la mejor combinación para este proveedor. Puedes cambiar cualquiera."
+  },
+  "comboNoteUntested": {
+    "tr": "DeepSeek karşılaştırma testimizde yoktu; varsayılanlar önceki önerilerimiz ve DeepSeek'in kendi düşünme ayarı.",
+    "en": "DeepSeek was not in our comparison test; the defaults are our earlier recommendations and DeepSeek's own thinking setting.",
+    "de": "DeepSeek war nicht in unserem Vergleichstest; voreingestellt sind unsere früheren Empfehlungen und DeepSeeks eigene Denkeinstellung.",
+    "es": "DeepSeek no estuvo en nuestra prueba comparativa; los valores por defecto son nuestras recomendaciones anteriores y el ajuste de razonamiento propio de DeepSeek."
+  },
   "continuePlaceholder": {
     "tr": "Bu ilmeği devam ettir…",
     "en": "Continue this thread…",
@@ -268,6 +280,48 @@
     "en": "Copy all extracted pages",
     "de": "Alle ausgelesenen Seiten kopieren",
     "es": "Copiar todas las páginas extraídas"
+  },
+  "costBatch": {
+    "tr": "İkiden fazla sayfa birlikte çevrilirse Gemini toplu işiyle yaklaşık yarısı.",
+    "en": "When more than two pages are translated together, a Gemini batch job costs about half.",
+    "de": "Werden mehr als zwei Seiten zusammen übersetzt, kostet ein Gemini-Batch-Auftrag etwa die Hälfte.",
+    "es": "Si se traducen juntas más de dos páginas, un lote de Gemini cuesta más o menos la mitad."
+  },
+  "costEstimate": {
+    "tr": "Tahmini maliyet: {unit} başına ≈ {cost}. Bu yalnızca bir tahmindir (17 Kasım 2026'daki ölçümümüz, örnek bir metinle); gerçek maliyet sağlayıcının panelinde görünür. Ücretsiz katmanda ücret çıkmayabilir.",
+    "en": "Estimated cost: about {cost} per {unit}. This is only an estimate (our measurement of 17 November 2026, with a sample text); the real cost shows in your provider's console. A free tier may cost nothing.",
+    "de": "Geschätzte Kosten: etwa {cost} pro {unit}. Das ist nur eine Schätzung (unsere Messung vom 17. November 2026 mit einem Beispieltext); die tatsächlichen Kosten siehst du in der Konsole deines Anbieters. Im kostenlosen Kontingent fallen eventuell keine Kosten an.",
+    "es": "Coste estimado: unos {cost} por {unit}. Es solo una estimación (nuestra medición del 17 de noviembre de 2026, con un texto de ejemplo); el coste real aparece en la consola de tu proveedor. En el nivel gratuito puede no costar nada."
+  },
+  "costInfo": {
+    "tr": "Tahmini maliyet",
+    "en": "Estimated cost",
+    "de": "Geschätzte Kosten",
+    "es": "Coste estimado"
+  },
+  "costUnit_page": {
+    "tr": "sayfa",
+    "en": "page",
+    "de": "Seite",
+    "es": "página"
+  },
+  "costUnit_question": {
+    "tr": "soru",
+    "en": "question",
+    "de": "Frage",
+    "es": "pregunta"
+  },
+  "costUnit_summary": {
+    "tr": "özet",
+    "en": "summary",
+    "de": "Zusammenfassung",
+    "es": "resumen"
+  },
+  "costUnknown": {
+    "tr": "Bu seçim için ölçümümüz yok. Gerçek maliyet sağlayıcının panelinde görünür.",
+    "en": "We have no measurement for this choice. The real cost shows in your provider's console.",
+    "de": "Für diese Wahl haben wir keine Messung. Die tatsächlichen Kosten siehst du in der Konsole deines Anbieters.",
+    "es": "No tenemos medición para esta elección. El coste real aparece en la consola de tu proveedor."
   },
   "deepseekKey": {
     "tr": "DeepSeek anahtarı",
@@ -328,6 +382,30 @@
     "en": "Edit details",
     "de": "Angaben bearbeiten",
     "es": "Editar datos"
+  },
+  "effortProviderDefault": {
+    "tr": "Sağlayıcının varsayılanı",
+    "en": "Provider default",
+    "de": "Standard des Anbieters",
+    "es": "Por defecto del proveedor"
+  },
+  "effort_high": {
+    "tr": "Yüksek",
+    "en": "High",
+    "de": "Hoch",
+    "es": "Alto"
+  },
+  "effort_low": {
+    "tr": "Düşük",
+    "en": "Low",
+    "de": "Niedrig",
+    "es": "Bajo"
+  },
+  "effort_medium": {
+    "tr": "Orta",
+    "en": "Medium",
+    "de": "Mittel",
+    "es": "Medio"
   },
   "errorBlocked": {
     "tr": "Sağlayıcı bu isteği yanıtlamadı.",
@@ -647,6 +725,54 @@
     "de": "Fäden",
     "es": "Hilos"
   },
+  "jobArea": {
+    "tr": "Alan ilmekleri (resim)",
+    "en": "Area threads (picture)",
+    "de": "Bereichsfäden (Bild)",
+    "es": "Hilos de área (imagen)"
+  },
+  "jobEffort": {
+    "tr": "Düşünme",
+    "en": "Thinking",
+    "de": "Denken",
+    "es": "Razonamiento"
+  },
+  "jobModel": {
+    "tr": "Model",
+    "en": "Model",
+    "de": "Modell",
+    "es": "Modelo"
+  },
+  "jobScan": {
+    "tr": "Taranmış sayfa ve metin çıkarma",
+    "en": "Scanned pages and text extraction",
+    "de": "Gescannte Seiten und Texterkennung",
+    "es": "Páginas escaneadas y extracción de texto"
+  },
+  "jobSummary": {
+    "tr": "Günlük özeti",
+    "en": "Journal summary",
+    "de": "Zusammenfassung des Journals",
+    "es": "Resumen del diario"
+  },
+  "jobThread": {
+    "tr": "İlmek soruları",
+    "en": "Thread questions",
+    "de": "Fragen in Fäden",
+    "es": "Preguntas en hilos"
+  },
+  "jobTranslation": {
+    "tr": "Sayfa çevirisi",
+    "en": "Page translation",
+    "de": "Seitenübersetzung",
+    "es": "Traducción de página"
+  },
+  "jobsTitle": {
+    "tr": "Hangi iş için hangi model",
+    "en": "Which model for which job",
+    "de": "Welches Modell für welche Aufgabe",
+    "es": "Qué modelo para cada tarea"
+  },
   "journal": {
     "tr": "Kitap Günlüğü",
     "en": "Book Journal",
@@ -834,10 +960,10 @@
     "es": "Modelo"
   },
   "modelsNote": {
-    "tr": "Tüm modelleri seçebilirsiniz; ancak özel düşünme (thinking) ve üslup ayarları önerilen modellere göre kalibre edilmiştir ve sistem en yüksek ilmek/çeviri kalitesini Gemini önerilen modelleriyle verir.",
-    "en": "You can choose any model; but the thinking and style settings are calibrated for the recommended models, and threads and translations are at their best with the recommended Gemini models.",
-    "de": "Du kannst jedes Modell wählen; die Denk- und Stileinstellungen sind aber auf die empfohlenen Modelle abgestimmt, und Fäden wie Übersetzungen gelingen mit den empfohlenen Gemini-Modellen am besten.",
-    "es": "Puedes elegir cualquier modelo; pero los ajustes de razonamiento y estilo están calibrados para los modelos recomendados, y los hilos y las traducciones salen mejor con los modelos recomendados de Gemini."
+    "tr": "Tüm modelleri seçebilirsin. Önerilen modeller ve düşünme seviyeleri, 17 Kasım 2026'da yaptığımız kör karşılaştırma testinden seçildi: her iş için en iyi kalite, kaliteleri denk olanlar arasında en hızlı ve en ucuz olan.",
+    "en": "You can choose any model. The recommended models and thinking levels come from our blind comparison test of 17 November 2026: the best quality for each job and, among answers of equal quality, the fastest and cheapest.",
+    "de": "Du kannst jedes Modell wählen. Die empfohlenen Modelle und Denkstufen stammen aus unserem blinden Vergleichstest vom 17. November 2026: die beste Qualität für jede Aufgabe und, bei gleich guten Antworten, die schnellste und günstigste.",
+    "es": "Puedes elegir cualquier modelo. Los modelos y niveles de razonamiento recomendados salen de nuestra prueba comparativa a ciegas del 17 de noviembre de 2026: la mejor calidad para cada tarea y, entre respuestas de igual calidad, la más rápida y barata."
   },
   "myNote": {
     "tr": "Notum",
@@ -1126,6 +1252,12 @@
     "en": "Remove key",
     "de": "Schlüssel entfernen",
     "es": "Quitar la clave"
+  },
+  "resetRecommended": {
+    "tr": "Önerilenlere dön",
+    "en": "Back to recommended",
+    "de": "Zurück zu den Empfehlungen",
+    "es": "Volver a lo recomendado"
   },
   "resizeCard": {
     "tr": "Boyutlandır (çift tıkla: kendi boyutu)",
@@ -1552,6 +1684,12 @@
     "en": "This build does not update itself (development build).",
     "de": "Diese Version aktualisiert sich nicht selbst (Entwicklungsversion).",
     "es": "Esta versión no se actualiza sola (versión de desarrollo)."
+  },
+  "usingRecommended": {
+    "tr": "Önerilen kombin kullanılıyor",
+    "en": "Using the recommended combination",
+    "de": "Empfohlene Kombination aktiv",
+    "es": "Usando la combinación recomendada"
   },
   "versionIs": {
     "tr": "Sürüm {v}",

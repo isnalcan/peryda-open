@@ -26,19 +26,23 @@ public struct AIRequest: Sendable {
     public var maxOutputTokens: Int?
     /// The wanted temperature; left out for models that refuse or are better without one.
     public var temperature: Double?
+    /// How hard the model thinks (the job's level). Gemini carries it in its candidates; OpenAI and
+    /// DeepSeek get `reasoning_effort`, Claude `output_config.effort`. Nil: the provider's default.
+    public var effort: Effort?
     /// The model to use first, then fallbacks (Gemini) if a model is not available.
     public var candidates: [ModelCandidate]
 
     public var model: String { candidates.first?.model ?? "" }
 
-    public init(provider: ProviderID, apiKey: String, model: String, system: String, turns: [AITurn], maxOutputTokens: Int? = nil, temperature: Double? = nil, candidates: [ModelCandidate]? = nil) {
+    public init(provider: ProviderID, apiKey: String, model: String, system: String, turns: [AITurn], maxOutputTokens: Int? = nil, temperature: Double? = nil, effort: Effort? = nil, candidates: [ModelCandidate]? = nil) {
         self.provider = provider
+        self.effort = effort
         self.apiKey = apiKey
         self.system = system
         self.turns = turns
         self.maxOutputTokens = maxOutputTokens
         self.temperature = temperature
-        self.candidates = candidates ?? [ModelCandidate(model, thinking: provider == .gemini ? .forModel(model) : .none)]
+        self.candidates = candidates ?? [ModelCandidate(model, thinking: provider == .gemini ? .forModel(model, effort: effort ?? .high) : .none)]
     }
 }
 
@@ -216,6 +220,7 @@ public final class AIClient: Sendable {
     func urlRequest(for req: AIRequest, candidate: ModelCandidate, temperature: Double?) throws -> URLRequest {
         let model = candidate.model
         let temp = temperature.flatMap { ModelAdvice.acceptsTemperature(req.provider, model) ? $0 : nil }
+        let effort = req.effort.flatMap { ModelAdvice.acceptsEffort(req.provider, model) ? $0 : nil }
         var r: URLRequest
         let body: [String: Any]
         switch req.provider {
@@ -230,12 +235,15 @@ public final class AIClient: Sendable {
             var b = Self.chatBody(model: model, system: req.system, turns: req.turns, maxOutputTokens: req.maxOutputTokens, temperature: temp)
             // OpenAI is asked not to keep the conversation; it stays on the Mac.
             if req.provider == .openai { b["store"] = false }
+            if let effort { b["reasoning_effort"] = effort.rawValue }
             body = b
         case .claude:
             r = URLRequest(url: URL(string: "\(Self.claudeBase)/messages")!)
             r.setValue(req.apiKey, forHTTPHeaderField: "x-api-key")
             r.setValue(Self.claudeVersion, forHTTPHeaderField: "anthropic-version")
-            body = Self.claudeBody(model: model, system: req.system, turns: req.turns, maxOutputTokens: req.maxOutputTokens, temperature: temp)
+            var b = Self.claudeBody(model: model, system: req.system, turns: req.turns, maxOutputTokens: req.maxOutputTokens, temperature: temp)
+            if let effort { b["output_config"] = ["effort": effort.rawValue] }
+            body = b
         }
         r.httpMethod = "POST"
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -156,7 +156,7 @@ struct SharedVectorsTests {
     }
 
     @Test func bundledResourcesMatchShared() throws {
-        for name in ["tokens.json", "yarn-kinds.json", "prompts.json", "ui-strings.json", "privacy.json"] {
+        for name in ["tokens.json", "yarn-kinds.json", "prompts.json", "ui-strings.json", "privacy.json", "cost-estimates.json"] {
             let shared = try Data(contentsOf: Vectors.sharedDir.appendingPathComponent(name))
             let bundled = try Data(contentsOf: #require(Bundle.module.url(forResource: name.replacingOccurrences(of: ".json", with: ""), withExtension: "json", subdirectory: "shared")))
             #expect(shared == bundled, "\(name) drifted; run mac/scripts/sync-shared.sh")

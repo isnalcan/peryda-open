@@ -172,18 +172,19 @@ public final class PageReadings {
     // MARK: Direct reading
 
     private func request(_ page: Int, image: String, provider: ProviderID, lang: Lang) -> AIRequest {
-        var model = settings.model(for: provider, task: .translation)
-        // DeepSeek's reasoning model takes no pictures.
-        if provider == .deepseek { model = "deepseek-flash" }
+        // Reading a page from its picture is the "scan" job (DeepSeek's pictures go to deepseek-flash).
+        let model = settings.model(for: provider, task: .scan)
+        let effort = settings.effort(for: provider, task: .scan, model: model)
         return AIRequest(
             provider: provider,
             apiKey: settings.key(for: provider),
             model: model,
             system: Compose.pageTranscriptionSystem(lang),
             turns: Compose.pageTranscriptionTurns(lang, file: bookTitle, page: page, pages: pageCount, imageDataURL: image),
-            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .translation),
-            temperature: ModelAdvice.temperature(.translation),
-            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil
+            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .scan),
+            temperature: ModelAdvice.temperature(.scan),
+            effort: effort,
+            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model, effort: effort ?? .high) : nil
         )
     }
 
@@ -248,7 +249,7 @@ public final class PageReadings {
 
     private func submitBatch(_ pages: [Int], lang: Lang) {
         let key = settings.key(for: .gemini)
-        let model = settings.model(for: .gemini, task: .translation)
+        let model = settings.model(for: .gemini, task: .scan)
         batchCalls += 1
         let call = batchCalls
         for p in pages { batchBound[p] = call }
@@ -293,10 +294,11 @@ public final class PageReadings {
     private func submitGroup(_ items: [GeminiBatch.Item], key: String, model: String, generation: Int, call: Int) {
         guard !items.isEmpty else { return }
         let pages = items.compactMap { Int($0.key) }
+        let effort = settings.effort(for: .gemini, task: .scan, model: model)
         let batcher = batcher
         Task { [weak self] in
             do {
-                let name = try await batcher.create(apiKey: key, model: model, items: items)
+                let name = try await batcher.create(apiKey: key, model: model, items: items, effort: effort)
                 guard let self else {
                     await batcher.abandon(apiKey: key, name: name)
                     return

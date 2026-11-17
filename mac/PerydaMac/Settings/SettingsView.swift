@@ -202,8 +202,7 @@ struct ProviderSection: View {
             SecureField(placeholder, text: keyBinding)
                 .textContentType(.password)
             if ByokSettings.hasUsableKey(settings.chosenKey(provider)) {
-                ModelPicker(title: t["threadModel"], provider: provider, task: .thread, settings: $settings, loaded: models, t: t)
-                ModelPicker(title: t["translationModel"], provider: provider, task: .translation, settings: $settings, loaded: models, t: t)
+                JobTable(provider: provider, settings: $settings, loaded: models, t: t)
                 HStack {
                     Spacer()
                     if loading { ProgressView().controlSize(.small) }
@@ -243,23 +242,101 @@ struct ProviderSection: View {
     }
 }
 
-/// A model menu: recommended models first with their badge, then the rest the key can use.
-struct ModelPicker: View {
-    let title: String
+/// Which model for which job (owner, 17 Nov 2026): the recommended combination from the blind test is
+/// chosen by default and marked; the reader may change any job or go back to the recommended ones.
+/// Same table as the web (web/src/settings/SettingsDialog.tsx, JobTable).
+struct JobTable: View {
     let provider: ProviderID
-    let task: AITask
     @Binding var settings: ByokSettings
     let loaded: [String]
     let t: UIText
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(t["jobsTitle"]).font(.callout.weight(.semibold))
+                Spacer()
+                if settings.usesRecommended(provider) {
+                    RecommendedBadge(text: t["usingRecommended"])
+                } else {
+                    Button(t["resetRecommended"]) { settings.useRecommended(for: provider) }
+                        .buttonStyle(.link)
+                }
+            }
+            Text(provider == .deepseek ? t["comboNoteUntested"] : t["comboNote"])
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
+                GridRow {
+                    Text("")
+                    Text(t["jobModel"].uppercased()).font(.caption2).foregroundStyle(.secondary)
+                    Text(t["jobEffort"].uppercased()).font(.caption2).foregroundStyle(.secondary)
+                }
+                ForEach(AITask.allCases, id: \.self) { task in
+                    JobRow(provider: provider, task: task, settings: $settings, loaded: loaded, t: t)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    static func label(_ task: AITask) -> String {
+        switch task {
+        case .thread: "jobThread"
+        case .area: "jobArea"
+        case .translation: "jobTranslation"
+        case .scan: "jobScan"
+        case .summary: "jobSummary"
+        }
+    }
+}
+
+struct RecommendedBadge: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(Color.peryda.opacity(0.14)))
+            .foregroundStyle(Color.peryda)
+    }
+}
+
+/// One job: its model and thinking level, with an (i) that shows the estimated cost of one request.
+struct JobRow: View {
+    let provider: ProviderID
+    let task: AITask
+    @Binding var settings: ByokSettings
+    let loaded: [String]
+    let t: UIText
+    @State private var costOpen = false
+
+    var body: some View {
         let recommended = ModelAdvice.recommended(provider, task)
         let current = settings.model(for: provider, task: task)
         let others = Array(Set(loaded + [current])).filter { !recommended.contains($0) }.sorted()
-        HStack {
-            Picker(title, selection: Binding(get: { current }, set: { settings.setModel($0, for: provider, task: task) })) {
+        let recommendedEffort = ModelAdvice.recommendedEffort(provider, task)
+        let takesEffort = ModelAdvice.acceptsEffort(provider, current)
+        let label = t[JobTable.label(task)]
+        GridRow {
+            HStack(spacing: 4) {
+                Button { costOpen.toggle() } label: {
+                    Image(systemName: costOpen ? "info.circle.fill" : "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(costOpen ? Color.peryda : Color.secondary)
+                .help(t["costInfo"])
+                .accessibilityLabel("\(label): \(t["costInfo"])")
+                Text(label).fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(width: 128, alignment: .leading)
+            Picker(label, selection: Binding(get: { current }, set: { settings.setModel($0 == recommended[0] ? "" : $0, for: provider, task: task) })) {
                 Section(t["recommended"]) {
-                    ForEach(recommended, id: \.self) { m in Text(m).tag(m) }
+                    ForEach(Array(recommended.enumerated()), id: \.element) { i, m in
+                        Text(i == 0 ? "\(m) · \(t["recommended"])" : m).tag(m)
+                    }
                 }
                 if !others.isEmpty {
                     Section(t["otherModels"]) {
@@ -267,15 +344,47 @@ struct ModelPicker: View {
                     }
                 }
             }
-            if ModelAdvice.isRecommended(current, provider, task) {
-                Text(t["recommended"])
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color.peryda.opacity(0.14)))
-                    .foregroundStyle(Color.peryda)
+            .labelsHidden()
+            .frame(maxWidth: .infinity)
+            .accessibilityLabel("\(label): \(t["jobModel"])")
+            Picker(t["jobEffort"], selection: Binding(
+                get: { takesEffort ? settings.chosenEffort(for: provider, task: task) : nil },
+                set: { settings.setEffort($0, for: provider, task: task) }
+            )) {
+                Text(recommendedEffort.map { "\(t["effort_\($0.rawValue)"]) · \(t["recommended"])" } ?? t["effortProviderDefault"]).tag(Effort?.none)
+                ForEach(Effort.allCases.filter { $0 != recommendedEffort }, id: \.self) { e in
+                    Text(t["effort_\(e.rawValue)"]).tag(Effort?.some(e))
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
+            .disabled(!takesEffort)
+            .accessibilityLabel("\(label): \(t["jobEffort"])")
+        }
+        if costOpen {
+            GridRow {
+                Text(costText(model: current))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+                    .gridCellColumns(3)
             }
         }
+    }
+
+    /// The estimated cost of one request with the chosen model and level (owner, 17 Nov 2026), always
+    /// marked as an estimate whose real figure shows in the provider's console.
+    func costText(model current: String) -> String {
+        guard let dollars = SharedContract.costs.dollars(model: current, effort: settings.effort(for: provider, task: task, model: current), task: task) else {
+            return t["costUnknown"]
+        }
+        let unit = task.isTranslationLike ? t["costUnit_page"] : task == .summary ? t["costUnit_summary"] : t["costUnit_question"]
+        var text = t("costEstimate", ["cost": CostEstimates.format(dollars, lang: t.lang), "unit": unit])
+        if CostEstimates.batchApplies(provider, task) { text += " " + t["costBatch"] }
+        return text
     }
 }
 

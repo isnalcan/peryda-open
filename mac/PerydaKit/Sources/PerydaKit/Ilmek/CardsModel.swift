@@ -378,18 +378,21 @@ public final class CardsModel {
     private func translationRequest(_ card: YarnCard, provider: ProviderID, image: String?) -> AIRequest {
         let anchor = card.anchors.first
         let target = Lang(rawValue: card.translationLanguage ?? "") ?? lang
-        var model = settings.model(for: provider, task: .translation)
-        // DeepSeek's reasoning model takes no pictures; scanned pages always go to deepseek-flash.
-        if provider == .deepseek, image != nil { model = "deepseek-flash" }
+        // A page without a text layer goes as a picture: the "scan" job's model and level (DeepSeek's
+        // pictures go to deepseek-flash).
+        let task: AITask = image != nil ? .scan : .translation
+        let model = settings.model(for: provider, task: task)
+        let effort = settings.effort(for: provider, task: task, model: model)
         return AIRequest(
             provider: provider,
             apiKey: settings.key(for: provider),
             model: model,
             system: Compose.pageTranslationSystem(target: target, explainTerms: explainTerms),
             turns: Compose.pageTranslationTurns(target: target, file: bookTitle, page: card.translatedPage ?? anchor?.pageNumber ?? 1, pages: pageCount, text: anchor?.selectedText ?? "", imageDataURL: image, explainTerms: explainTerms),
-            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .translation),
-            temperature: ModelAdvice.temperature(.translation),
-            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil
+            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, task),
+            temperature: ModelAdvice.temperature(task),
+            effort: effort,
+            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model, effort: effort ?? .high) : nil
         )
     }
 
@@ -445,12 +448,13 @@ public final class CardsModel {
     private func submitGroup(_ items: [GeminiBatch.Item], key: String, model: String) {
         guard !items.isEmpty else { return }
         let ids = items.map(\.key)
+        let effort = settings.effort(for: .gemini, task: .translation, model: model)
         let batcher = batcher
         let token = UUID()
         for id in ids { submissions[id] = token }
         Task { [weak self] in
             do {
-                let name = try await batcher.create(apiKey: key, model: model, items: items)
+                let name = try await batcher.create(apiKey: key, model: model, items: items, effort: effort)
                 guard let self else {
                     // The book was closed (or deleted) while the job was being made.
                     await batcher.abandon(apiKey: key, name: name)
@@ -725,16 +729,20 @@ public final class CardsModel {
             return
         }
         let pages = card.anchors.filter { $0.sourceType != .card }.map(\.pageNumber)
-        let model = settings.model(for: provider, task: .thread)
+        // A thread on an area of a page carries its picture: the "area" job's model and level.
+        let task: AITask = card.anchors.contains { $0.sourceType == .pdfArea && !($0.croppedImage ?? "").isEmpty } ? .area : .thread
+        let model = settings.model(for: provider, task: task)
+        let effort = settings.effort(for: provider, task: task, model: model)
         let request = AIRequest(
             provider: provider,
             apiKey: settings.key(for: provider),
             model: model,
             system: Compose.systemPrompt(lang, bookTitle: bookTitle, pages: pages),
             turns: Compose.turns(lang, card: card),
-            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, .thread),
-            temperature: ModelAdvice.temperature(.thread),
-            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model) : nil
+            maxOutputTokens: ModelAdvice.maxOutputTokens(provider, task),
+            temperature: ModelAdvice.temperature(task),
+            effort: effort,
+            candidates: provider == .gemini ? ModelAdvice.geminiChain(selected: model, effort: effort ?? .high) : nil
         )
         stream(cardId, answer, request)
     }
