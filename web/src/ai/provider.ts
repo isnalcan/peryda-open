@@ -78,6 +78,10 @@ export const ModelAdvice = {
         return ModelAdvice.sendTemperatureToGemini3 || !model.startsWith('gemini-3')
       case 'claude':
         return /^claude-(3|(opus|sonnet|haiku)-4-[0-6]\b|(opus|sonnet|haiku)-4-[0-6]-)/.test(model)
+      case 'openai':
+        // OpenAI's reasoning models (o-series, GPT-5 and later, GPT-6) accept only the default (1) and
+        // answer any other value with a 400; older chat models such as gpt-4o still take one.
+        return !/^(o\d|gpt-[5-9]|gpt-\d{2,})/.test(model)
       default:
         return true
     }

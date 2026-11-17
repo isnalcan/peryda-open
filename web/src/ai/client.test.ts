@@ -87,7 +87,8 @@ describe('OpenAI and DeepSeek (Chat Completions)', () => {
     const sent = JSON.parse(String(init!.body))
     expect(sent.store).toBe(false)
     expect(sent.stream).toBe(true)
-    expect(sent.temperature).toBe(0.55)
+    // GPT-6 accepts only the default temperature (400 otherwise, measured 17 Nov 2026): none is sent.
+    expect(sent.temperature).toBeUndefined()
     expect(sent.max_completion_tokens).toBe(900)
     expect(sent.messages[0]).toEqual({ role: 'system', content: 'Be brief.' })
     expect(sent.messages[1].content[1]).toEqual({ type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } })
@@ -113,7 +114,7 @@ describe('OpenAI and DeepSeek (Chat Completions)', () => {
         : new Response(sseStream(['data: {"choices":[{"delta":{"content":"ok"}}]}\n\n']), { status: 200 }),
     )
     vi.stubGlobal('fetch', fetchFn)
-    expect(await collect(streamAnswer({ ...base, provider: 'openai', model: 'o9', temperature: 0.55 }))).toBe('ok')
+    expect(await collect(streamAnswer({ ...base, provider: 'openai', model: 'gpt-4o-mini', temperature: 0.55 }))).toBe('ok')
     expect(JSON.parse(String(fetchFn.mock.calls[0]![1]!.body)).temperature).toBe(0.55)
     expect(JSON.parse(String(fetchFn.mock.calls[1]![1]!.body)).temperature).toBeUndefined()
   })
@@ -218,5 +219,12 @@ describe('errors', () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch') }))
     const error = await collect(streamAnswer({ ...base, provider: 'openai', model: 'm' })).catch((e) => e)
     expect(error.kind).toBe('browser')
+  })
+})
+
+describe('OpenAI temperature', () => {
+  it('sends none to reasoning models and keeps it for older chat models', () => {
+    for (const m of ['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6-astra', 'gpt-5.5', 'o3', 'o9']) expect(ModelAdvice.acceptsTemperature('openai', m), m).toBe(false)
+    for (const m of ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1']) expect(ModelAdvice.acceptsTemperature('openai', m), m).toBe(true)
   })
 })
