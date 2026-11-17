@@ -331,7 +331,7 @@ struct JobRow: View {
                 .accessibilityLabel("\(label): \(t["costInfo"])")
                 Text(label).fixedSize(horizontal: false, vertical: true)
             }
-            .frame(width: 128, alignment: .leading)
+            .frame(width: 116, alignment: .leading)
             Picker(label, selection: Binding(get: { current }, set: { settings.setModel($0 == recommended[0] ? "" : $0, for: provider, task: task) })) {
                 Section(t["recommended"]) {
                     ForEach(Array(recommended.enumerated()), id: \.element) { i, m in

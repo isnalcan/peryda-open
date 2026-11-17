@@ -1,3 +1,4 @@
+import { centeredContext } from '../ai/centeredContext'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EpubCFI, type Contents, type Rendition } from 'epubjs'
 import tokens from '@shared/tokens.json'
@@ -127,8 +128,8 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
             lineRects: [],
             boundingRect: EMPTY_RECT,
             cfi: cfiRange,
-            // The chapter's opening travels with the selection as its context.
-            context: (contents.document.body?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, CONTEXT_LENGTH) || undefined,
+            // The chapter's text around the selection travels with it as its context.
+            context: centeredContext(contents.document.body?.textContent ?? '', text),
           }
           setPending({
             anchors: [anchor],

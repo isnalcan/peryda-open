@@ -39,8 +39,8 @@ final class JobTableTests: XCTestCase {
         let app = AppModel(store: store, settings: ByokSettings(), lang: .tr)
         var settings = ByokSettings(geminiApiKey: "AIza-placeholder-not-a-key-0000")
         let binding = Binding(get: { settings }, set: { settings = $0 })
-        let host = NSHostingView(rootView: Form { ProviderSection(provider: .gemini, settings: binding) }.formStyle(.grouped).environment(app).frame(width: 560, height: 520))
-        let window = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 560, height: 520), styleMask: [.borderless], backing: .buffered, defer: false)
+        let host = NSHostingView(rootView: Form { ProviderSection(provider: .gemini, settings: binding) }.formStyle(.grouped).environment(app).frame(width: 600, height: 520))
+        let window = OffscreenKeyWindow(contentRect: CGRect(x: -10_000, y: -10_000, width: 600, height: 520), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = host
         window.orderFrontRegardless()
         defer { window.orderOut(nil) }

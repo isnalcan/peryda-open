@@ -1053,7 +1053,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   /** Creates a thread once its passages carry the text around them; then brings it forward. */
   const createWith = async (input: Parameters<typeof create>[0]) => {
     const anchors = await Promise.all(
-      input.anchors.map(async (a) => (a.sourceType === 'card' || a.context ? a : { ...a, context: await pageTexts.context(a.pageNumber) })),
+      input.anchors.map(async (a) => (a.sourceType === 'card' || a.context ? a : { ...a, context: await pageTexts.context(a.pageNumber, a.selectedText) })),
     )
     const card = create({ ...input, anchors })
     setFocusedCard(card.id)

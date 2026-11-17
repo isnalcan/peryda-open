@@ -416,10 +416,14 @@ final class ReaderModel {
         readings?.apply(outcome, of: job, code: code)
     }
 
-    /// Text that surrounds a selection on a page: the start of the page's text.
-    func pageContext(_ number: Int) -> String? {
+    /// Text that surrounds a selection on a page: about `YarnAnchor.contextLength` characters centred
+    /// on it, reaching into the neighbouring page at an edge; without a selection, the page's start.
+    func pageContext(_ number: Int, selected: String = "") -> String? {
         guard let text = document?.page(at: number - 1)?.readingText.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
-        return String(text.prefix(YarnAnchor.contextLength))
+        if selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return String(text.prefix(YarnAnchor.contextLength)) }
+        let before = number > 1 ? document?.page(at: number - 2)?.readingText ?? "" : ""
+        let after = document?.page(at: number)?.readingText ?? ""
+        return CenteredContext.make(page: text, selected: selected, before: before, after: after)
     }
 
     /// What a thread opened inside a card is read with: the card's answer (or note, or translation).

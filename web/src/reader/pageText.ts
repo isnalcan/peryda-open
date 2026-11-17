@@ -1,3 +1,4 @@
+import { centeredContext } from '../ai/centeredContext'
 import type { PDFDocumentProxy, PDFPageProxy } from '../pdf/pdfjs'
 import { CONTEXT_LENGTH } from '../ai/compose'
 import type { PageSource } from '../ilmek/cardsStore'
@@ -168,9 +169,18 @@ export class PageTextCache {
     return entry
   }
 
-  /** Text that surrounds a selection on a page: the start of the page's text. */
-  async context(number: number): Promise<string | undefined> {
-    const text = (await this.text(number)).replace(/\s+/g, ' ').trim()
-    return text ? text.slice(0, CONTEXT_LENGTH) : undefined
+  /**
+   * Text that surrounds a selection on a page: about CONTEXT_LENGTH characters centred on it, reaching
+   * into the neighbouring page at an edge; without a selection, the start of the page's text.
+   */
+  async context(number: number, selected = ''): Promise<string | undefined> {
+    const page = await this.text(number)
+    if (!selected.trim()) {
+      const text = page.replace(/\s+/g, ' ').trim()
+      return text ? text.slice(0, CONTEXT_LENGTH) : undefined
+    }
+    const before = number > 1 ? await this.text(number - 1) : ''
+    const after = number < this.doc.numPages ? await this.text(number + 1) : ''
+    return centeredContext(page, selected, before, after)
   }
 }

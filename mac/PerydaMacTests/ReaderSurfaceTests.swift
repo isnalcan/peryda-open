@@ -81,9 +81,9 @@ final class ReaderSurfaceTests: XCTestCase {
         XCTAssertGreaterThan(anchor.boundingRect.width, 0.2)
         XCTAssertLessThan(anchor.boundingRect.height, 0.05)
         XCTAssertTrue((0...1).contains(anchor.boundingRect.y))
-        // Sent with it: the start of the page's text, at most 1200 characters.
+        // Sent with it: the text around the selection, at most 1200 characters (owner, 17 Nov 2026).
         let context = try XCTUnwrap(anchor.context)
-        XCTAssertTrue(context.hasPrefix("YAVAŞ OKUMANIN SANATI"), context)
+        XCTAssertTrue(context.contains("Kavramlar, birbirlerinden"), context)
         XCTAssertLessThanOrEqual(context.count, YarnAnchor.contextLength)
     }
 

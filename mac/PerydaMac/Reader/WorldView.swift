@@ -598,7 +598,7 @@ final class WorldView: NSView {
                 lineRects: [n],
                 boundingRect: n,
                 croppedImage: view.geometry.croppedPNG(n),
-                context: model.pageContext(view.number)
+                context: model.pageContext(view.number, selected: view.geometry.text(in: n))
             )
             model.pending = PendingSelection(anchors: [anchor], rect: convert(rect, from: view))
             return
@@ -651,7 +651,7 @@ final class WorldView: NSView {
             let pieces = pageLines.map { SelectionText.Piece(text: $0.string ?? "", bounds: $0.bounds(for: page)) }
             let text = SelectionText.join(pieces, inLine: .space, lineBreak: " ").replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !rects.isEmpty, !text.isEmpty else { continue }
-            out.append(YarnAnchor(sourceType: .pdfText, bookId: model.book.id, pageNumber: index + 1, selectedText: text, lineRects: rects, boundingRect: Geometry.union(rects), context: model.pageContext(index + 1)))
+            out.append(YarnAnchor(sourceType: .pdfText, bookId: model.book.id, pageNumber: index + 1, selectedText: text, lineRects: rects, boundingRect: Geometry.union(rects), context: model.pageContext(index + 1, selected: text)))
         }
         return out
     }

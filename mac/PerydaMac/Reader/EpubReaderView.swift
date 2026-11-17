@@ -358,7 +358,7 @@ struct EpubWebView: NSViewRepresentable {
         const start = offsetIn(sec, range.startContainer, range.startOffset);
         const end = sectionOf(range.endContainer) === sec ? offsetIn(sec, range.endContainer, range.endOffset) : sec.textContent.length;
         const r = range.getBoundingClientRect();
-        post({ type: 'selection', text: sel.toString(), chapter: +sec.dataset.chapter, start, end, context: sec.textContent.trim().slice(0, 1200), rect: { x: r.left, y: r.top, w: r.width, h: r.height } });
+        post({ type: 'selection', text: sel.toString(), chapter: +sec.dataset.chapter, start, end, context: (() => { const t = sec.textContent; const side = Math.max(0, Math.floor((1200 - (end - start)) / 2)); let a = Math.max(0, start - side), b = Math.min(t.length, end + side); if (a === 0) b = Math.min(t.length, Math.max(b, 1200)); if (b === t.length) a = Math.max(0, Math.min(a, t.length - 1200)); return t.slice(a, b).replace(/\s+/g, ' ').trim(); })(), rect: { x: r.left, y: r.top, w: r.width, h: r.height } });
       }, 0));
       document.addEventListener('mousedown', (e) => { if (!e.target.closest('mark.peryda-mark')) post({ type: 'clear' }); });
       document.addEventListener('click', (e) => { const m = e.target.closest('mark.peryda-mark'); if (m) post({ type: 'mark', cardId: m.dataset.card }); });
