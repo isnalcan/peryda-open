@@ -2766,6 +2766,23 @@ p.extract-status {
   letter-spacing: 0.04em;
 }
 
+.job-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.job-cost {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--paper-soft, color-mix(in srgb, var(--ink) 5%, transparent));
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
 .job-row select {
   min-width: 0;
   width: 100%;

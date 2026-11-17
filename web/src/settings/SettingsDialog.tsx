@@ -9,6 +9,7 @@ import {
   PROVIDERS,
   chosenEffort,
   chosenKey,
+  effortFor,
   hasUsableKey,
   keyFor,
   modelFor,
@@ -27,6 +28,7 @@ import {
 import { maskKey } from '../data/keyVault'
 import { CloseIcon, InfoIcon, KeyIcon } from '../ui/icons'
 import { KEY_PAGES, keyHelpText, openKeyPageInShell } from './keyPages'
+import { batchApplies, estimatedDollars, formatDollars } from './costEstimates'
 import { privacyFor } from './privacy'
 import { inDesktopApp, type DesktopUpdates } from '../updates/desktopUpdates'
 import { UpdateSection } from '../updates/UpdateViews'
@@ -71,9 +73,15 @@ function effortLabel(t: Strings, effort: Effort): string {
  * default and marked; the reader may pick others. Choosing the recommended model again stores nothing,
  * so a later recommendation reaches the reader.
  */
+/** What one request of a job is counted in: a question, a page or a summary. */
+function costUnit(t: Strings, task: AiTask): string {
+  return task === 'translation' || task === 'scan' ? t.costUnit_page : task === 'summary' ? t.costUnit_summary : t.costUnit_question
+}
+
 function JobRow(props: { provider: ProviderId; task: AiTask; settings: ByokSettings; loaded: string[]; onChange: (s: ByokSettings) => void }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const id = useId()
+  const [costOpen, setCostOpen] = useState(false)
   const recommended = ModelAdvice.recommended(props.provider, props.task)
   const current = modelFor(props.settings, props.provider, props.task)
   const others = [...new Set([...props.loaded, current])].filter((m) => !recommended.includes(m)).sort()
@@ -81,9 +89,22 @@ function JobRow(props: { provider: ProviderId; task: AiTask; settings: ByokSetti
   const effort = chosenEffort(props.settings, props.provider, props.task)
   const takesEffort = ModelAdvice.acceptsEffort(props.provider, current)
   const label = jobLabel(t, props.task)
+  const dollars = estimatedDollars(current, effortFor(props.settings, props.provider, props.task, current), props.task)
   return (
     <div className="job-row" role="group" aria-labelledby={`${id}-label`}>
       <span className="job-label" id={`${id}-label`}>
+        {/* The estimated cost of one request (owner, 17 Nov 2026). */}
+        <button
+          type="button"
+          className="key-help-toggle"
+          aria-expanded={costOpen}
+          aria-controls={`${id}-cost`}
+          aria-label={`${label}: ${t.costInfo}`}
+          title={t.costInfo}
+          onClick={() => setCostOpen(!costOpen)}
+        >
+          <InfoIcon size={14} />
+        </button>
         {label}
       </span>
       <select
@@ -121,6 +142,12 @@ function JobRow(props: { provider: ProviderId; task: AiTask; settings: ByokSetti
           </option>
         ))}
       </select>
+      {costOpen && (
+        <p className="job-cost" id={`${id}-cost`}>
+          {dollars !== null ? t.costEstimate(formatDollars(dollars, lang), costUnit(t, props.task)) : t.costUnknown}
+          {dollars !== null && batchApplies(props.provider, props.task) && ` ${t.costBatch}`}
+        </p>
+      )}
     </div>
   )
 }

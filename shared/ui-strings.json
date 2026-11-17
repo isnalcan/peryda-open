@@ -281,6 +281,48 @@
     "de": "Alle ausgelesenen Seiten kopieren",
     "es": "Copiar todas las páginas extraídas"
   },
+  "costBatch": {
+    "tr": "İkiden fazla sayfa birlikte çevrilirse Gemini toplu işiyle yaklaşık yarısı.",
+    "en": "When more than two pages are translated together, a Gemini batch job costs about half.",
+    "de": "Werden mehr als zwei Seiten zusammen übersetzt, kostet ein Gemini-Batch-Auftrag etwa die Hälfte.",
+    "es": "Si se traducen juntas más de dos páginas, un lote de Gemini cuesta más o menos la mitad."
+  },
+  "costEstimate": {
+    "tr": "Tahmini maliyet: {unit} başına ≈ {cost}. Bu yalnızca bir tahmindir (17 Kasım 2026'daki ölçümümüz, örnek bir metinle); gerçek maliyet sağlayıcının panelinde görünür. Ücretsiz katmanda ücret çıkmayabilir.",
+    "en": "Estimated cost: about {cost} per {unit}. This is only an estimate (our measurement of 17 November 2026, with a sample text); the real cost shows in your provider's console. A free tier may cost nothing.",
+    "de": "Geschätzte Kosten: etwa {cost} pro {unit}. Das ist nur eine Schätzung (unsere Messung vom 17. November 2026 mit einem Beispieltext); die tatsächlichen Kosten siehst du in der Konsole deines Anbieters. Im kostenlosen Kontingent fallen eventuell keine Kosten an.",
+    "es": "Coste estimado: unos {cost} por {unit}. Es solo una estimación (nuestra medición del 17 de noviembre de 2026, con un texto de ejemplo); el coste real aparece en la consola de tu proveedor. En el nivel gratuito puede no costar nada."
+  },
+  "costInfo": {
+    "tr": "Tahmini maliyet",
+    "en": "Estimated cost",
+    "de": "Geschätzte Kosten",
+    "es": "Coste estimado"
+  },
+  "costUnit_page": {
+    "tr": "sayfa",
+    "en": "page",
+    "de": "Seite",
+    "es": "página"
+  },
+  "costUnit_question": {
+    "tr": "soru",
+    "en": "question",
+    "de": "Frage",
+    "es": "pregunta"
+  },
+  "costUnit_summary": {
+    "tr": "özet",
+    "en": "summary",
+    "de": "Zusammenfassung",
+    "es": "resumen"
+  },
+  "costUnknown": {
+    "tr": "Bu seçim için ölçümümüz yok. Gerçek maliyet sağlayıcının panelinde görünür.",
+    "en": "We have no measurement for this choice. The real cost shows in your provider's console.",
+    "de": "Für diese Wahl haben wir keine Messung. Die tatsächlichen Kosten siehst du in der Konsole deines Anbieters.",
+    "es": "No tenemos medición para esta elección. El coste real aparece en la consola de tu proveedor."
+  },
   "deepseekKey": {
     "tr": "DeepSeek anahtarı",
     "en": "DeepSeek key",
