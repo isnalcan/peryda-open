@@ -77,6 +77,20 @@ final class OwnerRound4Tests: XCTestCase {
         try snapshot(view, "peryda-mac-card-no-quote.png")
     }
 
+    // Owner, 20 Nov: the reader's follow-up shows as a chat bubble, not as plain bold text.
+    func testAFollowUpShowsAsTheReadersBubble() async throws {
+        reader.pending = PendingSelection(anchors: [anchor("Kavramlar sınırlarda netleşir.")], rect: .zero)
+        reader.create(color: .mint, kind: .quick(.mint))
+        await reader.cards.waitForIdle()
+        let card = try XCTUnwrap(reader.cards.cards.first)
+        reader.cards.ask(card.id, "Peki bunu gündelik bir örnekle anlatır mısın?")
+        await reader.cards.waitForIdle()
+        let view = host(YarnCardView(cardId: card.id, reader: reader, lang: .tr, openSettings: {}).background(Color.paper), size: CGSize(width: 420, height: 520))
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertTrue(shownText(view).joined(separator: "\n").contains("gündelik bir örnekle"))
+        try snapshot(view, "peryda-mac-follow-up-bubble.png")
+    }
+
     // 2. "Explain terms in parentheses" switches both ways, and the options stay open.
     func testExplainTermsSwitchesAndTheOptionsStayOpen() async throws {
         UserDefaults.standard.removeObject(forKey: "explainTerms")

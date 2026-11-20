@@ -164,95 +164,98 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
           )}
         </p>
       )}
-      {summary?.text && (
-        <section className={`journal-summary${collapsed ? ' is-collapsed' : ''}`} aria-live={streaming ? 'polite' : undefined}>
-          <h3>
-            <AsterismIcon size={14} /> {t.summaryTitle}
-            <span>{date.format(summary.createdAt)}</span>
-            <button
-              type="button"
-              className="icon-button journal-summary-button"
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? t.show : t.hide}
-              title={collapsed ? t.show : t.hide}
-              onClick={() => fold(!collapsed)}
-            >
-              {collapsed ? <ChevronDownIcon size={14} /> : <ChevronUpIcon size={14} />}
-            </button>
-            <button type="button" className="icon-button journal-summary-button" aria-label={t.deleteSummary} title={t.deleteSummary} onClick={deleteSummary}>
-              <TrashIcon size={14} />
-            </button>
-          </h3>
-          {!collapsed && <Markdown text={summary.text} />}
-        </section>
-      )}
-      {entries.length === 0 ? (
-        <p className="journal-empty">{t.journalEmpty}</p>
-      ) : (
-        <ol className="journal-list">
-          {entries.map((e) => (
-            <li key={e.id} className="journal-entry">
-              <div className="journal-meta">
-                <span>{sourceLabel(e.source)}</span>
-                {e.pageNumber > 0 &&
-                  (onGoToPage ? (
-                    <span>
-                      ·{' '}
-                      <button type="button" className="journal-page-link" title={t.goToPage} onClick={() => onGoToPage(e.pageNumber)}>
-                        {pageTitle(lang, e.pageNumber)}
-                      </button>
-                    </span>
-                  ) : (
-                    <span>· {pageTitle(lang, e.pageNumber)}</span>
-                  ))}
-                <span>· {date.format(e.createdAt)}</span>
-                <button
-                  type="button"
-                  className="icon-button journal-delete"
-                  aria-label={t.deleteEntry}
-                  title={t.deleteEntry}
-                  onClick={() => {
-                    // Deleting cannot be undone (and takes a highlight off its page), so it asks first, as on the Mac.
-                    if (window.confirm(t.deleteEntryConfirm)) void db.journal.delete(e.id)
-                  }}
-                >
-                  <TrashIcon size={14} />
-                </button>
-              </div>
-              {e.source === 'note' ? (
-                e.text && (
-                  <div className="journal-text">
-                    <Markdown text={e.text} />
-                  </div>
-                )
-              ) : e.source === 'thread' && e.text ? (
-                <>
-                  {e.quote && (
-                    <button type="button" className="journal-quote is-toggle" aria-expanded={open.has(e.id)} onClick={() => toggle(e.id)}>
-                      {e.quote}
-                    </button>
-                  )}
-                  <button type="button" className="journal-answer-toggle" aria-expanded={open.has(e.id)} onClick={() => toggle(e.id)}>
-                    {open.has(e.id) ? <ChevronUpIcon size={13} /> : <ChevronDownIcon size={13} />}
-                    {open.has(e.id) ? t.hideAnswer : t.showAnswer}
+      {/* The summary and the entries scroll together, so a long summary can be read to its end (owner, 20 Nov). */}
+      <div className="journal-scroll">
+        {summary?.text && (
+          <section className={`journal-summary${collapsed ? ' is-collapsed' : ''}`} aria-live={streaming ? 'polite' : undefined}>
+            <h3>
+              <AsterismIcon size={14} /> {t.summaryTitle}
+              <span>{date.format(summary.createdAt)}</span>
+              <button
+                type="button"
+                className="icon-button journal-summary-button"
+                aria-expanded={!collapsed}
+                aria-label={collapsed ? t.show : t.hide}
+                title={collapsed ? t.show : t.hide}
+                onClick={() => fold(!collapsed)}
+              >
+                {collapsed ? <ChevronDownIcon size={14} /> : <ChevronUpIcon size={14} />}
+              </button>
+              <button type="button" className="icon-button journal-summary-button" aria-label={t.deleteSummary} title={t.deleteSummary} onClick={deleteSummary}>
+                <TrashIcon size={14} />
+              </button>
+            </h3>
+            {!collapsed && <Markdown text={summary.text} />}
+          </section>
+        )}
+        {entries.length === 0 ? (
+          <p className="journal-empty">{t.journalEmpty}</p>
+        ) : (
+          <ol className="journal-list">
+            {entries.map((e) => (
+              <li key={e.id} className="journal-entry">
+                <div className="journal-meta">
+                  <span>{sourceLabel(e.source)}</span>
+                  {e.pageNumber > 0 &&
+                    (onGoToPage ? (
+                      <span>
+                        ·{' '}
+                        <button type="button" className="journal-page-link" title={t.goToPage} onClick={() => onGoToPage(e.pageNumber)}>
+                          {pageTitle(lang, e.pageNumber)}
+                        </button>
+                      </span>
+                    ) : (
+                      <span>· {pageTitle(lang, e.pageNumber)}</span>
+                    ))}
+                  <span>· {date.format(e.createdAt)}</span>
+                  <button
+                    type="button"
+                    className="icon-button journal-delete"
+                    aria-label={t.deleteEntry}
+                    title={t.deleteEntry}
+                    onClick={() => {
+                      // Deleting cannot be undone (and takes a highlight off its page), so it asks first, as on the Mac.
+                      if (window.confirm(t.deleteEntryConfirm)) void db.journal.delete(e.id)
+                    }}
+                  >
+                    <TrashIcon size={14} />
                   </button>
-                  {open.has(e.id) && (
+                </div>
+                {e.source === 'note' ? (
+                  e.text && (
                     <div className="journal-text">
                       <Markdown text={e.text} />
                     </div>
-                  )}
-                </>
-              ) : (
-                e.quote && (
-                  <blockquote className={`journal-quote${e.source === 'highlight' ? ' is-highlight' : ''}`} data-hl={e.source === 'highlight' ? highlightColorOf(e) : undefined}>
-                    {e.source === 'highlight' ? <mark>{e.quote}</mark> : e.quote}
-                  </blockquote>
-                )
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
+                  )
+                ) : e.source === 'thread' && e.text ? (
+                  <>
+                    {e.quote && (
+                      <button type="button" className="journal-quote is-toggle" aria-expanded={open.has(e.id)} onClick={() => toggle(e.id)}>
+                        {e.quote}
+                      </button>
+                    )}
+                    <button type="button" className="journal-answer-toggle" aria-expanded={open.has(e.id)} onClick={() => toggle(e.id)}>
+                      {open.has(e.id) ? <ChevronUpIcon size={13} /> : <ChevronDownIcon size={13} />}
+                      {open.has(e.id) ? t.hideAnswer : t.showAnswer}
+                    </button>
+                    {open.has(e.id) && (
+                      <div className="journal-text">
+                        <Markdown text={e.text} />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  e.quote && (
+                    <blockquote className={`journal-quote${e.source === 'highlight' ? ' is-highlight' : ''}`} data-hl={e.source === 'highlight' ? highlightColorOf(e) : undefined}>
+                      {e.source === 'highlight' ? <mark>{e.quote}</mark> : e.quote}
+                    </blockquote>
+                  )
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
     </aside>
   )
 }

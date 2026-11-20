@@ -169,8 +169,16 @@ struct YarnCardView: View {
             if isNote {
                 SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
             } else if index > 0 || card.kind == .question {
-                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13 * s, weight: .semibold), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
-                    .padding(.top, 4)
+                // The reader's own message as a chat bubble on the right, so it stands out from the
+                // answers while scrolling (owner, 20 Nov; same as the web).
+                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13 * s, weight: .medium), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
+                    .padding(.horizontal, 10 * s)
+                    .padding(.vertical, 6 * s)
+                    .background(UnevenRoundedRectangle(topLeadingRadius: 12 * s, bottomLeadingRadius: 12 * s, bottomTrailingRadius: 4 * s, topTrailingRadius: 12 * s).fill(Color.peryda.opacity(0.09)))
+                    .overlay(UnevenRoundedRectangle(topLeadingRadius: 12 * s, bottomLeadingRadius: 12 * s, bottomTrailingRadius: 4 * s, topTrailingRadius: 12 * s).strokeBorder(Color.peryda.opacity(0.22), lineWidth: 1))
+                    .padding(.leading, 36 * s)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
             }
         case (.assistant, .error):
             VStack(alignment: .leading, spacing: 4) {

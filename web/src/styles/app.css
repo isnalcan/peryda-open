@@ -729,10 +729,26 @@ button:disabled {
   padding: 8px 14px 4px;
 }
 
+/* The reader's own message in a thread, shown as a chat bubble on the right so it stands out from
+   the answers while scrolling (owner, 20 Nov). */
 .yarn-question {
-  margin: 10px 0 4px;
-  font-weight: 600;
+  width: fit-content;
+  max-width: 85%;
+  margin: 14px 0 10px auto;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 14px 14px 4px 14px;
+  background: var(--accent-tint);
+  color: var(--ink);
+  font-weight: 500;
   font-size: calc(14px * var(--card-text, 1));
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.yarn-question:first-child {
+  margin-top: 4px;
 }
 
 .yarn-note-text {
@@ -1376,11 +1392,17 @@ button:disabled {
   color: var(--ink-soft);
 }
 
+.journal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .journal-list {
   list-style: none;
   margin: 0;
   padding: 0 20px 24px;
-  overflow-y: auto;
 }
 
 .journal-entry {
