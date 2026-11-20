@@ -27,9 +27,9 @@ All releases and their checksums: [Releases](https://github.com/isnalcan/peryda-
 
 ### Code signing policy
 
-Windows: free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/) (applied for; until it is approved the Windows installer is
-unsigned). Mac: Apple Developer ID, notarized by Apple. What is signed, the team roles and the privacy
+Windows: the installer is not code-signed yet (our SignPath Foundation application was declined while the
+project is new), so SmartScreen may warn about an unknown publisher; in-app updates are still verified with
+Peryda's update key. Mac: Apple Developer ID, notarized by Apple. What is signed, the team roles and the privacy
 statement: [CODE_SIGNING.md](CODE_SIGNING.md).
 
 ## Your keys

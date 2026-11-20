@@ -80,8 +80,8 @@ Every release:
    (Sparkle compares the build number), and `version` in `windows/src-tauri/tauri.conf.json` and
    `windows/src-tauri/Cargo.toml`.
 2. Mac: `mac/scripts/release.sh`, then `mac/scripts/appcast.sh mac/build/Peryda-X.Y.Z.dmg [notes.html]`.
-3. Windows: run the *Windows build* workflow, download the installer (after SignPath's signature, once
-   releases are signed), then `windows/scripts/update-manifest.sh Peryda_X.Y.Z_x64-setup.exe [notes.txt]`.
+3. Windows: run the *Windows build* workflow, download the installer (not code-signed for now; see
+   CODE_SIGNING.md), then `windows/scripts/update-manifest.sh Peryda_X.Y.Z_x64-setup.exe [notes.txt]`.
 4. Publish the GitHub release `vX.Y.Z` with `Peryda-X.Y.Z.dmg`, `appcast.xml`,
    `Peryda_X.Y.Z_x64-setup.exe` and `latest.json`. The apps read `appcast.xml` and `latest.json` from
    the latest release, so every release carries both; when a release changes only one platform, attach

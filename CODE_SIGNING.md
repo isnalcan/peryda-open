@@ -1,9 +1,10 @@
 # Code signing policy
 
-**Windows:** free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/). *Status: we have applied to the SignPath Foundation
-program. Until the application is approved, the Windows installer is not code-signed and Windows
-SmartScreen may warn that the publisher is unknown.*
+**Windows:** the installer is not code-signed yet, so Windows SmartScreen may warn that the publisher
+is unknown ("More info", then "Run anyway"). Our application to the free [SignPath Foundation](https://signpath.org/)
+program was declined in November 2026 because the project is still new; we may apply again once it is
+better known. Updates inside the app are still checked: the Windows app installs only updates signed with
+Peryda's update key.
 
 **Mac:** signed with the maintainer's Apple Developer ID certificate and notarized by Apple.
 
@@ -29,7 +30,7 @@ Peryda is maintained by one person, [@isnalcan](https://github.com/isnalcan), wh
 - **Reviewers** (review changes from people who are not committers): [@isnalcan](https://github.com/isnalcan)
 - **Approvers** (approve each signing request): [@isnalcan](https://github.com/isnalcan)
 
-All team members use multi-factor authentication for GitHub and for SignPath.
+All team members use multi-factor authentication for GitHub.
 
 ## Privacy
 
