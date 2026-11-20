@@ -13,7 +13,7 @@
 - Deine Bücher, Fäden, Notizen und Einstellungen bleiben auf deinem Gerät.
 - Wenn du Pery fragst, geht die Anfrage mit deinem eigenen Schlüssel direkt von deinem Gerät an den KI-Anbieter, den du gewählt hast. Der Anbieter verarbeitet sie nach seinen eigenen Bedingungen.
 
-Dieser Text gilt für Peryda für Mac, Windows und das Web. Die Peryda-Apps für iPhone und Android und Peryda Cloud haben eine eigene Datenschutzerklärung: peryda.com/privacy
+Dieser Text gilt für Peryda für Mac, Windows und das Web.
 
 ## Was auf deinem Gerät bleibt
 

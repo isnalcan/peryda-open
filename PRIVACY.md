@@ -13,7 +13,7 @@
 - Your books, threads, notes and settings stay on your device.
 - When you ask Pery, the request goes straight from your device to the AI provider you chose, with your own key. That provider handles it under its own terms.
 
-This covers Peryda for Mac, Windows and the web. The Peryda iPhone and Android apps and Peryda Cloud have their own privacy policy: peryda.com/privacy
+This covers Peryda for Mac, Windows and the web.
 
 ## What stays on your device
 

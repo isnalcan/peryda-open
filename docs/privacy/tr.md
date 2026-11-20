@@ -13,7 +13,7 @@
 - Kitapların, ilmeklerin, notların ve ayarların senin cihazında kalır.
 - Pery'ye bir şey sorduğunda istek, kendi anahtarınla, doğrudan cihazından seçtiğin yapay zekâ sağlayıcısına gider. Sağlayıcı onu kendi koşullarına göre işler.
 
-Bu metin Peryda'nın Mac, Windows ve web sürümlerini kapsar. Peryda'nın iPhone ve Android uygulamaları ile Peryda Cloud'un ayrı bir gizlilik politikası var: peryda.com/privacy
+Bu metin Peryda'nın Mac, Windows ve web sürümlerini kapsar.
 
 ## Cihazında kalanlar
 
