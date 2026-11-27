@@ -47,8 +47,16 @@ struct YarnCardView: View {
             header(card, streaming: streaming)
             Divider()
             if card.height != nil {
-                ScrollView { middle(card, isNote: isNote).frame(maxWidth: .infinity, alignment: .leading) }
-                    .frame(maxHeight: .infinity)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            middle(card, isNote: isNote).frame(maxWidth: .infinity, alignment: .leading)
+                            Color.clear.frame(height: 1).id(Self.bottom)
+                        }
+                    }
+                    .modifier(FollowsAnswer(card: card, proxy: proxy))
+                }
+                .frame(maxHeight: .infinity)
             } else {
                 middle(card, isNote: isNote)
             }
@@ -156,7 +164,7 @@ struct YarnCardView: View {
 
     /// Passages of this card that threads were opened from, in their colours.
     private var marks: [AnswerTextView.Mark] {
-        reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.yarn($0.color).withAlphaComponent(0.26), near: $0.rect) }
+        reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.yarn($0.color).withAlphaComponent(0.26), near: $0.rect, threadId: $0.threadId) }
     }
 
     /// A press in the card's text closes the selection menu (a new selection opens it again).
@@ -167,11 +175,11 @@ struct YarnCardView: View {
         switch (message.role, message.state) {
         case (.user, _):
             if isNote {
-                SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
+                SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), markdown: false, marks: marks, onPress: pressed, onMarkClick: { reader.openThread($0) }) { text, rect in onSelectText(cardId, text, rect) }
             } else if index > 0 || card.kind == .question {
                 // The reader's own message as a chat bubble on the right, so it stands out from the
                 // answers while scrolling (owner, 20 Nov; same as the web).
-                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13 * s, weight: .medium), markdown: false, marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
+                SelectableAnswer(text: message.content, font: .systemFont(ofSize: 13 * s, weight: .medium), markdown: false, marks: marks, onPress: pressed, onMarkClick: { reader.openThread($0) }) { text, rect in onSelectText(cardId, text, rect) }
                     .padding(.horizontal, 10 * s)
                     .padding(.vertical, 6 * s)
                     .background(UnevenRoundedRectangle(topLeadingRadius: 12 * s, bottomLeadingRadius: 12 * s, bottomTrailingRadius: 4 * s, topTrailingRadius: 12 * s).fill(Color.peryda.opacity(0.09)))
@@ -198,7 +206,7 @@ struct YarnCardView: View {
                 if message.content.isEmpty {
                     Text(t["thinking"]).font(.reading(14 * s).italic()).foregroundStyle(Color.inkFaint)
                 } else {
-                    SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), marks: marks, onPress: pressed) { text, rect in onSelectText(cardId, text, rect) }
+                    SelectableAnswer(text: message.content, font: SelectableAnswer.readingFont(14 * s), marks: marks, onPress: pressed, onMarkClick: { reader.openThread($0) }) { text, rect in onSelectText(cardId, text, rect) }
                 }
             }
         }
@@ -319,5 +327,36 @@ struct SendButtonStyle: ButtonStyle {
             .frame(width: 26, height: 26)
             .background(Circle().fill(enabled ? Color.peryda : Color.primary.opacity(0.12)))
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
+    }
+}
+
+extension YarnCardView {
+    static let bottom = "card-bottom"
+}
+
+/// In a card that scrolls (one resized smaller than its conversation): a new question takes it to the
+/// bottom, and a streaming answer is followed while the reader is at the bottom; one who scrolled up to
+/// read is left where they are (web pilot, 27 Nov).
+struct FollowsAnswer: ViewModifier {
+    let card: YarnCard
+    let proxy: ScrollViewProxy
+    @State private var atBottom = true
+
+    func body(content: Content) -> some View {
+        let tracked = content
+            .onChange(of: card.messages.count) { _, _ in
+                atBottom = true
+                withAnimation(.spring(duration: 0.3, bounce: 0)) { proxy.scrollTo(YarnCardView.bottom, anchor: .bottom) }
+            }
+            .onChange(of: card.messages.last?.content.count ?? 0) { _, _ in
+                if atBottom, card.messages.last?.state == .streaming { proxy.scrollTo(YarnCardView.bottom, anchor: .bottom) }
+            }
+        if #available(macOS 15, *) {
+            tracked.onScrollGeometryChange(for: Bool.self) { g in
+                g.contentOffset.y + g.containerSize.height >= g.contentSize.height - 40
+            } action: { _, bottom in atBottom = bottom }
+        } else {
+            tracked
+        }
     }
 }

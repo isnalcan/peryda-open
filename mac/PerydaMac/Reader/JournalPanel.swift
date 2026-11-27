@@ -1,3 +1,4 @@
+import AppKit
 import PerydaKit
 import SwiftUI
 
@@ -132,10 +133,12 @@ struct JournalPanel: View {
                                 Text(Self.sourceLabel(entry.source, t))
                                 if entry.pageNumber > 0 {
                                     // A click on the page goes there.
-                                    Button("· " + Compose.pageLabel(lang, entry.pageNumber)) { reader.cameraCommand = .goToPage(entry.pageNumber) }
+                                    // In an EPUB the number is the chapter, and the click goes to that chapter.
+                                    Button("· " + (reader.epub != nil ? Compose.chapterLabel(lang, entry.pageNumber) : Compose.pageLabel(lang, entry.pageNumber))) {
+                                        if reader.epub != nil { reader.goToChapter(entry.pageNumber) } else { reader.cameraCommand = .goToPage(entry.pageNumber) }
+                                    }
                                         .buttonStyle(.borderless)
-                                        .help(t["goToPage"])
-                                        .disabled(reader.epub != nil)
+                                        .help(reader.epub != nil ? t["goToChapter"] : t["goToPage"])
                                 }
                                 Text("·")
                                 Text(Date(timeIntervalSince1970: entry.createdAt / 1000), style: .date)
@@ -190,5 +193,37 @@ struct JournalPanel: View {
             Button(t["deleteSummary"], role: .destructive) { reader.deleteSummary() }
             Button(t["cancel"], role: .cancel) {}
         }
+    }
+}
+
+/// Escape closes the Book Journal, but never while typing (a note's draft must survive it) and never
+/// while something smaller is open: the selection menu, the find bar, a sheet or a popover close first.
+struct JournalEscape: ViewModifier {
+    let reader: ReaderModel
+    @State private var monitor: Any?
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                guard monitor == nil else { return }
+                monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak reader] event in
+                    guard event.keyCode == 53, let reader, JournalEscape.closes(reader: reader, event: event) else { return event }
+                    reader.showJournal = false
+                    return nil
+                }
+            }
+            .onDisappear {
+                if let monitor { NSEvent.removeMonitor(monitor) }
+                monitor = nil
+            }
+    }
+
+    @MainActor
+    static func closes(reader: ReaderModel, event: NSEvent) -> Bool {
+        guard reader.showJournal, reader.pending == nil, !reader.finding, event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+              let window = event.window, window.attachedSheet == nil, !(window is NSPanel),
+              !(window.childWindows ?? []).contains(where: \.isVisible) else { return false }
+        if let text = window.firstResponder as? NSTextView, text.isEditable { return false }
+        return true
     }
 }

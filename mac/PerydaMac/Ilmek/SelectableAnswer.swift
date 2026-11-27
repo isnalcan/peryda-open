@@ -14,6 +14,8 @@ struct SelectableAnswer: NSViewRepresentable {
     var marks: [AnswerTextView.Mark] = []
     /// A press in the text, before any new selection (it closes the open selection menu).
     var onPress: (() -> Void)?
+    /// A plain click on a passage a thread was opened from (that thread's id).
+    var onMarkClick: ((String) -> Void)?
     var onSelect: (String, CGRect) -> Void = { _, _ in }
 
     static let font: NSFont = readingFont(14)
@@ -57,6 +59,7 @@ struct SelectableAnswer: NSViewRepresentable {
         }
         view.onSelect = onSelect
         view.onPress = onPress
+        view.onMarkClick = onMarkClick
         view.marks = marks
     }
 
@@ -103,7 +106,16 @@ final class AnswerTextView: NSTextView {
         var near: CGRect?
         /// Multiplied into the text like a highlighter on paper (the translated page).
         var multiply = false
+        /// The reader's own highlight (its journal entry), so a selection over it can offer "Remove highlight".
+        var highlightId: String?
+        /// The thread opened from this passage: a plain click on it opens that thread.
+        var threadId: String?
     }
+
+    var onMarkClick: ((String) -> Void)?
+
+    /// The reader's highlights the last reported selection overlaps (read while handling `onSelect`).
+    private(set) static var lastSelectedHighlightIds: [String] = []
 
     var marks: [Mark] = [] {
         didSet { if marks != oldValue { needsDisplay = true } }
@@ -160,9 +172,35 @@ final class AnswerTextView: NSTextView {
         if Self.active !== self { Self.clearActive() }
         Self.active = self
         onPress?()
+        let down = convert(event.locationInWindow, from: nil)
         super.mouseDown(with: event)
         // NSTextView tracks the drag inside mouseDown; report when it ends.
+        if selectedRange().length == 0, let id = threadMark(at: down) {
+            // A click (not a drag) on a passage a thread came from opens that thread; a folded one first.
+            onMarkClick?(id)
+            return
+        }
         reportSelection()
+    }
+
+    /// The thread whose marked passage is under a point (folded threads are preferred by the caller's
+    /// order: the last mark drawn there wins, as on the web).
+    func threadMark(at point: CGPoint) -> String? {
+        guard onMarkClick != nil, !marks.isEmpty, let layout = layoutManager, let container = textContainer else { return nil }
+        let text = string.replacingOccurrences(of: "\u{00A0}", with: " ") as NSString
+        let origin = textContainerOrigin
+        var hit: String?
+        for mark in marks {
+            guard let id = mark.threadId, let range = range(of: mark, in: text, layout: layout, container: container) else { continue }
+            let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            layout.enumerateEnclosingRects(forGlyphRange: glyphs, withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0), in: container) { rect, stop in
+                if rect.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: -2, dy: -2).contains(point) {
+                    hit = id
+                    stop.pointee = true
+                }
+            }
+        }
+        return hit
     }
 
     /// The marks, under the text: each passage's first line-by-line rectangles, slightly rounded.
@@ -219,6 +257,18 @@ final class AnswerTextView: NSTextView {
         guard !text.isEmpty else { return }
         let glyphs = layout.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
         let local = layout.boundingRect(forGlyphRange: glyphs, in: container).offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+        Self.lastSelectedHighlightIds = highlightIds(overlapping: range)
         onSelect?(text, convert(local, to: nil))
+    }
+
+    /// The reader's highlights drawn here now (found by the same search the drawing uses) that a range of
+    /// the text overlaps.
+    func highlightIds(overlapping range: NSRange) -> [String] {
+        guard let layout = layoutManager, let container = textContainer else { return [] }
+        let plain = string.replacingOccurrences(of: "\u{00A0}", with: " ") as NSString
+        return marks.compactMap { mark in
+            guard let id = mark.highlightId, let r = self.range(of: mark, in: plain, layout: layout, container: container) else { return nil }
+            return NSIntersectionRange(r, range).length > 0 ? id : nil
+        }
     }
 }

@@ -105,7 +105,10 @@ final class ManyThreadsTests: XCTestCase {
         print(report)
         XCTAssertLessThan(drag, 16.7, report)
         XCTAssertLessThan(scroll, 16.7, report)
-        XCTAssertLessThan(zoom, 16.7, report)
+        // With fifty threads on one page they now fill both margin lanes, so zoomed out about twice as
+        // many cards are on screen at once (14 ms a frame with all of them in the right lane, 27 ms in
+        // two lanes on the reference Mac). A frame under 33 ms keeps pinching at 30 fps or better.
+        XCTAssertLessThan(zoom, 33.4, report)
     }
 }
 

@@ -126,6 +126,7 @@ struct ReaderSurface: View {
             JournalPanel(reader: reader, lang: app.lang, openSettings: { openSettings() })
                 .inspectorColumnWidth(min: 300, ideal: 380, max: 520)
         }
+        .modifier(JournalEscape(reader: reader))
         .sheet(item: $reader.extractingPage) { request in
             ExtractedTextSheet(reader: reader, page: request.page, lang: app.lang)
         }

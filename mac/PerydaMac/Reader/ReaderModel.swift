@@ -13,6 +13,8 @@ struct PendingSelection {
     /// In the reader view's coordinates (top-left origin), for placing the menu.
     var rect: CGRect
     var parentCardId: String?
+    /// Highlights on a translated page that the selection overlaps ("Remove highlight").
+    var translationHighlightIds: [String] = []
 }
 
 struct YarnSegment: Identifiable {
@@ -150,6 +152,22 @@ final class ReaderModel {
     }
     /// 1-based chapter at the top of the EPUB view.
     var epubChapter: Int?
+
+    /// A jump in the EPUB view (contents menu, previous/next chapter, a journal entry's chapter).
+    struct EpubJump: Equatable {
+        var chapter: Int
+        var start: Int
+        var id = UUID()
+    }
+    var epubJump: EpubJump?
+
+    /// Goes to a chapter (1-based) of the EPUB.
+    func goToChapter(_ chapter: Int) {
+        guard let epub, !epub.chapters.isEmpty else { return }
+        let n = min(max(1, chapter), epub.chapters.count)
+        epubChapter = n
+        epubJump = EpubJump(chapter: n - 1, start: 0)
+    }
     var summary: (text: String, createdAt: Date)?
     var summarizing = false
     var summaryError: String?
@@ -325,6 +343,8 @@ final class ReaderModel {
 
     /// The book's page could not be shown safely (WebKit's network block was unavailable).
     var epubBlocked = false
+    /// The EPUB page has loaded (until then the reader sees "Opening book…").
+    var epubReady = false
 
     // MARK: Page translation
 
@@ -457,6 +477,11 @@ final class ReaderModel {
         }
     }
 
+    /// Open threads (not translations) from a passage on a page.
+    func hasThreads(onPage page: Int) -> Bool {
+        cards.cards.contains { $0.translatedPage == nil && !$0.collapsed && $0.anchors.contains { $0.pageNumber == page && $0.sourceType != .card } }
+    }
+
     /// Whole-page translations are drawn beside their page, not in a lane.
     func isTranslation(_ card: YarnCard) -> Bool { card.translatedPage != nil }
 
@@ -572,6 +597,30 @@ final class ReaderModel {
         return CGRect(x: left, y: 0, width: right - left, height: bottom)
     }
 
+    /// The pages and the cards shown now (what "Map" fits).
+    var shownBounds: CGRect {
+        var r = CGRect(x: 0, y: 0, width: pageWidth, height: pages.last.map { $0.y + $0.height } ?? 0)
+        let place = placements
+        for card in cards.cards where isShown(card) {
+            guard let p = place[card.id] else { continue }
+            r = r.union(CGRect(x: p.x, y: p.y, width: displayWidth(card), height: heights[card.id] ?? 150))
+        }
+        return r
+    }
+
+    /// A page and the cards shown beside it, top to bottom.
+    func pageBand(_ number: Int) -> CGRect? {
+        guard number >= 1, number <= pages.count else { return nil }
+        let page = pages[number - 1]
+        var r = CGRect(x: page.x, y: page.y, width: page.width, height: page.height)
+        let place = placements
+        for card in cards.cards where isShown(card) && homePage(of: card) == number {
+            guard let p = place[card.id] else { continue }
+            r = r.union(CGRect(x: p.x, y: p.y, width: displayWidth(card), height: heights[card.id] ?? 150))
+        }
+        return r
+    }
+
     /// The content's width when kept centred on the page (what the camera fits).
     var centredContentWidth: Double {
         let c = contentRect, mid = pageWidth / 2
@@ -652,13 +701,14 @@ final class ReaderModel {
             guard let n = t.translatedPage, n >= 1, n <= pages.count else { return CGPoint(x: t.x, y: t.y) }
             let page = pages[n - 1]
             var right = page.x + page.width
-            for c in list where !fromTranslation(c) {
+            for c in list where !fromTranslation(c) && isShown(c) {
                 guard let p = placed[c.id] else { continue }
                 let h = heights[c.id] ?? 150
                 if p.y < page.y + page.height, p.y + h > page.y { right = max(right, p.x + c.width) }
             }
             return CGPoint(x: right + 60, y: page.y)
         }
+        let pageOf = Dictionary(list.map { ($0.id, homePage(of: $0)) }, uniquingKeysWith: { a, _ in a })
         var placed: [String: CGPoint] = [:]
         for _ in 0..<32 {
             let previous = placed
@@ -673,19 +723,20 @@ final class ReaderModel {
                     y: origin.map { Double($0.y) } ?? Double(pinnedPoint(c).y),
                     width: displayWidth(c),
                     anchorY: anchorY(c, placed),
-                    height: heights[c.id] ?? 150
+                    height: heights[c.id] ?? 150,
+                    page: pageOf[c.id],
+                    createdAt: c.createdAt
                 )
             }
             if pagedReading {
                 // Each page lays out its own threads, so another page's stack never pushes them down.
-                let pageOf = Dictionary(list.map { ($0.id, homePage(of: $0)) }, uniquingKeysWith: { a, _ in a })
                 var merged: [String: CGPoint] = [:]
                 for group in Dictionary(grouping: input, by: { pageOf[$0.id] ?? 1 }).values {
-                    merged.merge(Lane.layout(group, laneX: Geometry.laneX(pageWidth: pageWidth))) { a, _ in a }
+                    merged.merge(Lane.layout(group, laneX: Geometry.laneX(pageWidth: pageWidth), pageWidth: pageWidth)) { a, _ in a }
                 }
                 placed = merged
             } else {
-                placed = Lane.layout(input, laneX: Geometry.laneX(pageWidth: pageWidth))
+                placed = Lane.layout(input, laneX: Geometry.laneX(pageWidth: pageWidth), pageWidth: pageWidth)
             }
             if placed == previous { break }
         }
@@ -709,8 +760,9 @@ final class ReaderModel {
             guard let anchor = card.anchors.first(where: { $0.sourceType == .card }), let pid = anchor.sourceCardId,
                   let parent = byId[pid], let pp = place[pid], isShown(parent) else { continue }
             let parentWidth = displayWidth(parent)
-            let right = !card.isPinned || card.x + card.width / 2 >= pp.x + parentWidth / 2
-            let y = pp.y + anchor.boundingRect.y + anchor.boundingRect.height / 2
+            let parentMid = pp.x + parentWidth / 2
+            let right = card.isPinned ? card.x + card.width / 2 >= parentMid : parentMid >= pageWidth / 2
+            let y = Self.cardAttachY(pp.y, anchor.boundingRect, parentHeight: heights[pid] ?? 150)
             out.append(Clip(cardId: card.id, color: card.color, title: Compose.kindTitle(lang, card.kind), right: right, point: CGPoint(x: right ? pp.x + parentWidth : pp.x, y: y)))
         }
         // Knots on the same edge never overlap.
@@ -724,6 +776,13 @@ final class ReaderModel {
         return out
     }
 
+    /// Where a yarn leaves its parent card: level with the text it came from, kept clear of the card's
+    /// header and bottom edge.
+    static func cardAttachY(_ parentY: Double, _ rect: NormalizedRect, parentHeight: Double) -> Double {
+        let raw = parentY + rect.y + rect.height / 2
+        return min(max(raw, parentY + 46), parentY + max(52, parentHeight - 28))
+    }
+
     var segments: [YarnSegment] { segments(placements: placements) }
 
     /// Yarns for given card positions (the surface passes a dragged card's live position).
@@ -734,13 +793,15 @@ final class ReaderModel {
             guard let p = place[card.id] else { continue }
             // A card moved to the left of the page takes its yarn on its right edge, from the
             // passage's left end; otherwise left edge, right end.
-            let onLeft = p.x + card.width / 2 < pageWidth / 2
-            let to = onLeft ? CGPoint(x: p.x + card.width, y: p.y + Geometry.g.cardAttachY) : Geometry.cardAttachPoint(x: p.x, y: p.y)
+            let cardMid = p.x + card.width / 2
             for a in card.anchors {
                 var from: CGPoint?
+                var onLeft = cardMid < pageWidth / 2
                 if a.sourceType == .card {
                     if let sid = a.sourceCardId, let parent = byId[sid], let pp = place[sid] {
-                        from = CGPoint(x: onLeft ? pp.x : pp.x + displayWidth(parent), y: pp.y + a.boundingRect.y + a.boundingRect.height / 2)
+                        let parentWidth = displayWidth(parent)
+                        onLeft = cardMid < pp.x + parentWidth / 2
+                        from = CGPoint(x: onLeft ? pp.x : pp.x + parentWidth, y: Self.cardAttachY(pp.y, a.boundingRect, parentHeight: heights[sid] ?? 150))
                     }
                 } else if a.pageNumber >= 1, a.pageNumber <= pages.count {
                     let page = pages[a.pageNumber - 1]
@@ -748,6 +809,7 @@ final class ReaderModel {
                         ? CGPoint(x: page.x + a.boundingRect.x * page.width, y: page.y + (a.boundingRect.y + a.boundingRect.height / 2) * page.height)
                         : Geometry.anchorWorldPoint(a.boundingRect, page: page)
                 }
+                let to = onLeft ? CGPoint(x: p.x + card.width, y: p.y + Geometry.g.cardAttachY) : Geometry.cardAttachPoint(x: p.x, y: p.y)
                 if let from { out.append(YarnSegment(id: "\(card.id)-\(a.id)", color: card.color, from: from, to: to, cardId: card.id, sourceCardId: a.sourceCardId)) }
             }
         }
@@ -777,12 +839,28 @@ final class ReaderModel {
 
     /// Passages in a card's text (or a translated page's) that threads were opened from, each in its
     /// thread's colour, with where it was selected (card units). A removed thread takes its mark along.
-    func marks(inCard id: String) -> [(text: String, color: YarnColor, rect: CGRect)] {
-        cards.cards.flatMap { card in
+    /// Folded threads come last, so a click on a passage shared by several opens the folded one.
+    func marks(inCard id: String) -> [(text: String, color: YarnColor, rect: CGRect, threadId: String)] {
+        (cards.cards.filter { !$0.collapsed } + cards.cards.filter(\.collapsed)).flatMap { card in
             card.anchors.filter { $0.sourceType == .card && $0.sourceCardId == id }.map { a in
-                (a.selectedText, card.color, CGRect(x: a.boundingRect.x, y: a.boundingRect.y, width: a.boundingRect.width, height: a.boundingRect.height))
+                (a.selectedText, card.color, CGRect(x: a.boundingRect.x, y: a.boundingRect.y, width: a.boundingRect.width, height: a.boundingRect.height), card.id)
             }
         }
+    }
+
+    /// A click on a passage a thread was opened from (on a page, in a card or a translated page): the
+    /// thread opens, with every thread it hangs from, and comes forward (with threads hidden, just it).
+    func openThread(_ id: String) {
+        let byId = Dictionary(cards.cards.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var seen: Set<String> = []
+        var current = byId[id]
+        while let c = current, !seen.contains(c.id) {
+            seen.insert(c.id)
+            if c.collapsed { cards.setCollapsed(c.id, false) }
+            if hideThreads { revealed.insert(c.id) }
+            current = c.parentCardId.flatMap { byId[$0] }
+        }
+        focusedCard = id
     }
 
     struct Knot: Hashable {
@@ -849,11 +927,54 @@ final class ReaderModel {
         return anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
     }
 
-    /// "Highlight" (Vurgula) is offered for text selected on a PDF page, not for a region, text inside a
-    /// card or translation, or an EPUB.
+    /// "Highlight" (Vurgula) is offered for text selected on a PDF page or a translated page, not for a
+    /// region, text inside a thread card, or an EPUB.
     var canHighlight: Bool {
-        guard epub == nil, let pending, pending.parentCardId == nil, !pending.anchors.isEmpty else { return false }
+        guard epub == nil, let pending, !pending.anchors.isEmpty else { return false }
+        if pending.parentCardId != nil { return highlightedTranslation != nil }
         return pending.anchors.allSatisfy { $0.sourceType == .pdfText }
+    }
+
+    /// The translated page the selection is on, if it is on one.
+    private var highlightedTranslation: YarnCard? {
+        guard let pending, let id = pending.parentCardId, pending.anchors.allSatisfy({ $0.sourceType == .card }),
+              let card = cards.cards.first(where: { $0.id == id }), card.translatedPage != nil else { return nil }
+        return card
+    }
+
+    /// The reader's highlights on a translated page (found again by their words, as on the web).
+    func translationHighlights(_ cardId: String) -> [JournalRecord] {
+        journal.filter { $0.source == .highlight && $0.cardId == cardId && !$0.quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    /// Highlights the selection overlaps, offered as "Remove highlight". On a translated page only the
+    /// highlights drawn on it now count (one whose words are gone after a retranslation is invisible).
+    var removableHighlights: [String] {
+        guard epub == nil, let pending else { return [] }
+        if pending.parentCardId != nil { return highlightedTranslation == nil ? [] : pending.translationHighlightIds }
+        let text = pending.anchors.filter { $0.sourceType == .pdfText && !$0.lineRects.isEmpty }
+        guard !text.isEmpty else { return [] }
+        func overlap(_ a: NormalizedRect, _ b: NormalizedRect) -> Bool {
+            let x = min(a.x + a.width, b.x + b.width) - max(a.x, b.x)
+            let y = min(a.y + a.height, b.y + b.height) - max(a.y, b.y)
+            return x > 0.002 && y > min(a.height, b.height) * 0.35
+        }
+        return journal.filter { entry in
+            guard entry.source == .highlight, entry.cardId == nil, let marks = entry.marks, !marks.isEmpty else { return false }
+            return marks.contains { mark in
+                text.contains { a in a.pageNumber == mark.pageNumber && a.lineRects.contains { r in mark.lineRects.contains { overlap(r, $0) } } }
+            }
+        }.map(\.id)
+    }
+
+    /// "Remove highlight": the highlights the selection overlaps go (with their journal entries).
+    func removeHighlights(lang: Lang) {
+        let ids = removableHighlights
+        guard !ids.isEmpty else { return }
+        for id in ids { try? store.deleteJournal(id, bookId: book.id) }
+        pending = nil
+        reloadJournal()
+        flash(UIText(lang)["highlightRemoved"])
     }
 
     /// "Highlight" (Vurgula): the selected passage is marked in yellow on its page and goes into the Book
@@ -987,6 +1108,17 @@ final class ReaderModel {
     func highlight(lang: Lang, color: String? = nil) {
         guard canHighlight, let pending else { return }
         if let color { highlightColor = HighlightColor.id(color) }
+        if let translation = highlightedTranslation {
+            // No marks: marks are PDF page geometry and are drawn on the PDF page. A translated page's
+            // highlight is found again by its words (same record as the web app).
+            let quote = pending.anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !quote.isEmpty else { return }
+            try? store.addJournal(JournalRecord(bookId: book.id, source: .highlight, quote: quote, text: "", pageNumber: translation.translatedPage ?? 0, cardId: translation.id, highlightColor: HighlightColor.stored(highlightColor)))
+            self.pending = nil
+            reloadJournal()
+            flash(UIText(lang)["highlighted"])
+            return
+        }
         let anchors = wholeWords(pending.anchors)
         let marks = anchors.map { JournalMark(pageNumber: $0.pageNumber, lineRects: $0.lineRects) }
         let quote = anchors.map(\.selectedText).filter { !$0.isEmpty }.joined(separator: " … ")
@@ -1067,7 +1199,8 @@ final class ReaderModel {
 
     /// Whether a card is in the journal, and if so whether the conversation went on since.
     func journalState(_ cardId: String) -> JournalState {
-        guard let card = cards.cards.first(where: { $0.id == cardId }), let entry = journal.first(where: { $0.cardId == cardId }) else { return .notSaved }
+        // A highlight on a translated page carries that page's card id; it is not the card's journal entry.
+        guard let card = cards.cards.first(where: { $0.id == cardId }), let entry = journal.first(where: { $0.cardId == cardId && $0.source != .highlight }) else { return .notSaved }
         let now = journalContent(card)
         // A region's quote is a name in the app's language: only its conversation decides.
         let area = card.anchors.contains { $0.sourceType == .pdfArea }
@@ -1079,7 +1212,7 @@ final class ReaderModel {
     func saveToJournal(_ cardId: String, lang: Lang) {
         guard let card = cards.cards.first(where: { $0.id == cardId }) else { return }
         let content = journalContent(card)
-        if let entry = journal.first(where: { $0.cardId == card.id }) {
+        if let entry = journal.first(where: { $0.cardId == card.id && $0.source != .highlight }) {
             guard entry.text != content.text || entry.quote != content.quote else { return }
             var updated = entry
             updated.quote = content.quote

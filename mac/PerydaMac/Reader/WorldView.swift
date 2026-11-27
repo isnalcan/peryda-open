@@ -31,6 +31,29 @@ final class WorldView: NSView {
     private var ropeLink: CADisplayLink?
     private var lastTick: CFTimeInterval?
 
+    // Thread presence: a new or unfolded thread's yarn draws out from its passage and its card fades
+    // in once the yarn has nearly arrived; a folded or hidden one fades out while its yarn reels back.
+    // Threads already in the book when it opens appear as they are (nothing replays).
+    private struct Presence {
+        var entering: Bool
+        var start: CFTimeInterval
+        /// Yarn drawn (0…1) when this phase began, so an interrupted phase reverses from where it is.
+        var from: Double
+    }
+    private var presence: [String: Presence] = [:]
+    /// Threads shown at the last sync (nil before the first one).
+    private var lastShown: Set<String>?
+    /// Turning a page in page-by-page reading shows another page's threads as they are (no replay).
+    private var presenceKey = ""
+    /// Yarns of threads that are closing, as they were last drawn.
+    private var closingSegments: [String: [YarnSegment]] = [:]
+    /// Pictures of closing cards, fading out where the cards were.
+    private var ghosts: [String: NSImageView] = [:]
+    static let drawSeconds = 0.34
+    static let reelSeconds = 0.28
+    static let cardDelay = 0.21
+    static let cardFade = 0.26
+
     override var isFlipped: Bool { true }
 
     init(model: ReaderModel, cardContent: @escaping (String) -> AnyView) {
@@ -125,6 +148,14 @@ final class WorldView: NSView {
         // Cards
         let placements = model.placements
         lastPlacements = placements
+        let shownNow = Set(model.cards.cards.filter { placements[$0.id] != nil && model.isShown($0) && $0.translatedPage == nil }.map(\.id))
+        let key = model.pagedReading ? "page:\(model.currentPage)" : "scroll"
+        if key != presenceKey {
+            presenceKey = key
+            lastShown = nil
+        }
+        let leaving = lastShown.map { $0.subtracting(shownNow) } ?? []
+        if !reduceMotion { for id in leaving { if let view = cardViews[id], !view.isHidden, view.superview != nil { fadeOutGhost(id, from: view) } } }
         let visibleIds = Set(placements.keys)
         for (id, view) in cardViews where !visibleIds.contains(id) {
             view.removeFromSuperview()
@@ -162,6 +193,7 @@ final class WorldView: NSView {
             }
             if view.isHidden == shown { view.isHidden = !shown }
         }
+        updatePresence(shownNow)
         attachNearbyCards()
         // Focused card on top.
         if let focused = model.focusedCard, let view = cardViews[focused], documentView.subviews.last !== view {
@@ -395,11 +427,26 @@ final class WorldView: NSView {
         }
         switch command {
         case .focus:
-            fit(width: model.pageWidth + 48, maxScale: 2.5)
+            // The page, at most at 100% (a wide window no longer blows it up), where the reader was.
+            fit(width: model.pageWidth + 48, maxScale: 1)
         case .overview:
             fit(width: model.centredContentWidth, maxScale: 1)
         case .map:
-            fit(width: model.centredContentWidth, maxScale: 0.45)
+            // Everything shown (pages, threads on both sides, translations), centred on itself and,
+            // up and down, on the page being read with its threads.
+            let content = model.shownBounds
+            let band = model.pageBand(model.currentPage) ?? content
+            let pad: CGFloat = 48
+            let m = min(0.85, max(0.15, min((viewport.width - pad * 2) / max(1, content.width), (viewport.height - pad * 2) / max(1, band.height))))
+            setMagnification(m, animated: animated)
+            let visible = scrollView.contentView.bounds.size
+            let y: CGFloat
+            if content.height <= visible.height - 2 * pad / m {
+                y = content.midY - visible.height / 2
+            } else {
+                y = min(max(band.midY - visible.height / 2, content.minY - pad / m), content.maxY + pad / m - visible.height)
+            }
+            scroll(to: CGPoint(x: content.midX - visible.width / 2, y: y), animated: animated)
         case .showTranslation(let number):
             // The page and its translation side by side, at the zoom the reader chose and where they
             // were reading (owner, 16 Nov: asking for a translation zoomed to 120%). Only sideways: the
@@ -677,10 +724,7 @@ final class WorldView: NSView {
 
     func highlightClicked(_ cardId: String) {
         guard let model, !cardId.isEmpty else { return }
-        if model.cards.cards.first(where: { $0.id == cardId })?.collapsed == true { model.cards.setCollapsed(cardId, false) }
-        // With threads hidden, a highlight brings back just its own card.
-        if model.hideThreads { model.revealed.insert(cardId) }
-        model.focusedCard = cardId
+        model.openThread(cardId)
     }
 
     // MARK: Threads from inside a card
@@ -702,7 +746,8 @@ final class WorldView: NSView {
             context: model.cardContext(cardId)
         )
         clearSelection()
-        model.pending = PendingSelection(anchors: [anchor], rect: convert(windowRect, from: nil), parentCardId: cardId)
+        let onTranslation = model.cards.cards.first { $0.id == cardId }?.translatedPage != nil
+        model.pending = PendingSelection(anchors: [anchor], rect: convert(windowRect, from: nil), parentCardId: cardId, translationHighlightIds: onTranslation ? AnswerTextView.lastSelectedHighlightIds : [])
     }
 
     // MARK: Card clicks and dragging (pin)
@@ -737,6 +782,82 @@ final class WorldView: NSView {
 
     private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
+    // MARK: Thread presence
+
+    private static func ease(_ t: Double) -> Double {
+        let x = min(max(t, 0), 1)
+        return 1 - pow(1 - x, 3)
+    }
+
+    /// How much of a thread's yarn is drawn now (1 when it is simply there).
+    private func yarnProgress(_ id: String, now: CFTimeInterval) -> Double {
+        guard let p = presence[id] else { return 1 }
+        if p.entering { return p.from + (1 - p.from) * Self.ease((now - p.start) / Self.drawSeconds) }
+        return p.from * (1 - Self.ease((now - p.start) / Self.reelSeconds))
+    }
+
+    private func updatePresence(_ shown: Set<String>) {
+        defer { lastShown = shown }
+        guard let previous = lastShown, !reduceMotion else {
+            presence = [:]
+            closingSegments = [:]
+            return
+        }
+        let now = CACurrentMediaTime()
+        // Several threads appearing together (threads shown again) follow one another a little.
+        let added = model?.cards.cards.map(\.id).filter { shown.contains($0) && !previous.contains($0) } ?? []
+        for (index, id) in added.enumerated() {
+            let stagger = min(Double(index) * 0.035, 0.175)
+            presence[id] = Presence(entering: true, start: now + stagger, from: presence[id] == nil ? 0 : yarnProgress(id, now: now))
+            closingSegments[id] = nil
+            ghosts.removeValue(forKey: id)?.removeFromSuperview()
+            if let view = cardViews[id] {
+                view.alphaValue = 0
+                let delay = stagger + max(0, Self.cardDelay * (1 - (presence[id]?.from ?? 0)))
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak view] in
+                    guard let self, let view, self.presence[id]?.entering == true || self.presence[id] == nil else { return }
+                    NSAnimationContext.runAnimationGroup { ctx in
+                        ctx.duration = Self.cardFade
+                        ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                        view.animator().alphaValue = 1
+                    }
+                }
+            }
+        }
+        for id in previous.subtracting(shown) {
+            let segments = yarnView.segments.filter { $0.cardId == id }
+            closingSegments[id] = segments.isEmpty ? nil : segments
+            presence[id] = Presence(entering: false, start: now, from: yarnProgress(id, now: now))
+        }
+        if !presence.isEmpty { startRopes() }
+    }
+
+    /// A picture of a closing card, fading out where the card was (the card itself goes at once).
+    private func fadeOutGhost(_ id: String, from view: NSView) {
+        guard view.bounds.width > 0, view.bounds.height > 0, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        let image = NSImage(size: view.bounds.size)
+        image.addRepresentation(rep)
+        ghosts.removeValue(forKey: id)?.removeFromSuperview()
+        let ghost = NSImageView(frame: view.frame)
+        ghost.image = image
+        ghost.imageScaling = .scaleAxesIndependently
+        ghost.alphaValue = view.alphaValue
+        documentView.addSubview(ghost, positioned: .above, relativeTo: view)
+        ghosts[id] = ghost
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = Self.cardFade * 0.8
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            ghost.animator().alphaValue = 0
+        }, completionHandler: { [weak self, weak ghost] in
+            Task { @MainActor in
+                guard let self, let ghost else { return }
+                ghost.removeFromSuperview()
+                if self.ghosts[id] === ghost { self.ghosts[id] = nil }
+            }
+        })
+    }
+
     /// Redraws the yarns from the current card positions and, unless motion is reduced, advances the ropes.
     func refreshYarns(dt: Double) {
         guard let model else { return }
@@ -751,6 +872,20 @@ final class WorldView: NSView {
         }
         yarnView.segments = segments
         yarnView.bends = ropes.bends
+        // Opening and closing threads draw only part of their yarn; finished phases are dropped.
+        let now = CACurrentMediaTime()
+        var progress: [String: Double] = [:]
+        for (id, p) in presence {
+            let done = p.entering ? now - p.start >= Self.drawSeconds : now - p.start >= Self.reelSeconds
+            if done {
+                presence[id] = nil
+                closingSegments[id] = nil
+            } else {
+                progress[id] = yarnProgress(id, now: now)
+            }
+        }
+        yarnView.progress = progress
+        yarnView.closing = closingSegments.values.flatMap { $0 }
         yarnView.needsDisplay = true
         if dragCard != nil { layoutClips(place) }
     }
@@ -797,7 +932,7 @@ final class WorldView: NSView {
         let dt = lastTick.map { min(1.0 / 30, max(0, now - $0)) } ?? 1.0 / 120
         lastTick = now
         refreshYarns(dt: dt)
-        if dragCard == nil, ropes.isSettled {
+        if dragCard == nil, ropes.isSettled, presence.isEmpty {
             link.isPaused = true
             lastTick = nil
         }
@@ -943,9 +1078,17 @@ final class PageView: NSView {
         // Highlights multiply like a real highlighter, so black text never fades.
         ctx.saveGState()
         ctx.setBlendMode(.multiply)
+        // One fill per highlight: its line boxes overlap a little, and filling them one by one
+        // multiplied the overlap twice (dark seams between lines).
+        func fillOnce(_ rects: [NormalizedRect]) {
+            let path = CGMutablePath()
+            for rect in rects { path.addRoundedRect(in: r(rect), cornerWidth: 2, cornerHeight: 2) }
+            ctx.addPath(path)
+            ctx.fillPath(using: .winding)
+        }
         for mark in marks {
             ctx.setFillColor(Theme.highlighter(mark.color).cgColor)
-            for rect in mark.rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
+            fillOnce(mark.rects)
         }
         for hit in findHits {
             ctx.setFillColor(Theme.findMatch(current: hit.index == currentFind).cgColor)
@@ -953,7 +1096,7 @@ final class PageView: NSView {
         }
         for hl in highlights where !hl.area {
             ctx.setFillColor(hl.pending ? NSColor(srgbRed: 0.2, green: 0.376, blue: 0.31, alpha: 0.16).cgColor : Theme.highlight(hl.color).cgColor)
-            for rect in hl.rects { ctx.addPath(CGPath(roundedRect: r(rect), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath() }
+            fillOnce(hl.rects)
         }
         ctx.restoreGState()
         for hl in highlights where hl.area {
@@ -1117,6 +1260,10 @@ final class YarnOverlayView: NSView {
     var segments: [YarnSegment] = []
     /// Rope bends by segment id (see YarnRopes).
     var bends: [String: CGPoint] = [:]
+    /// How much of each opening or closing thread's yarn is drawn (by card id; absent = all of it).
+    var progress: [String: Double] = [:]
+    /// Yarns of closing threads, reeling back to their passage.
+    var closing: [YarnSegment] = []
 
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -1124,11 +1271,23 @@ final class YarnOverlayView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         let s = SharedContract.tokens.yarnStroke
-        for seg in segments {
-            let (c1, c2) = YarnRopes.controls(seg, bend: bends[seg.id])
+        for seg in segments + closing {
+            var (c1, c2) = YarnRopes.controls(seg, bend: bends[seg.id])
+            var end = seg.to
+            let t = progress[seg.cardId] ?? (closing.contains { $0.id == seg.id } ? 0 : 1)
+            if t <= 0.001 { continue }
+            if t < 1 {
+                // The first part of the curve, up to t (de Casteljau).
+                func lerp(_ a: CGPoint, _ b: CGPoint) -> CGPoint { CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t) }
+                let p01 = lerp(seg.from, c1), p12 = lerp(c1, c2), p23 = lerp(c2, seg.to)
+                let p012 = lerp(p01, p12), p123 = lerp(p12, p23)
+                end = lerp(p012, p123)
+                c1 = p01
+                c2 = p012
+            }
             let path = CGMutablePath()
             path.move(to: seg.from)
-            path.addCurve(to: seg.to, control1: c1, control2: c2)
+            path.addCurve(to: end, control1: c1, control2: c2)
             let color = Theme.yarn(seg.color).usingColorSpace(.sRGB) ?? .gray
             ctx.addPath(path)
             ctx.setStrokeColor(color.withAlphaComponent(s.haloOpacity).cgColor)
@@ -1143,7 +1302,7 @@ final class YarnOverlayView: NSView {
             ctx.setLineDash(phase: 0, lengths: [])
             ctx.setFillColor(color.cgColor)
             ctx.fillEllipse(in: CGRect(x: seg.from.x - s.startKnotRadius, y: seg.from.y - s.startKnotRadius, width: s.startKnotRadius * 2, height: s.startKnotRadius * 2))
-            ctx.fillEllipse(in: CGRect(x: seg.to.x - s.endKnotRadius, y: seg.to.y - s.endKnotRadius, width: s.endKnotRadius * 2, height: s.endKnotRadius * 2))
+            ctx.fillEllipse(in: CGRect(x: end.x - s.endKnotRadius, y: end.y - s.endKnotRadius, width: s.endKnotRadius * 2, height: s.endKnotRadius * 2))
         }
     }
 }

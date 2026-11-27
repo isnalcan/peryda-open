@@ -147,7 +147,7 @@ struct BookTile: View {
             if let page = model.store.position(for: book.id)?.page, page > 1 {
                 parts.append(t("pageOf", ["p": page, "n": book.pageCount]))
             } else {
-                parts.append(t("pages", ["n": book.pageCount]))
+                parts.append(book.pageCount == 1 ? t["onePage"] : t("pages", ["n": book.pageCount]))
             }
         } else {
             parts.append("EPUB")
@@ -252,9 +252,9 @@ struct WelcomeView: View {
             }
             VStack(spacing: 8) {
                 ForEach(Self.languages(first: Lang.preferred()), id: \.self) { lang in
+                    // A language is tried out here (the window follows it); only Continue moves on.
                     Button {
                         model.lang = lang
-                        languageChosen = true
                     } label: {
                         HStack {
                             Text(lang.languageName.capitalized(with: Locale(identifier: lang.rawValue)))

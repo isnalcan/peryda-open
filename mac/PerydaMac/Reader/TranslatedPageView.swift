@@ -56,6 +56,24 @@ struct TranslatedPageView: View {
                 Text("· " + t["translating"]).font(.system(size: 10))
             }
             Spacer(minLength: 8)
+            // Threads sit between the page and its translation: "Side by side" hides them (and brings
+            // them back) so the two can be read together.
+            if let page = card.translatedPage, reader.hideThreads || reader.hasThreads(onPage: page) {
+                Button {
+                    reader.hideThreads.toggle()
+                    reader.revealed = []
+                    reader.cameraCommand = .showTranslation(page: page)
+                } label: {
+                    Text(t["focusLane"]).font(.system(size: 10, weight: .semibold))
+                        .padding(.horizontal, 7)
+                        .frame(height: 20)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Color.black.opacity(reader.hideThreads ? 0.10 : 0.0)))
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.black.opacity(0.14)))
+                }
+                .buttonStyle(.borderless)
+                .help(t["focusLane"])
+                .accessibilityAddTraits(reader.hideThreads ? .isSelected : [])
+            }
             // The translation's text size, for every translated page of this book (owner test 15 Nov).
             Button { reader.stepTranslationText(-1) } label: { Image(systemName: "textformat.size.smaller").frame(width: 22, height: 22) }
                 .buttonStyle(.borderless)
@@ -107,8 +125,11 @@ struct TranslatedPageView: View {
             TranslationText(
                 text: answer?.content ?? "",
                 scale: reader.translationTextScale,
-                marks: reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.highlight($0.color), near: $0.rect, multiply: true) },
-                onPress: { reader.pending = nil }
+                // The reader's own highlights first (under the threads' marks), multiplied like ink on paper.
+                marks: reader.translationHighlights(cardId).map { AnswerTextView.Mark(text: $0.quote, color: Theme.highlighter($0.highlightColor), multiply: true, highlightId: $0.id) }
+                    + reader.marks(inCard: cardId).map { AnswerTextView.Mark(text: $0.text, color: Theme.highlight($0.color), near: $0.rect, multiply: true, threadId: $0.threadId) },
+                onPress: { reader.pending = nil },
+                onMarkClick: { reader.openThread($0) }
             ) { text, rect in onSelectText(cardId, text, rect) }
         }
     }
@@ -160,6 +181,7 @@ struct TranslationText: NSViewRepresentable {
     var scale: Double = 1
     var marks: [AnswerTextView.Mark] = []
     var onPress: (() -> Void)?
+    var onMarkClick: ((String) -> Void)?
     let onSelect: (String, CGRect) -> Void
 
     func makeNSView(context: Context) -> FittingTextView {
@@ -169,6 +191,7 @@ struct TranslationText: NSViewRepresentable {
     func updateNSView(_ view: FittingTextView, context: Context) {
         view.textView.onSelect = onSelect
         view.textView.onPress = onPress
+        view.textView.onMarkClick = onMarkClick
         view.textView.marks = marks
         if view.source != text || view.scale != scale {
             view.source = text

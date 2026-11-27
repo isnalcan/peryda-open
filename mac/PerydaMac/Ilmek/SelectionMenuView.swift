@@ -45,6 +45,13 @@ struct SelectionMenuView: View {
                 if reader.canHighlight {
                     HighlightButton(reader: reader, lang: lang)
                 }
+                if !reader.removableHighlights.isEmpty {
+                    Button { reader.removeHighlights(lang: lang) } label: {
+                        Text(t["removeHighlight"]).font(.system(size: 12.5, weight: .semibold))
+                    }
+                    .buttonStyle(MenuChipStyle(color: .inkSoft))
+                    .help(t["removeHighlight"])
+                }
                 tool(noteMode ? "note.text.badge.plus" : "note.text", t["myNote"], active: noteMode) {
                     noteMode.toggle()
                     focused = true

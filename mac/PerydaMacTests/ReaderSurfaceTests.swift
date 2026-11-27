@@ -111,8 +111,18 @@ final class ReaderSurfaceTests: XCTestCase {
         reader.create(color: .coral, kind: .quick(.coral))
         await reader.cards.waitForIdle()
         reader.heights = Dictionary(uniqueKeysWithValues: reader.cards.cards.map { ($0.id, 200.0) })
-        let ys = reader.cards.cards.compactMap { reader.placements[$0.id]?.y }.sorted()
-        XCTAssertEqual(ys.count, 2)
+        // The right margin beside the paragraph is taken, so the second thread opens in the left lane,
+        // level with its own sentence (0.1.3 round), rather than being pushed down the right lane.
+        let first = try XCTUnwrap(reader.placements[reader.cards.cards[0].id])
+        let second = try XCTUnwrap(reader.placements[reader.cards.cards[1].id])
+        XCTAssertEqual(first.x, Geometry.laneX(pageWidth: reader.pageWidth))
+        XCTAssertEqual(second.x, -SharedContract.tokens.geometry.laneOffset - Geometry.cardWidth)
+        XCTAssertLessThanOrEqual(second.x + Geometry.cardWidth, 0, "the left card stays off the page")
+        // Older threads (from before the left lane) still stack down the right lane without overlapping.
+        let old = reader.cards.cards.map { c in
+            Lane.Input(id: c.id, width: Geometry.cardWidth, anchorY: Double(first.y) + 14, height: 200, page: 1, createdAt: Lane.leftLaneSince - 1)
+        }
+        let ys = Lane.layout(old, laneX: Geometry.laneX(pageWidth: reader.pageWidth), pageWidth: reader.pageWidth).values.map(\.y).sorted()
         XCTAssertGreaterThanOrEqual(ys[1] - ys[0], 200 + 18 - 0.001)
     }
 

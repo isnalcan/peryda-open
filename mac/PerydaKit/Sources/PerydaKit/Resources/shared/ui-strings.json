@@ -1031,6 +1031,12 @@
     "de": "Der neue Faden wurde außerhalb des Bildschirms geöffnet.",
     "es": "El nuevo hilo se abrió fuera de la pantalla."
   },
+  "onePage": {
+    "tr": "1 sayfa",
+    "en": "1 page",
+    "de": "1 Seite",
+    "es": "1 página"
+  },
   "openSettings": {
     "tr": "Ayarları aç",
     "en": "Open Settings",

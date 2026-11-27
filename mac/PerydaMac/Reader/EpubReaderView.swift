@@ -52,6 +52,14 @@ struct EpubReaderSurface: View {
                     // Without its network block the book is not shown at all.
                     if reader.epubBlocked {
                         Text(t["importFailed"]).foregroundStyle(Color.inkSoft).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.paper)
+                    } else if !reader.epubReady {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text(t["openingBook"]).foregroundStyle(Color.inkSoft)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.paper)
+                        .accessibilityElement(children: .combine)
                     }
                 }
             Rectangle().fill(Color.inkFaint.opacity(0.35)).frame(width: 1)
@@ -79,6 +87,8 @@ struct EpubReaderSurface: View {
             }
         }
         .onChange(of: reader.pending == nil) { _, cleared in if cleared { webCommand = .clearSelection } }
+        .onChange(of: reader.epubJump) { _, jump in if let jump { webCommand = .scrollTo(jump.chapter, jump.start) } }
+        .modifier(JournalEscape(reader: reader))
         .inspector(isPresented: $reader.showJournal) {
             JournalPanel(reader: reader, lang: app.lang, openSettings: { openSettings() })
                 .inspectorColumnWidth(min: 300, ideal: 380, max: 520)
@@ -86,7 +96,7 @@ struct EpubReaderSurface: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if let chapter = reader.epubChapter {
-                    Text(Compose.chapterLabel(app.lang, chapter)).foregroundStyle(.secondary)
+                    chapterControls(chapter, t)
                 }
                 Toggle(isOn: $reader.showJournal) { Label(t["journal"], systemImage: "book.closed") }
                 Toggle(isOn: $reader.hideThreads) {
@@ -100,11 +110,62 @@ struct EpubReaderSurface: View {
         }
     }
 
+    /// Previous and next chapter around the contents menu (the chapter being read, ticked).
+    @ViewBuilder
+    private func chapterControls(_ chapter: Int, _ t: UIText) -> some View {
+        let chapters = reader.epub?.chapters ?? []
+        if chapters.count > 1 {
+            ControlGroup {
+                Button { reader.goToChapter(chapter - 1) } label: { Image(systemName: "chevron.left") }
+                    .help(t["previousChapter"])
+                    .accessibilityLabel(t["previousChapter"])
+                    .disabled(chapter <= 1)
+                Menu {
+                    Section(t["toc"]) {
+                        ForEach(chapters, id: \.index) { c in
+                            Button { reader.goToChapter(c.index + 1) } label: {
+                                let title = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if c.index + 1 == chapter {
+                                    Label(title.isEmpty ? Compose.chapterLabel(app.lang, c.index + 1) : title, systemImage: "checkmark")
+                                } else {
+                                    Text(title.isEmpty ? Compose.chapterLabel(app.lang, c.index + 1) : title)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Text(Compose.chapterLabel(app.lang, chapter))
+                }
+                .help(t["toc"])
+                Button { reader.goToChapter(chapter + 1) } label: { Image(systemName: "chevron.right") }
+                    .help(t["nextChapter"])
+                    .accessibilityLabel(t["nextChapter"])
+                    .disabled(chapter >= chapters.count)
+            }
+        } else {
+            Text(Compose.chapterLabel(app.lang, chapter)).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Whether a card has a folded thread above it (it is then inside that fold, not in the lane).
+    private func underFold(_ card: YarnCard) -> Bool {
+        let byId = Dictionary(reader.cards.cards.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        var seen: Set<String> = [card.id]
+        var parent = card.parentCardId.flatMap { byId[$0] }
+        while let p = parent, !seen.contains(p.id) {
+            if p.collapsed { return true }
+            seen.insert(p.id)
+            parent = p.parentCardId.flatMap { byId[$0] }
+        }
+        return false
+    }
+
     private var lane: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    ForEach(orderedCards.filter { reader.isShown($0.card) }, id: \.card.id) { item in
+                    // A folded thread keeps a knot in the lane; a thread inside a folded one stays inside it.
+                    ForEach(orderedCards.filter { reader.isShown($0.card) && !underFold($0.card) }, id: \.card.id) { item in
                         Group {
                             if item.card.collapsed {
                                 Button { reader.cards.setCollapsed(item.card.id, false) } label: {
@@ -131,14 +192,22 @@ struct EpubReaderSurface: View {
                         }
                         .padding(.leading, CGFloat(item.depth) * 16)
                         .id(item.card.id)
+                        .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .topLeading)))
                     }
                 }
                 .padding(16)
+                // New and folded threads ease in and out; threads already in the book appear as they are.
+                .animation(.spring(duration: 0.32, bounce: 0), value: laneState)
             }
             .onChange(of: reader.focusedCard) { _, id in
                 if let id { withAnimation(.spring(duration: 0.3, bounce: 0)) { proxy.scrollTo(id, anchor: .top) } }
             }
         }
+    }
+
+    /// What the lane shows, for its animation.
+    private var laneState: [String] {
+        reader.cards.cards.map { "\($0.id):\($0.collapsed):\(reader.isShown($0))" }
     }
 
     /// Cards in reading order; a thread opened from a card follows its parent.
@@ -264,6 +333,7 @@ struct EpubWebView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             loaded = true
+            parent.reader.epubReady = true
             lastHighlights = ""
             lastStyle = ""
             applyStyle()
@@ -292,8 +362,16 @@ struct EpubWebView: NSViewRepresentable {
                 if parent.reader.pending?.anchors.first?.sourceType == .epubText { parent.reader.pending = nil }
             case "mark":
                 if let id = body["cardId"] as? String {
-                    if parent.reader.cards.cards.first(where: { $0.id == id })?.collapsed == true { parent.reader.cards.setCollapsed(id, false) }
-                    if parent.reader.hideThreads { parent.reader.revealed.insert(id) }
+                    // The thread and every thread it hangs from open (and, with threads hidden, come back).
+                    let byId = Dictionary(parent.reader.cards.cards.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                    var seen: Set<String> = []
+                    var current = byId[id]
+                    while let c = current, !seen.contains(c.id) {
+                        seen.insert(c.id)
+                        if c.collapsed { parent.reader.cards.setCollapsed(c.id, false) }
+                        if parent.reader.hideThreads { parent.reader.revealed.insert(c.id) }
+                        current = c.parentCardId.flatMap { byId[$0] }
+                    }
                     parent.reader.focusedCard = id
                 }
             case "position":

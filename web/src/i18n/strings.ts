@@ -18,6 +18,8 @@ const tr = {
   close: 'Kapat',
   back: 'Kitaplık',
   pages: (n: number) => `${n} sayfa`,
+  /** One page (the Mac app shows it for a one-page book). */
+  onePage: '1 sayfa',
   pageOf: (p: number, n: number) => `${p} / ${n}`,
   settings: 'Ayarlar',
   aiKeys: 'Yapay zekâ anahtarları',
@@ -325,6 +327,7 @@ const en: Strings = {
   close: 'Close',
   back: 'Library',
   pages: (n) => (n === 1 ? '1 page' : `${n} pages`),
+  onePage: '1 page',
   pageOf: (p, n) => `${p} / ${n}`,
   settings: 'Settings',
   aiKeys: 'AI keys',
@@ -630,6 +633,7 @@ const de: Strings = {
   close: 'Schließen',
   back: 'Bibliothek',
   pages: (n) => (n === 1 ? '1 Seite' : `${n} Seiten`),
+  onePage: '1 Seite',
   settings: 'Einstellungen',
   aiKeys: 'KI-Schlüssel',
   aiKeysIntro:
@@ -930,6 +934,7 @@ const es: Strings = {
   close: 'Cerrar',
   back: 'Biblioteca',
   pages: (n) => (n === 1 ? '1 página' : `${n} páginas`),
+  onePage: '1 página',
   settings: 'Ajustes',
   aiKeys: 'Claves de IA',
   aiKeysIntro:
