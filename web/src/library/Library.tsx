@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type SVGProps } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type DragEvent, type SVGProps } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, deleteBook, type BookRecord, type ReadingPosition } from '../data/db'
 import { useI18n } from '../i18n/I18n'
-import { GearIcon, InfoIcon, PlusIcon, TrashIcon } from '../ui/icons'
+import { CloseIcon, GearIcon, InfoIcon, PlusIcon, TrashIcon } from '../ui/icons'
 import { coverFit, forgetCover, loadCover, peekCover, type CoverImage } from './covers'
 import { bookDetail, shelf } from './libraryModel'
 import { isImageFile } from './imagePdf'
@@ -61,6 +61,7 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState<BookRecord | null>(null)
   const [info, setInfo] = useState<BookRecord | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState<BookRecord | null>(null)
   const [menu, setMenu] = useState<{ book: BookRecord; x: number; y: number } | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(notice ?? null)
@@ -113,7 +114,11 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
   }
 
   const remove = (book: BookRecord) => {
-    if (!window.confirm(t.deleteBookConfirm)) return
+    setConfirmingDelete(book)
+  }
+
+  const confirmRemove = (book: BookRecord) => {
+    setConfirmingDelete(null)
     void deleteBook(book.id).then((jobs) => {
       forgetCover(book.id)
       if (jobs.length) onBookDeleted?.(jobs)
@@ -201,6 +206,14 @@ export function Library({ onOpen, onOpenSettings, onBookDeleted, notice }: Props
       )}
       {editing && <EditBookDialog key={editing.id} book={editing} onClose={() => setEditing(null)} />}
       {info && <BookInfoDialog key={info.id} book={info} onClose={() => setInfo(null)} />}
+      {confirmingDelete && (
+        <DeleteBookDialog
+          key={confirmingDelete.id}
+          book={confirmingDelete}
+          onConfirm={() => confirmRemove(confirmingDelete)}
+          onClose={() => setConfirmingDelete(null)}
+        />
+      )}
       {menu && (
         <BookMenu
           x={menu.x}
@@ -226,6 +239,48 @@ interface TileProps {
   onDelete: (book: BookRecord) => void
   /** A right-click: the book's menu at that point of the window. */
   onMenu: (x: number, y: number) => void
+}
+
+/** In-app alertdialog confirmation before deleting a book (consistent with thread deletion). */
+function DeleteBookDialog({ book, onConfirm, onClose }: { book: BookRecord; onConfirm: () => void; onClose: () => void }) {
+  const { t } = useI18n()
+  const headingId = useId()
+  const bodyId = useId()
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const d = dialogRef.current
+    if (d && !d.open && typeof d.showModal === 'function') d.showModal()
+  }, [])
+  return (
+    <dialog
+      ref={dialogRef}
+      role="alertdialog"
+      className="edit-book-dialog delete-book-dialog"
+      aria-labelledby={headingId}
+      aria-describedby={bodyId}
+      onClose={onClose}
+      onCancel={onClose}
+    >
+      <header className="dialog-header">
+        <h2 id={headingId}>{t.deleteBook}</h2>
+        <button type="button" className="icon-button" aria-label={t.close} onClick={onClose}>
+          <CloseIcon size={18} />
+        </button>
+      </header>
+      <div className="delete-book-body" id={bodyId}>
+        <p className="delete-book-title">{book.title}</p>
+        <p className="dialog-intro">{t.deleteBookConfirm}</p>
+      </div>
+      <footer className="edit-book-actions">
+        <button type="button" className="ghost-button" onClick={onClose}>
+          {t.cancel}
+        </button>
+        <button type="button" className="primary-button is-danger-button" onClick={onConfirm}>
+          {t.delete}
+        </button>
+      </footer>
+    </dialog>
+  )
 }
 
 /** A right-click on a book: its info, its title and author, deleting it. */

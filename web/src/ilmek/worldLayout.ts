@@ -124,7 +124,7 @@ export function placeCards(input: WorldInput): Map<string, CardPlacement> {
     if (!page) return { x: t.x, y: t.y }
     let right = page.x + page.width
     for (const c of cards) {
-      if (fromTranslation(c, byId)) continue
+      if (fromTranslation(c, byId) || !isShown(c, input, byId)) continue
       const p = placed.get(c.id)
       if (!p) continue
       if (p.y < page.y + page.height && p.y + heightOf(input, c.id) > page.y) right = Math.max(right, p.x + c.width)
@@ -133,8 +133,9 @@ export function placeCards(input: WorldInput): Map<string, CardPlacement> {
   }
 
   const pageOf = new Map(cards.map((c) => [c.id, homePage(c, byId)]))
-  // The lane follows the pages' right edge (the reader can resize the pages).
-  const lane = laneX(pageWidthOf(pages))
+  const pw = pageWidthOf(pages)
+  // The lane follows the pages' right edge (the reader can resize the pages); crowded pages overflow left.
+  const lane = laneX(pw)
   let placed = new Map<string, CardPlacement>()
   for (let round = 0; round < 32; round += 1) {
     const previous = placed
@@ -150,6 +151,8 @@ export function placeCards(input: WorldInput): Map<string, CardPlacement> {
         width: c.width,
         anchorY: anchorY(c, previous),
         height: heightOf(input, c.id),
+        page: pageOf.get(c.id),
+        createdAt: c.createdAt,
       }
     })
     if (input.pagedReading) {
@@ -160,10 +163,10 @@ export function placeCards(input: WorldInput): Map<string, CardPlacement> {
         groups.set(page, [...(groups.get(page) ?? []), item])
       }
       const merged = new Map<string, CardPlacement>()
-      for (const group of groups.values()) for (const [id, p] of layoutCards(group, lane)) merged.set(id, p)
+      for (const group of groups.values()) for (const [id, p] of layoutCards(group, lane, { pageWidth: pw })) merged.set(id, p)
       placed = merged
     } else {
-      placed = layoutCards(items, lane)
+      placed = layoutCards(items, lane, { pageWidth: pw })
     }
     if (samePlacements(placed, previous)) break
   }
@@ -219,6 +222,7 @@ export interface Clip {
 
 export function clipsFor(input: WorldInput, placements: Map<string, CardPlacement>, lang: Lang): Clip[] {
   const byId = byIdOf(input.cards)
+  const pageMid = pageWidthOf(input.pages) / 2
   const out: Clip[] = []
   for (const card of input.cards) {
     if (!card.collapsed) continue
@@ -226,8 +230,11 @@ export function clipsFor(input: WorldInput, placements: Map<string, CardPlacemen
     const parent = anchor?.sourceCardId ? byId.get(anchor.sourceCardId) : undefined
     const pp = parent ? placements.get(parent.id) : undefined
     if (!anchor || !parent || !pp || !isShown(parent, input, byId)) continue
-    const right = !card.isPinned || card.x + card.width / 2 >= pp.x + parent.width / 2
-    const y = pp.y + anchor.boundingRect.y + anchor.boundingRect.height / 2
+    const parentMid = pp.x + parent.width / 2
+    const right = card.isPinned ? card.x + card.width / 2 >= parentMid : parentMid >= pageMid
+    const parentH = heightOf(input, parent.id)
+    const rawY = pp.y + anchor.boundingRect.y + anchor.boundingRect.height / 2
+    const y = Math.min(Math.max(rawY, pp.y + 46), pp.y + Math.max(52, parentH - 28))
     out.push({ cardId: card.id, color: card.color, title: kindTitle(lang, card), right, point: [right ? pp.x + parent.width : pp.x, y] })
   }
   // Knots on the same edge never overlap.
@@ -243,7 +250,8 @@ export function clipsFor(input: WorldInput, placements: Map<string, CardPlacemen
 
 /**
  * Yarns from passages (or text inside a card) to the cards shown. A card moved to the left of the page
- * takes its yarn on its right edge, from the passage's left end; otherwise left edge, right end.
+ * (or left of its parent card) takes its yarn on its right edge, from the source's left end; otherwise
+ * left edge, right end.
  */
 export function yarnSegments(input: WorldInput, placements: ReadonlyMap<string, CardPlacement>): YarnSegment[] {
   const byId = byIdOf(input.cards)
@@ -253,14 +261,20 @@ export function yarnSegments(input: WorldInput, placements: ReadonlyMap<string, 
     if (card.translatedPage !== undefined || !isShown(card, input, byId)) continue
     const p = placements.get(card.id)
     if (!p) continue
-    const onLeft = p.x + card.width / 2 < pageMid
-    const to: Point = onLeft ? [p.x + card.width, p.y + GEOMETRY.cardAttachY] : [p.x, p.y + GEOMETRY.cardAttachY]
+    const cardMid = p.x + card.width / 2
     for (const a of card.anchors) {
       let from: Point | null = null
+      let onLeft = cardMid < pageMid
       if (a.sourceType === 'card') {
         const parent = a.sourceCardId ? byId.get(a.sourceCardId) : undefined
         const pp = a.sourceCardId ? placements.get(a.sourceCardId) : undefined
-        if (parent && pp && isShown(parent, input, byId)) from = [onLeft ? pp.x : pp.x + parent.width, pp.y + a.boundingRect.y + a.boundingRect.height / 2]
+        if (parent && pp && isShown(parent, input, byId)) {
+          onLeft = cardMid < pp.x + parent.width / 2
+          const parentH = heightOf(input, parent.id)
+          const rawY = pp.y + a.boundingRect.y + a.boundingRect.height / 2
+          const attachY = Math.min(Math.max(rawY, pp.y + 46), pp.y + Math.max(52, parentH - 28))
+          from = [onLeft ? pp.x : pp.x + parent.width, attachY]
+        }
       } else {
         const page = input.pages[a.pageNumber - 1]
         if (page) {
@@ -269,7 +283,10 @@ export function yarnSegments(input: WorldInput, placements: ReadonlyMap<string, 
             : anchorWorldPoint(a.boundingRect, page)
         }
       }
-      if (from) out.push({ key: `${card.id}-${a.id}`, color: card.color, from, to, cardId: card.id, sourceCardId: a.sourceCardId })
+      if (from) {
+        const to: Point = onLeft ? [p.x + card.width, p.y + GEOMETRY.cardAttachY] : [p.x, p.y + GEOMETRY.cardAttachY]
+        out.push({ key: `${card.id}-${a.id}`, color: card.color, from, to, cardId: card.id, sourceCardId: a.sourceCardId })
+      }
     }
   }
   return out

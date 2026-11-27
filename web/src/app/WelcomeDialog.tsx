@@ -54,7 +54,6 @@ export function WelcomeDialog({ lang, onLang, onAddKey, onLater }: Props) {
               className={`welcome-language${l === lang ? ' is-current' : ''}`}
               onClick={() => {
                 onLang(l)
-                setLanguageChosen(true)
               }}
             >
               <span>{LANG_NAMES[l]}</span>

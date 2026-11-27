@@ -11,6 +11,8 @@ export interface PageHighlight {
   color: YarnColor
   area: boolean
   rects: NormalizedRect[]
+  /** True when the thread card is currently folded or hidden, so clicking its highlight unfolds/reveals it first. */
+  folded?: boolean
   /** The reader's own highlight ("Vurgula"): drawn like a highlighter, not clickable, text under it stays selectable. */
   highlighter?: boolean
   /** The highlighter's colour (yellow when not given). */
@@ -66,6 +68,72 @@ interface Props {
   grip?: PageGrip
 }
 
+/**
+ * Places `.endOfContent` right next to the text span at `(clientX, clientY)` while the reader drags a
+ * selection across a PDF page. Because `pdf.js` renders each line/run as an `absolute` span with empty
+ * gaps between lines and in margins, hitting bare `.textLayer` mid-drag makes browsers jump the selection
+ * endpoint to the end of `.textLayer` (selecting 10–15 lines at once). Parking `.endOfContent` (`z-index: 0,
+ * user-select: none`) right after the active span keeps the selection locked to the line under the cursor.
+ */
+export function parkEndOfContent(
+  endOfContent: HTMLElement,
+  spans: readonly { el: Element; rect: DOMRect }[],
+  anchorY: number,
+  clientX: number,
+  clientY: number,
+  anchorX = clientX,
+): void {
+  if (!spans.length) return
+  // Filter to spans belonging to the horizontal column under `(clientX)` (or between `anchorX` and `clientX`)
+  // so dragging down the left column of a 2-column academic PDF never jumps to the right column!
+  const minBandX = Math.min(anchorX, clientX) - 44
+  const maxBandX = Math.max(anchorX, clientX) + 44
+  const inCursorColumn = (r: DOMRect) => r.right >= clientX - 44 && r.left <= clientX + 44
+  const hasCursorColumn = spans.some((s) => s.rect.width > 0 && s.rect.height > 0 && inCursorColumn(s.rect))
+  const inBand = (r: DOMRect) =>
+    hasCursorColumn ? inCursorColumn(r) : r.right >= minBandX && r.left <= maxBandX
+  const useAll = !hasCursorColumn && !spans.some((s) => s.rect.width > 0 && s.rect.height > 0 && inBand(s.rect))
+
+  if (clientY >= anchorY - 2) {
+    let lastIdx = -1
+    for (let i = 0; i < spans.length; i += 1) {
+      const r = spans[i]!.rect
+      if (r.width <= 0 || r.height <= 0) continue
+      if (!useAll && !inBand(r)) continue
+      const aboveLine = r.bottom <= clientY + 2
+      const onLine = r.top <= clientY + 2 && r.bottom > clientY + 2 && r.left <= clientX + 4
+      if (aboveLine || onLine) lastIdx = i
+    }
+    if (lastIdx >= 0) {
+      const span = spans[lastIdx]!.el
+      const afterNode = span.nextElementSibling?.tagName === 'BR' ? span.nextElementSibling : span
+      if (afterNode.nextSibling !== endOfContent) afterNode.after(endOfContent)
+    } else if (spans[0]!.el.previousSibling !== endOfContent) {
+      spans[0]!.el.before(endOfContent)
+    }
+  } else {
+    let firstIdx = -1
+    for (let i = 0; i < spans.length; i += 1) {
+      const r = spans[i]!.rect
+      if (r.width <= 0 || r.height <= 0) continue
+      if (!useAll && !inBand(r)) continue
+      const belowLine = r.top >= clientY - 2
+      const onLine = r.top < clientY - 2 && r.bottom >= clientY - 2 && r.right >= clientX - 4
+      if (belowLine || onLine) {
+        firstIdx = i
+        break
+      }
+    }
+    if (firstIdx >= 0) {
+      const target = spans[firstIdx]!.el
+      if (target.previousSibling !== endOfContent) target.before(endOfContent)
+    } else {
+      const last = spans[spans.length - 1]!.el
+      if (last.nextSibling !== endOfContent) last.after(endOfContent)
+    }
+  }
+}
+
 function PdfPageViewImpl(props: Props) {
   const { doc, pageNumber, box, renderScale } = props
   const drawnWidth = props.renderWidth ?? box.width
@@ -75,6 +143,9 @@ function PdfPageViewImpl(props: Props) {
   const [textless, setTextless] = useState(false)
   const [rendered, setRendered] = useState(false)
   const [drag, setDrag] = useState<{ a: [number, number]; b: [number, number] } | null>(null)
+  const clickStartRef = useRef<{ x: number; y: number } | null>(null)
+  const handledPointerClickRef = useRef(false)
+  const justReopenedRef = useRef(false)
 
   useEffect(() => {
     props.register(pageNumber, pageRef.current, textRef.current)
@@ -97,6 +168,11 @@ function PdfPageViewImpl(props: Props) {
       textRef.current.replaceChildren()
       layer = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: textRef.current, viewport })
       await layer.render().catch(() => undefined)
+      if (!cancelled && textRef.current && !textRef.current.querySelector('.endOfContent')) {
+        const end = document.createElement('div')
+        end.className = 'endOfContent'
+        textRef.current.append(end)
+      }
       const count = await pageCharacterCount(page)
       if (!cancelled) {
         const none = count < GEOMETRY.textlessPageCharacterThreshold
@@ -149,15 +225,98 @@ function PdfPageViewImpl(props: Props) {
     }
   }, [doc, pageNumber, drawnWidth, renderScale])
 
+  // Stabilizes multi-line text selection inside pdf.js's absolute-positioned textLayer (prevents 10–15 line jumps).
+  // Activated lazily only once the pointer actually drags > 4px, so plain clicks on highlighted passages never
+  // mutate `.textLayer` children or expand `.endOfContent` (`user-select: none`) under the cursor mid-click.
+  useEffect(() => {
+    const container = textRef.current
+    if (!container) return
+    let pointerDownAt: { x: number; y: number } | null = null
+    let active: { end: HTMLElement; spans: { el: Element; rect: DOMRect }[]; anchorX: number; anchorY: number } | null = null
+
+    const onDown = (e: globalThis.PointerEvent) => {
+      if (e.button !== 0 || props.tool !== 'select') return
+      pointerDownAt = { x: e.clientX, y: e.clientY }
+      active = null
+    }
+
+    const onMove = (e: globalThis.PointerEvent) => {
+      if (!pointerDownAt) return
+      if (!active) {
+        if (Math.hypot(e.clientX - pointerDownAt.x, e.clientY - pointerDownAt.y) <= 4) return
+        const end = container.querySelector<HTMLElement>('.endOfContent')
+        if (!end) {
+          pointerDownAt = null
+          return
+        }
+        if (container.lastElementChild !== end) container.append(end)
+        const spans: { el: Element; rect: DOMRect }[] = []
+        const collect = (parent: Element) => {
+          for (const child of parent.children) {
+            if (child === end) continue
+            if (child.classList.contains('markedContent')) collect(child)
+            else if (child.tagName === 'SPAN') spans.push({ el: child, rect: child.getBoundingClientRect() })
+          }
+        }
+        collect(container)
+        active = { end, spans, anchorX: pointerDownAt.x, anchorY: pointerDownAt.y }
+        container.classList.add('selecting')
+      }
+      parkEndOfContent(active.end, active.spans, active.anchorY, e.clientX, e.clientY, active.anchorX)
+    }
+
+    const onEnd = () => {
+      pointerDownAt = null
+      if (!active) return
+      active = null
+      container.classList.remove('selecting')
+    }
+
+    container.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+    return () => {
+      container.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+      container.classList.remove('selecting')
+    }
+  }, [props.tool])
+
   const toNormalized = (e: PointerEvent): [number, number] => {
     const r = pageRef.current!.getBoundingClientRect()
     return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]
   }
 
+  const findThreadHighlightAt = (nx: number, ny: number): PageHighlight | undefined => {
+    const hits = props.highlights.filter(
+      (h) =>
+        !h.highlighter &&
+        Boolean(h.cardId) &&
+        h.rects.some((rect) => nx >= rect.x - 0.006 && nx <= rect.x + rect.width + 0.006 && ny >= rect.y - 0.005 && ny <= rect.y + rect.height + 0.005),
+    )
+    if (!hits.length) return undefined
+    return hits.find((h) => h.folded) ?? hits[hits.length - 1]
+  }
+
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    handledPointerClickRef.current = false
+    justReopenedRef.current = false
+    if (e.button === 0) clickStartRef.current = { x: e.clientX, y: e.clientY }
     if (e.button !== 0) return
     const areaGesture = props.tool === 'area' || e.shiftKey || e.altKey || textless
-    if (!areaGesture || (e.target as HTMLElement).closest('.page-knot, .page-resize-grip')) return
+    if (!areaGesture || (e.target as HTMLElement).closest('.page-knot, .page-resize-grip')) {
+      if (props.tool === 'select' && e.detail >= 2 && pageRef.current) {
+        const r = pageRef.current.getBoundingClientRect()
+        if (r.width > 0 && r.height > 0) {
+          const hit = findThreadHighlightAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height)
+          if (hit?.folded) e.preventDefault()
+        }
+      }
+      return
+    }
     e.preventDefault()
     window.getSelection()?.removeAllRanges()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -165,14 +324,69 @@ function PdfPageViewImpl(props: Props) {
     setDrag({ a: p, b: p })
   }
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!drag) return
-    setDrag({ a: drag.a, b: toNormalized(e) })
+    if (drag) {
+      setDrag({ a: drag.a, b: toNormalized(e) })
+      return
+    }
+    if (props.tool === 'select' && pageRef.current) {
+      const [nx, ny] = toNormalized(e)
+      const hit = findThreadHighlightAt(nx, ny)
+      if (hit) pageRef.current.dataset.overThread = 'true'
+      else delete pageRef.current.dataset.overThread
+    }
   }
-  const onPointerUp = () => {
-    if (!drag) return
-    const rect = rectFromCorners(drag.a, drag.b)
-    setDrag(null)
-    if (areaAccepted(rect)) props.onAreaSelected(pageNumber, rect)
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (drag) {
+      const rect = rectFromCorners(drag.a, drag.b)
+      setDrag(null)
+      if (areaAccepted(rect)) props.onAreaSelected(pageNumber, rect)
+      return
+    }
+    if (e.button !== 0 || props.tool !== 'select') return
+    if ((e.target as HTMLElement).closest('.page-resize-grip, .page-knot')) return
+    const start = clickStartRef.current
+    clickStartRef.current = null
+    if (!start || Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) return
+    const r = pageRef.current?.getBoundingClientRect()
+    if (!r || r.width <= 0 || r.height <= 0) return
+    const hit = findThreadHighlightAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height)
+    if (!hit) return
+    if (hit.folded) {
+      // A short click (<= 8px) on a folded/hidden thread highlight always reopens it, even if rapid clicks
+      // (`detail >= 2`) or a 1–2px trackpad nudge caused the browser to auto-select a character or word.
+      window.getSelection()?.removeAllRanges()
+      handledPointerClickRef.current = true
+      justReopenedRef.current = true
+      props.onHighlightClick(hit.cardId)
+      return
+    }
+    const sel = window.getSelection()
+    if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) return
+    handledPointerClickRef.current = true
+    props.onHighlightClick(hit.cardId)
+  }
+  const onPageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (handledPointerClickRef.current) {
+      handledPointerClickRef.current = false
+      if (justReopenedRef.current) {
+        justReopenedRef.current = false
+        window.getSelection()?.removeAllRanges()
+      }
+      return
+    }
+    if (props.tool !== 'select') return
+    if ((e.target as HTMLElement).closest('.page-resize-grip, .page-knot')) return
+    const r = pageRef.current?.getBoundingClientRect()
+    if (!r || r.width <= 0 || r.height <= 0) return
+    const hit = findThreadHighlightAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height)
+    if (!hit) return
+    if (!hit.folded) {
+      const sel = window.getSelection()
+      if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) return
+    } else {
+      window.getSelection()?.removeAllRanges()
+    }
+    props.onHighlightClick(hit.cardId)
   }
 
   const pct = (r: NormalizedRect) => ({
@@ -181,6 +395,37 @@ function PdfPageViewImpl(props: Props) {
     width: `${r.width * 100}%`,
     height: `${r.height * 100}%`,
   })
+
+  // Prevents adjacent pdf.js line boxes of a multi-line highlight from overlapping vertically (which would
+  // double-multiply into dark horizontal seams across ascenders/descenders) and adds tiny side breathing room.
+  const tidyHighlighterRects = (rects: readonly NormalizedRect[]): NormalizedRect[] => {
+    const out = rects.map((r) => {
+      const padX = 0.0015
+      const trimY = r.height * 0.035
+      const x = Math.max(0, r.x - padX)
+      const right = Math.min(1, r.x + r.width + padX)
+      return {
+        x,
+        y: r.y + trimY,
+        width: Math.max(0, right - x),
+        height: Math.max(0.002, r.height - trimY * 2),
+      }
+    })
+    for (let i = 1; i < out.length; i += 1) {
+      const prev = out[i - 1]!
+      const curr = out[i]!
+      const sameColumn = Math.min(prev.x + prev.width, curr.x + curr.width) > Math.max(prev.x, curr.x)
+      const prevBottom = prev.y + prev.height
+      if (sameColumn && curr.y < prevBottom + 0.0008 && curr.y > prev.y) {
+        const mid = (prevBottom + curr.y) / 2
+        prev.height = Math.max(0.002, mid - 0.0004 - prev.y)
+        const currBottom = curr.y + curr.height
+        curr.y = mid + 0.0004
+        curr.height = Math.max(0.002, currBottom - curr.y)
+      }
+    }
+    return out
+  }
   const dragRect = drag ? rectFromCorners(drag.a, drag.b) : null
   const stretch = box.width / drawnWidth
 
@@ -198,21 +443,25 @@ function PdfPageViewImpl(props: Props) {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerLeave={() => {
+        if (pageRef.current) delete pageRef.current.dataset.overThread
+      }}
       onPointerCancel={() => setDrag(null)}
+      onClick={onPageClick}
     >
       <canvas ref={canvasRef} className={`pdf-canvas${rendered ? ' is-ready' : ''}`} />
       <div className="highlight-layer" aria-hidden="true">
         {props.highlights.map((h) =>
           h.area ? (
             <div key={h.key} className="highlight-area" data-yarn={h.color} style={pct(h.rects[0]!)} onClick={() => props.onHighlightClick(h.cardId)} />
+          ) : h.highlighter ? (
+            tidyHighlighterRects(h.rects).map((r, i) => (
+              <div key={`${h.key}-${i}`} className="highlight-line is-highlighter" data-hl={h.highlightColor ?? 'yellow'} style={pct(r)} />
+            ))
           ) : (
-            h.rects.map((r, i) =>
-              h.highlighter ? (
-                <div key={`${h.key}-${i}`} className="highlight-line is-highlighter" data-hl={h.highlightColor ?? 'yellow'} style={pct(r)} />
-              ) : (
-                <div key={`${h.key}-${i}`} className="highlight-line" data-yarn={h.color} style={pct(r)} onClick={() => props.onHighlightClick(h.cardId)} />
-              ),
-            )
+            h.rects.map((r, i) => (
+              <div key={`${h.key}-${i}`} className="highlight-line" data-yarn={h.color} style={pct(r)} onClick={() => props.onHighlightClick(h.cardId)} />
+            ))
           ),
         )}
         {props.findMarks?.map((m) =>

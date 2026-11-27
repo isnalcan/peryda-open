@@ -231,13 +231,29 @@ export function CameraBar(props: { scale: number; onFocus: () => void; onMap: ()
 }
 
 /** A folded thread opened inside a card: a hole punched near the card's edge, a strand of the thread's colour through it, knotted outside. */
-export function TiedKnot({ color, right, title, x, y, onOpen }: { color: YarnColor; right: boolean; title: string; x: number; y: number; onOpen: () => void }) {
+export function TiedKnot({
+  color,
+  right,
+  title,
+  x,
+  y,
+  tying,
+  onOpen,
+}: {
+  color: YarnColor
+  right: boolean
+  title: string
+  x: number
+  y: number
+  tying?: boolean
+  onOpen: () => void
+}) {
   // The hole sits 13 units inside the card's edge; the knot and its tails hang outside.
   const left = right ? x - 13 : x - 36 + 13
   return (
     <button
       type="button"
-      className="tied-knot"
+      className={tying ? 'tied-knot is-tying' : 'tied-knot'}
       data-yarn={color}
       title={title}
       aria-label={title}

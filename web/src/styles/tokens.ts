@@ -81,3 +81,9 @@ export function installTokens(doc: Document = document): void {
 }
 
 export const YARN_STROKE = tokens.yarnStroke
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    if (typeof document !== 'undefined') installTokens(document)
+  })
+}

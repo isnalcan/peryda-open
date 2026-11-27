@@ -62,6 +62,12 @@ describe('first run: the language first (owner, 16 Nov)', () => {
     expect(options.join(' ')).toMatch(/Türkçe.*|English|Deutsch|Español/)
     await click([...host.querySelectorAll('.welcome-language')].find((b) => b.textContent?.includes('Deutsch')) ?? null)
     expect(chosen).toEqual(['de'])
+    // Selecting a language previews it in place and waits for Continue ("Weiter") before advancing.
+    expect(host.querySelector('h2')?.textContent).toBe(STRINGS.de.chooseLanguage)
+    expect(host.querySelector('.welcome-language.is-current')?.textContent).toContain('Deutsch')
+    expect(host.querySelector('.welcome-actions .primary-button')?.textContent).toBe(STRINGS.de.next)
+    await click(host.querySelector('.welcome-actions .primary-button'))
+    expect(chosen).toEqual(['de', 'de'])
     expect(host.querySelector('h2')?.textContent).toBe(STRINGS.de.welcomeTitle)
     expect(host.textContent).toContain(STRINGS.de.welcomeAddKey)
     // Back to the language, and Continue keeps the one in use.
@@ -69,7 +75,7 @@ describe('first run: the language first (owner, 16 Nov)', () => {
     expect(host.querySelector('h2')?.textContent).toBe(STRINGS.de.chooseLanguage)
     expect(host.querySelector('.welcome-language.is-current')?.textContent).toContain('Deutsch')
     await click(host.querySelector('.welcome-actions .primary-button'))
-    expect(chosen).toEqual(['de', 'de'])
+    expect(chosen).toEqual(['de', 'de', 'de'])
     expect(host.querySelector('h2')?.textContent).toBe(STRINGS.de.welcomeTitle)
   })
 

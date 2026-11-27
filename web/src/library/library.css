@@ -180,10 +180,31 @@
 }
 
 /* Touch screens have no hover, so the tools stay visible. */
-@media (hover: none) {
+@media (hover: none), (pointer: coarse) {
   .book-tools {
     opacity: 1;
   }
+}
+
+.delete-book-body {
+  padding: 6px 22px 0;
+}
+
+.delete-book-title {
+  margin: 0 0 6px;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.edit-book-dialog .is-danger-button {
+  background: var(--error-text);
+  color: #fff;
+}
+
+.edit-book-dialog .is-danger-button:hover {
+  background: color-mix(in srgb, var(--error-text) 85%, black);
 }
 
 @media (max-width: 560px) {

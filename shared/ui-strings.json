@@ -551,6 +551,12 @@
     "de": "Die Seitenübersetzung läuft mit einem Gemini-Schlüssel. Füge in den Einstellungen einen hinzu.",
     "es": "La traducción de páginas funciona con una clave de Gemini. Añade una en Ajustes."
   },
+  "goToChapter": {
+    "tr": "Bölüme git",
+    "en": "Go to chapter",
+    "de": "Gehe zu Kapitel",
+    "es": "Ir al capítulo"
+  },
   "goToPage": {
     "tr": "Sayfaya git",
     "en": "Go to page",
@@ -610,6 +616,12 @@
     "en": "Pink",
     "de": "Rosa",
     "es": "Rosa"
+  },
+  "highlightRemoved": {
+    "tr": "Vurgu kaldırıldı",
+    "en": "Highlight removed",
+    "de": "Markierung entfernt",
+    "es": "Resaltado eliminado"
   },
   "highlightYellow": {
     "tr": "Sarı",
@@ -977,6 +989,12 @@
     "de": "Weiter",
     "es": "Continuar"
   },
+  "nextChapter": {
+    "tr": "Sonraki bölüm",
+    "en": "Next chapter",
+    "de": "Nächstes Kapitel",
+    "es": "Capítulo siguiente"
+  },
   "nextPage": {
     "tr": "Sonraki sayfa",
     "en": "Next page",
@@ -1025,6 +1043,12 @@
     "de": "OpenAI-Schlüssel",
     "es": "Clave de OpenAI"
   },
+  "openingBook": {
+    "tr": "Kitap açılıyor…",
+    "en": "Opening book…",
+    "de": "Buch wird geöffnet…",
+    "es": "Abriendo libro…"
+  },
   "otherModels": {
     "tr": "Diğer modeller",
     "en": "Other models",
@@ -1066,6 +1090,12 @@
     "en": "Pin",
     "de": "Anheften",
     "es": "Fijar"
+  },
+  "previousChapter": {
+    "tr": "Önceki bölüm",
+    "en": "Previous chapter",
+    "de": "Vorheriges Kapitel",
+    "es": "Capítulo anterior"
   },
   "previousPage": {
     "tr": "Önceki sayfa",
@@ -1246,6 +1276,12 @@
     "en": "Delete this thread and its answers?",
     "de": "Diesen Faden und seine Antworten löschen?",
     "es": "¿Eliminar este hilo y sus respuestas?"
+  },
+  "removeHighlight": {
+    "tr": "Vurguyu kaldır",
+    "en": "Remove highlight",
+    "de": "Markierung entfernen",
+    "es": "Quitar resaltado"
   },
   "removeKey": {
     "tr": "Anahtarı kaldır",
@@ -1475,6 +1511,12 @@
     "de": "Modell für Fäden",
     "es": "Modelo para hilos"
   },
+  "threads": {
+    "tr": "İlmekler",
+    "en": "Threads",
+    "de": "Fäden",
+    "es": "Hilos"
+  },
   "thumbnails": {
     "tr": "Küçük resimler",
     "en": "Thumbnails",
@@ -1486,6 +1528,12 @@
     "en": "Last page",
     "de": "Letzte Seite",
     "es": "Última página"
+  },
+  "toc": {
+    "tr": "İçindekiler",
+    "en": "Contents",
+    "de": "Inhalt",
+    "es": "Índice"
   },
   "tooManyPhotos": {
     "tr": "Bir seferde en fazla {n} fotoğraf tek kitap olabilir.",

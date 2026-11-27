@@ -4,7 +4,7 @@ import { db, getPref, newId, setPref, type JournalRecord } from '../data/db'
 import { useI18n } from '../i18n/I18n'
 import { highlightColorOf } from '../reader/highlightColors'
 import { Markdown } from '../ui/Markdown'
-import { journalSummarySystem, pageTitle } from '../ai/compose'
+import { chapterTitle, journalSummarySystem, pageTitle } from '../ai/compose'
 import { AiError, streamAnswer } from '../ai/client'
 import { fakeStream, useFakeAi } from '../ai/fake'
 import { ModelAdvice, effortFor, keyFor, modelFor, resolveActiveProvider, type ByokSettings } from '../ai/provider'
@@ -19,8 +19,10 @@ interface Props {
   onClose: () => void
   /** Page (PDF) or chapter (EPUB) a new note belongs to. */
   notePage?: number
-  /** When given, an entry's page label becomes a button that goes there. */
+  /** When given, an entry's page/chapter label becomes a button that goes there. */
   onGoToPage?: (page: number) => void
+  /** Uses "Bölüm N" / "Chapter N" instead of "Sayfa N" / "Page N" for EPUB books. */
+  isEpub?: boolean
 }
 
 interface Summary {
@@ -28,9 +30,33 @@ interface Summary {
   createdAt: number
 }
 
+/** Something smaller than the journal that Escape should close first (menus, popovers, the find bar). */
+const TRANSIENT_UI = '.selection-menu, [role="menu"], [role="listbox"], .find-bar, [aria-haspopup][aria-expanded="true"], dialog[open]'
+
+/**
+ * Whether Escape should close the journal panel. Not while typing (Escape in the panel's own note, a
+ * card's composer or any field must never throw away a draft), not when another handler already used
+ * it, and not while a menu, popover or dialog is open: Escape closes that first.
+ */
+export function escapeClosesJournal(e: Pick<KeyboardEvent, 'key' | 'defaultPrevented' | 'target'>, doc: Document = document): boolean {
+  if (e.key !== 'Escape' || e.defaultPrevented) return false
+  const target = e.target instanceof Element ? e.target : null
+  if (target?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return false
+  return !doc.querySelector(TRANSIENT_UI)
+}
+
 /** The Book Journal for the open book: clipped passages, saved threads, notes, and Pery's summary. */
-export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onClose, notePage, onGoToPage }: Props) {
+export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onClose, notePage, onGoToPage, isEpub = false }: Props) {
   const { t, lang } = useI18n()
+  const locLabel = (n: number) => (isEpub ? chapterTitle(lang, n) : pageTitle(lang, n))
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (escapeClosesJournal(e)) onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   const entries = useLiveQuery(
     () => db.journal.where('bookId').equals(bookId).reverse().sortBy('createdAt'),
     [bookId],
@@ -200,12 +226,12 @@ export function JournalPanel({ bookId, bookTitle, settings, onOpenSettings, onCl
                     (onGoToPage ? (
                       <span>
                         ·{' '}
-                        <button type="button" className="journal-page-link" title={t.goToPage} onClick={() => onGoToPage(e.pageNumber)}>
-                          {pageTitle(lang, e.pageNumber)}
+                        <button type="button" className="journal-page-link" title={isEpub ? t.goToChapter : t.goToPage} onClick={() => onGoToPage(e.pageNumber)}>
+                          {locLabel(e.pageNumber)}
                         </button>
                       </span>
                     ) : (
-                      <span>· {pageTitle(lang, e.pageNumber)}</span>
+                      <span>· {locLabel(e.pageNumber)}</span>
                     ))}
                   <span>· {date.format(e.createdAt)}</span>
                   <button

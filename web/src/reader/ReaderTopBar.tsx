@@ -26,7 +26,7 @@ export function ReaderTopBar({
   const { t } = useI18n()
   return (
     <header className="reader-topbar">
-      <button type="button" className="ghost-button" onClick={onBack}>
+      <button type="button" className="ghost-button" aria-label={t.back} title={t.back} onClick={onBack}>
         <BackIcon size={16} /> <span className="back-label">{t.back}</span>
       </button>
       {leading}

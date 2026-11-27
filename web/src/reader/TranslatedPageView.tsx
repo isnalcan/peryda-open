@@ -21,6 +21,9 @@ interface Props {
   /** This book's translated-text size (×1 = the size the page fits to), and a step smaller or larger. */
   textScale?: number
   onTextScale?: (delta: number) => void
+  /** Offered when threads sit between the PDF page and its translation: hides/shows threads to read side by side. */
+  onSideBySide?: () => void
+  sideBySideActive?: boolean
 }
 
 function errorText(t: Strings, code: string): string {
@@ -52,7 +55,21 @@ function errorText(t: Strings, code: string): string {
  * A whole-page translation, drawn as a page of its own beside the PDF page: same size, level with it,
  * paper and ink like a printed page. Its text can be selected to open threads, as on the PDF.
  */
-function TranslatedPageViewImpl({ card, x, y, onHeight, onRetranslate, onTranslateNow, inBatch = false, onRemove, onOpenSettings, textScale = 1, onTextScale }: Props) {
+function TranslatedPageViewImpl({
+  card,
+  x,
+  y,
+  onHeight,
+  onRetranslate,
+  onTranslateNow,
+  inBatch = false,
+  onRemove,
+  onOpenSettings,
+  textScale = 1,
+  onTextScale,
+  onSideBySide,
+  sideBySideActive = false,
+}: Props) {
   const { t, lang } = useI18n()
   const ref = useRef<HTMLElement>(null)
   const answer = [...card.messages].reverse().find((m) => m.role === 'assistant')
@@ -77,6 +94,17 @@ function TranslatedPageViewImpl({ card, x, y, onHeight, onRetranslate, onTransla
         <span className="translated-page-title">{t.translationOf(language, card.translatedPage ?? 0).toLocaleUpperCase(lang)}</span>
         {streaming && !card.batchJob && answer?.content && <span className="translated-page-status">· {t.translating}</span>}
         <span className="translated-page-actions">
+          {onSideBySide && (
+            <button
+              type="button"
+              className="translated-side-button"
+              aria-pressed={sideBySideActive}
+              title={t.focusLane}
+              onClick={onSideBySide}
+            >
+              {t.focusLane}
+            </button>
+          )}
           {/* Text size for every translated page of this book, left of Retranslate (owner test 15 Nov). */}
           {onTextScale && (
             <>

@@ -61,11 +61,11 @@ describe('EPUB chapter cleaning', () => {
     expect(doc.body.textContent).toContain('yedek metin')
   })
 
-  it('keeps only the book\'s own stylesheet among links, and no http-equiv', () => {
+  it('keeps only the book\'s own stylesheet among links, strips <base> for CSP base-uri \'none\', and keeps no http-equiv', () => {
     expect(all('link').map((l) => [l.getAttribute('rel'), l.getAttribute('href')])).toEqual([['stylesheet', `blob:${origin}/book-css`]])
     expect(all('meta[http-equiv]')).toHaveLength(0)
     expect(all('meta').map((m) => m.getAttribute('charset') ?? m.getAttribute('name'))).toEqual(['utf-8', 'viewport'])
-    expect(all('base').map((b) => b.getAttribute('href'))).toEqual([`${origin}/OEBPS/ch1.xhtml`])
+    expect(all('base')).toHaveLength(0)
   })
 
   it('keeps in-book links; links that leave the book become plain text', () => {

@@ -23,11 +23,13 @@ interface Props {
   onBridge: () => void
   onBridgeCompare: () => void
   onClip: () => void
-  /** "Vurgula", between "Özete kırp" and "Notum": offered for text on a PDF page only. */
+  /** "Vurgula", between "Özete kırp" and "Notum": offered for text on a PDF page or translated page. */
   canHighlight?: boolean
   /** The colour "Vurgula" uses now; holding it (or a right-click) offers the four (owner, 16 Nov). */
   highlightColor?: HighlightColor
   onHighlight?: (color: HighlightColor) => void
+  /** Offered when the current selection overlaps an existing highlight ("Vurguyu kaldır"). */
+  onRemoveHighlight?: () => void
   onTranslate: () => void
   canBridge?: boolean
   onClose: () => void
@@ -186,6 +188,17 @@ export function SelectionMenu(props: Props) {
             <HighlighterIcon size={17} />
             <span className="highlight-current" aria-hidden="true" />
             <span className="hold-progress" aria-hidden="true" style={{ ['--hold-ms' as string]: `${HIGHLIGHT_HOLD_MS}ms` }} />
+          </button>
+        )}
+        {props.onRemoveHighlight && (
+          <button
+            type="button"
+            className="menu-remove-highlight"
+            title={t.removeHighlight}
+            aria-label={t.removeHighlight}
+            onClick={props.onRemoveHighlight}
+          >
+            {t.removeHighlight}
           </button>
         )}
         <button

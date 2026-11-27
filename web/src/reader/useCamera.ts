@@ -41,6 +41,56 @@ export function cameraForTranslation(c: Camera, viewportWidth: number, span: { p
 }
 
 /**
+ * "Focus" ("Odak"): fits the PDF page cleanly (up to 100% on wide screens, fit-to-width on narrow/mobile
+ * screens so pages never overflow sideways) and clamps the vertical position within the document so
+ * returning from Map mode never jumps zoom above 100% or pushes pages off-screen.
+ */
+export function cameraForFocus(
+  c: Camera,
+  viewport: { width: number; height: number },
+  pageWidth: number,
+  docBounds: { top: number; bottom: number },
+): Camera {
+  const padX = viewport.width < 640 ? 20 : 48
+  const padY = 24
+  const s = clampScale(Math.min(1, (viewport.width - padX) / Math.max(1, pageWidth)))
+  const x = viewport.width / 2 - (pageWidth / 2) * s
+  const cy = (viewport.height / 2 - c.y) / c.s
+  const rawY = viewport.height / 2 - cy * s
+  const minY = viewport.height - padY - docBounds.bottom * s
+  const maxY = padY - docBounds.top * s
+  const y = minY > maxY ? maxY : Math.min(maxY, Math.max(minY, rawY))
+  return { x, y, s }
+}
+
+/**
+ * "Map" ("Harita"): fits and centres the actual bounding box of pages, visible threads and translations
+ * horizontally and (around the current page's vertical band) vertically.
+ */
+export function cameraForMap(
+  viewport: { width: number; height: number },
+  bounds: { minX: number; maxX: number; minY: number; maxY: number },
+  band?: { top: number; bottom: number } | null,
+): Camera {
+  const pad = viewport.width < 640 ? 24 : 48
+  const contentW = Math.max(1, bounds.maxX - bounds.minX)
+  const bandTop = band ? band.top : bounds.minY
+  const bandBottom = band ? band.bottom : bounds.maxY
+  const bandH = Math.max(1, bandBottom - bandTop)
+  const sx = (viewport.width - pad * 2) / contentW
+  const sy = (viewport.height - pad * 2) / bandH
+  const s = clampScale(Math.min(0.85, sx, sy))
+  const x = viewport.width / 2 - ((bounds.minX + bounds.maxX) / 2) * s
+  const rawY = viewport.height / 2 - ((bandTop + bandBottom) / 2) * s
+  const docH = (bounds.maxY - bounds.minY) * s
+  const y =
+    docH <= viewport.height - pad * 2
+      ? viewport.height / 2 - ((bounds.minY + bounds.maxY) / 2) * s
+      : Math.min(pad - bounds.minY * s, Math.max(viewport.height - pad - bounds.maxY * s, rawY))
+  return { x, y, s }
+}
+
+/**
  * Pan and zoom for the reading surface. The camera only changes on the reader's own input or when a
  * camera button is pressed; nothing else moves it.
  */
@@ -75,4 +125,76 @@ export function useCamera(initial: Camera, constrain?: { current: ((c: Camera) =
   }, [setCamera])
 
   return { camera, cameraRef: ref, settledScale, setCamera, panBy, zoomAround }
+}
+
+export interface WheelAxisLock {
+  axis: 'x' | 'y' | null
+  accX: number
+  accY: number
+  lastAt: number
+  target: EventTarget | null
+}
+
+export function createWheelAxisLock(): WheelAxisLock {
+  return { axis: null, accX: 0, accY: 0, lastAt: -Infinity, target: null }
+}
+
+/**
+ * Directional axis lock for scrolling inside an İlmek card or translated page (macOS trackpad, Windows
+ * Precision Touchpad, standard mouse wheel, and Shift+Wheel):
+ * - Vertical reading swipes lock to `'y'` so natural finger curvature (`deltaX = 2..8px`) never wobbles
+ *   the background canvas horizontally.
+ * - Deliberate sideways swipes (`|dx| > |dy| * 1.5`) or `Shift + Wheel` lock to `'x'` so the canvas pans
+ *   smoothly left/right without shifting the card's vertical reading line.
+ * - Resets after 140ms of silence, and permits immediate 90° interruption during inertial momentum tails.
+ */
+export function stepCardWheelLock(
+  lock: WheelAxisLock,
+  dxPx: number,
+  dyPx: number,
+  shiftKey: boolean,
+  now: number,
+  target: EventTarget | null,
+): { scrollY: number; panX: number } {
+  if (now - lock.lastAt > 140 || lock.target !== target) {
+    lock.axis = null
+    lock.accX = 0
+    lock.accY = 0
+    lock.target = target
+  }
+  lock.lastAt = now
+
+  if (shiftKey) {
+    lock.axis = 'x'
+    return { scrollY: 0, panX: dxPx ? -dxPx : 0 }
+  }
+
+  const ax = Math.abs(dxPx)
+  const ay = Math.abs(dyPx)
+
+  if (lock.axis === 'y' && ax >= 14 && ax > ay * 2.5) {
+    lock.axis = 'x'
+  } else if (lock.axis === 'x' && ay >= 14 && ay > ax * 2.5) {
+    lock.axis = 'y'
+  }
+
+  if (lock.axis === null) {
+    if (dxPx === 0 && dyPx !== 0) {
+      lock.axis = 'y'
+    } else if (dyPx === 0 && ax >= 4) {
+      lock.axis = 'x'
+    } else {
+      lock.accX += ax
+      lock.accY += ay
+      if (Math.hypot(lock.accX, lock.accY) >= 6) {
+        lock.axis = lock.accX > lock.accY * 1.5 ? 'x' : 'y'
+      }
+    }
+  }
+
+  const activeAxis = lock.axis ?? (lock.accX > lock.accY * 1.5 ? 'x' : 'y')
+  if (activeAxis === 'x') {
+    return { scrollY: 0, panX: dxPx ? -dxPx : 0 }
+  }
+  return { scrollY: dyPx, panX: 0 }
 }

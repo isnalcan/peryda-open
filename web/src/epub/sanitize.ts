@@ -15,9 +15,10 @@ import DOMPurify, { type Config } from 'dompurify'
 const CONFIG: Config = {
   WHOLE_DOCUMENT: true,
   // DOMPurify's own lists cover HTML, SVG and MathML; a chapter also needs its head elements.
-  ADD_TAGS: ['link', 'meta', 'base', 'title', '!doctype'],
+  // `<base>` is omitted: the app's CSP sets `base-uri 'none'`, and epub.js resolves in-book links and blob resources itself.
+  ADD_TAGS: ['link', 'meta', 'title', '!doctype'],
   // Form controls too: with scripts off they do nothing, and a password field could invite autofill.
-  FORBID_TAGS: ['script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'form', 'portal', 'input', 'textarea', 'select', 'button'],
+  FORBID_TAGS: ['base', 'script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'form', 'portal', 'input', 'textarea', 'select', 'button'],
   // Books use attributes of their own (epub:type, xml:lang…); only event handlers are refused outright.
   ADD_ATTR: (name: string) => !/^on/i.test(name),
   FORBID_ATTR: ['srcdoc', 'action', 'formaction', 'ping'],
@@ -52,16 +53,6 @@ const LINK_TAGS = new Set(['a', 'area'])
 type Purifier = ReturnType<typeof DOMPurify>
 
 let purifier: Purifier | null = null
-let baseSeen = false
-
-/** epub.js puts one <base> (on this app's own origin) first in the head to resolve in-book links. */
-function isOwnBase(href: string): boolean {
-  try {
-    return new URL(href).origin === location.origin
-  } catch {
-    return false
-  }
-}
 
 function keepElement(el: Element, tag: string): boolean {
   if (tag === 'link') {
@@ -69,11 +60,7 @@ function keepElement(el: Element, tag: string): boolean {
     return rel.includes('stylesheet') && /^blob:/i.test((el.getAttribute('href') ?? '').trim())
   }
   if (tag === 'meta') return !el.hasAttribute('http-equiv')
-  if (tag === 'base') {
-    const keep = !baseSeen && isOwnBase(el.getAttribute('href') ?? '')
-    baseSeen = true
-    return keep
-  }
+  if (tag === 'base') return false
   return true
 }
 
@@ -119,6 +106,5 @@ export const EMPTY_CHAPTER = '<!DOCTYPE html><html><head></head><body></body></h
 export function sanitizeChapter(html: string): string {
   const p = chapterPurifier()
   if (!p.isSupported) throw new Error('cannot clean chapters here')
-  baseSeen = false
   return p.sanitize(html, CONFIG) as string
 }

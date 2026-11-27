@@ -40,7 +40,7 @@ export type JournalState = 'notSaved' | 'saved' | 'outdated'
 
 /** Whether a card is in the journal, and if so whether its conversation went on since. */
 export function journalState(card: YarnCard, entries: readonly JournalRecord[], areaQuote = ''): JournalState {
-  const entry = entries.find((e) => e.cardId === card.id)
+  const entry = entries.find((e) => e.cardId === card.id && e.source !== 'highlight')
   if (!entry) return 'notSaved'
   const now = journalContent(card, areaQuote)
   return entry.text === now.text && entry.quote === now.quote ? 'saved' : 'outdated'
@@ -78,12 +78,35 @@ export function useThreadActions({ bookId, cards, t }: Options) {
   )
 
   /**
-   * "Vurgula": the passage is highlighted on its page in the chosen colour (yellow unless another was
-   * chosen, owner 16 Nov) and goes into the journal as a highlight; deleting that entry removes the
-   * highlight (owner test 15 Nov). PDF text only.
+   * "Vurgula": the passage is highlighted on its page (or translated page) in the chosen colour (yellow
+   * unless another was chosen, owner 16 Nov) and goes into the journal as a highlight; deleting that entry
+   * removes the highlight (owner test 15 Nov).
    */
   const highlight = useCallback(
-    async (anchors: readonly PdfYarnAnchor[], color: HighlightColor = 'yellow') => {
+    async (
+      anchors: readonly PdfYarnAnchor[],
+      color: HighlightColor = 'yellow',
+      translated?: { pageNumber: number; cardId: string },
+    ) => {
+      if (translated) {
+        const quote = anchors.map((a) => a.selectedText).filter(Boolean).join(' … ').trim()
+        if (!quote) return
+        // No `marks`: marks are PDF page geometry, and the Mac app (and any restore) draws every
+        // highlight mark on the PDF page itself. A translated-page highlight is found again by its quote.
+        await db.journal.put({
+          id: newId(),
+          bookId,
+          source: 'highlight',
+          quote,
+          text: '',
+          pageNumber: translated.pageNumber,
+          cardId: translated.cardId,
+          ...(color === 'yellow' ? {} : { highlightColor: color }),
+          createdAt: Date.now(),
+        })
+        showToast(t.highlighted)
+        return
+      }
       const text = anchors.filter((a) => a.sourceType === 'pdf_text' && a.lineRects.length)
       if (!text.length) return
       const quote = text.map((a) => a.selectedText).filter(Boolean).join(' … ')
@@ -104,6 +127,15 @@ export function useThreadActions({ bookId, cards, t }: Options) {
     [bookId, showToast, t.highlighted],
   )
 
+  const removeHighlights = useCallback(
+    async (ids: readonly string[]) => {
+      if (!ids.length) return
+      await db.journal.bulkDelete([...ids])
+      showToast(t.highlightRemoved)
+    },
+    [showToast, t.highlightRemoved],
+  )
+
   // The book's journal entries, to show which cards are in it.
   const entries = useLiveQuery(() => db.journal.where('bookId').equals(bookId).toArray(), [bookId], NO_ENTRIES)
   const journalStates = useMemo(() => new Map(cards.map((c) => [c.id, journalState(c, entries, t.areaQuote)])), [cards, entries, t.areaQuote])
@@ -122,7 +154,7 @@ export function useThreadActions({ bookId, cards, t }: Options) {
       const card = cardsRef.current.find((c) => c.id === cardId)
       if (!card) return
       const { quote, text } = journalContent(card, t.areaQuote)
-      const entry = entriesRef.current.find((e) => e.cardId === cardId)
+      const entry = entriesRef.current.find((e) => e.cardId === cardId && e.source !== 'highlight')
       if (entry) {
         if (entry.text === text && entry.quote === quote) return
         void db.journal.update(entry.id, { quote, text }).then(() => showToast(t.journalUpdated))
@@ -182,8 +214,23 @@ export function useThreadActions({ bookId, cards, t }: Options) {
     [bookId],
   )
 
-  // The reader's highlights, to draw on their pages.
-  const highlightMarks = useMemo(() => entries.filter((e) => e.source === 'highlight' && e.marks?.length), [entries])
+  // The reader's highlights, to draw on their pages and translated pages.
+  const highlightMarks = useMemo(() => entries.filter((e) => e.source === 'highlight' && !e.cardId && e.marks?.length), [entries])
+  const highlightEntries = useMemo(() => entries.filter((e) => e.source === 'highlight'), [entries])
 
-  return { toast, showToast, clip, highlight, highlightMarks, saveToJournal, journalStates, cardTextScale, stepCardText, translationTextScale, stepTranslationText }
+  return {
+    toast,
+    showToast,
+    clip,
+    highlight,
+    removeHighlights,
+    highlightMarks,
+    highlightEntries,
+    saveToJournal,
+    journalStates,
+    cardTextScale,
+    stepCardText,
+    translationTextScale,
+    stepTranslationText,
+  }
 }

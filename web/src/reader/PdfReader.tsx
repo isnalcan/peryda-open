@@ -12,16 +12,17 @@ import { YarnLayer } from '../ilmek/YarnLayer'
 import { useRopes } from '../ilmek/rope'
 import { SelectionMenu, type ScreenRect } from '../ilmek/SelectionMenu'
 import type { NormalizedRect, PageBox, PdfYarnAnchor, Point, YarnCard, YarnColor } from '../ilmek/types'
-import { cardsForSurface, centredContentWidth, clipsFor, contentRect, isShown, pageBand, pinnedAfterResize, placeCards, worldRect, yarnSegments, type WorldInput } from '../ilmek/worldLayout'
+import { cardsForSurface, clipsFor, contentRect, isShown, pageBand, pinnedAfterResize, placeCards, worldRect, yarnSegments, type WorldInput } from '../ilmek/worldLayout'
 import type { CardPlacement } from '../ilmek/lane'
 import { PdfPageView, type PageHighlight, type PageKnot, type Tool } from './PdfPageView'
 import { ReaderTopBar } from './ReaderTopBar'
 import { anchorsFromSelection, expandToWords, normalizeText, selectionScreenRect, type PageElement } from './selection'
-import { cameraForTranslation, constrainToBand, useCamera, type Camera } from './useCamera'
+import { cameraForFocus, cameraForMap, cameraForTranslation, constrainToBand, createWheelAxisLock, stepCardWheelLock, useCamera, type Camera } from './useCamera'
 import { EyeIcon, EyeOffIcon, LinkIcon, SidebarIcon } from '../ui/icons'
 import { JournalPanel } from '../journal/JournalPanel'
 import { useThreadActions } from '../ilmek/useThreadActions'
-import { useThreadMarks } from '../ilmek/threadMarks'
+import { findCardThreadAtPoint, matchingPdfHighlights, matchingTranslationHighlights, useThreadMarks, useTranslationHighlights } from '../ilmek/threadMarks'
+import { useThreadPresence } from '../ilmek/useThreadPresence'
 import { CameraBar, PageMenu, PageNav, TiedKnot, ToolSwitcher, TranslateMenu } from './ReaderControls'
 import { ExtractTextDialog, TranslateRangeDialog } from './ReaderDialogs'
 import { TranslatedPageView } from './TranslatedPageView'
@@ -50,6 +51,8 @@ interface Pending {
   anchors: PdfYarnAnchor[]
   rect: ScreenRect
   parentCardId?: string
+  translatedPage?: number
+  matchingHighlightIds?: string[]
 }
 
 /** How long the reader stays on a translated page before the next page's translation starts. */
@@ -123,7 +126,15 @@ export function PdfReader({ book, settings, onOpened, onBack, onOpenSettings }: 
     return (
       <div className="reader-shell">
         <ReaderTopBar title={book.title} onBack={onBack} onOpenSettings={onOpenSettings} />
-        <p className="reader-message">{failed ? t.importFailed : '…'}</p>
+        <p className="reader-message" role="status">
+          {failed ? (
+            t.importFailed
+          ) : (
+            <>
+              <span className="spinner" aria-hidden="true" /> {t.openingBook}
+            </>
+          )}
+        </p>
       </div>
     )
   }
@@ -257,6 +268,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const actions = useThreadActions({ bookId: book.id, cards, t })
   // Passages threads were opened from inside cards and translated pages, marked in their colours.
   useThreadMarks(worldRef, cards)
+  // The reader's own highlights ("Vurgula") inside translated pages.
+  useTranslationHighlights(worldRef, actions.highlightEntries)
 
   // ---- Where the reader is ----
   const scrollPage = useMemo(() => {
@@ -273,20 +286,45 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   // Page translations at their page's size now, and placed cards following a resize in progress.
   const surfaceCards = useMemo(() => cardsForSurface(cards, pages, pageResize?.moved), [cards, pages, pageResize])
   const layoutInput: WorldInput = useMemo(
-    () => ({ cards: surfaceCards, pages, heights, pagedReading, currentPage: 1, hideThreads: false, revealed: new Set<string>() }),
-    [surfaceCards, pages, heights, pagedReading],
+    () => ({ cards: surfaceCards, pages, heights, pagedReading, currentPage, hideThreads, revealed }),
+    [surfaceCards, pages, heights, pagedReading, currentPage, hideThreads, revealed],
   )
   const placements = useMemo(() => placeCards(layoutInput), [layoutInput])
-  const shownInput: WorldInput = useMemo(
-    () => ({ ...layoutInput, currentPage, hideThreads, revealed }),
-    [layoutInput, currentPage, hideThreads, revealed],
-  )
+  const shownInput = layoutInput
   // Which cards are on screen now (worked out once per change, not per card per frame).
   const shownIds = useMemo(() => new Set(cards.filter((c) => isShown(c, shownInput)).map((c) => c.id)), [cards, shownInput])
   const content = useMemo(() => contentRect(layoutInput, placements), [layoutInput, placements])
   const world = worldRect(content)
 
-  // A dragged card's live position, so its yarns (and knots) follow it before it is pinned.
+  const docBounds = useMemo(() => {
+    if (pagedReading) {
+      const box = pages[currentPage - 1]
+      return box ? { top: box.y, bottom: box.y + box.height } : { top: 0, bottom: 800 }
+    }
+    const last = pages[pages.length - 1]
+    return { top: 0, bottom: last ? last.y + last.height : 800 }
+  }, [pages, pagedReading, currentPage])
+
+  const visibleBounds = useMemo(() => {
+    const activePages = pagedReading ? (pages[currentPage - 1] ? [pages[currentPage - 1]!] : []) : pages
+    let minX = 0
+    let maxX = pageWidth
+    let minY = activePages[0]?.y ?? 0
+    let maxY = activePages.length ? activePages[activePages.length - 1]!.y + activePages[activePages.length - 1]!.height : 800
+    for (const card of surfaceCards) {
+      if (!shownIds.has(card.id)) continue
+      const p = placements.get(card.id)
+      if (!p) continue
+      const h = heights[card.id] ?? card.height ?? 150
+      minX = Math.min(minX, p.x)
+      maxX = Math.max(maxX, p.x + card.width)
+      minY = Math.min(minY, p.y)
+      maxY = Math.max(maxY, p.y + h)
+    }
+    return { minX, maxX, minY, maxY }
+  }, [pages, pagedReading, currentPage, pageWidth, surfaceCards, shownIds, placements, heights])
+
+  // A dragged card's live position, so its yarns follow it before it is pinned.
   const [liveDrag, setLiveDrag] = useState<{ id: string; x: number; y: number } | null>(null)
   const onDragLive = useCallback((id: string, at: { x: number; y: number } | null) => setLiveDrag(at ? { id, ...at } : null), [])
   const livePlacements = useMemo(() => {
@@ -295,32 +333,82 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     next.set(liveDrag.id, { x: liveDrag.x, y: liveDrag.y })
     return next
   }, [placements, liveDrag])
-  const segments = useMemo(() => yarnSegments(shownInput, livePlacements), [shownInput, livePlacements])
-  const clips = useMemo(() => clipsFor(shownInput, livePlacements, lang), [shownInput, livePlacements, lang])
+
+  // Keep the last placement of every card so threads that are folding or hiding can smoothly reel back from
+  // where they were sitting instead of vanishing on frame 0.
+  const lastPlacementsRef = useRef(new Map<string, CardPlacement>())
+  for (const [id, p] of livePlacements) lastPlacementsRef.current.set(id, p)
+
+  const existingThreadIds = useMemo(() => new Set(surfaceCards.filter((c) => c.translatedPage === undefined).map((c) => c.id)), [surfaceCards])
+  const activeThreadIds = useMemo(
+    () => new Set(surfaceCards.filter((c) => c.translatedPage === undefined && placements.has(c.id) && shownIds.has(c.id)).map((c) => c.id)),
+    [surfaceCards, placements, shownIds],
+  )
+  const threadPresence = useThreadPresence(existingThreadIds, activeThreadIds, pagedReading ? `paged:${currentPage}` : 'scroll', store.loaded)
+
+  const displayPlacements = useMemo(() => {
+    const merged = new Map(livePlacements)
+    for (const id of threadPresence.renderedIds) {
+      if (!merged.has(id)) {
+        const last = lastPlacementsRef.current.get(id)
+        if (last) merged.set(id, last)
+      }
+    }
+    return merged
+  }, [livePlacements, threadPresence.renderedIds])
+
+  const segments = useMemo(() => {
+    const yarnInput: WorldInput = {
+      ...shownInput,
+      hideThreads: false,
+      revealed: threadPresence.renderedIds,
+      cards: surfaceCards.filter((c) => c.translatedPage !== undefined || threadPresence.renderedIds.has(c.id)),
+    }
+    return yarnSegments(yarnInput, displayPlacements).map((seg) => {
+      const state = seg.cardId ? threadPresence.stateOf.get(seg.cardId) : undefined
+      const delayMs = seg.cardId ? threadPresence.delayOf.get(seg.cardId) : undefined
+      return state && state !== 'open' ? { ...seg, state, delayMs } : delayMs ? { ...seg, delayMs } : seg
+    })
+  }, [shownInput, surfaceCards, displayPlacements, threadPresence])
+
   const heldYarns = useMemo(
     () => new Set(liveDrag ? segments.filter((s) => s.cardId === liveDrag.id || s.sourceCardId === liveDrag.id).map((s) => s.key) : []),
     [segments, liveDrag],
   )
   const ropeBends = useRopes(segments, heldYarns)
+  const clips = useMemo(() => clipsFor(shownInput, livePlacements, lang), [shownInput, livePlacements, lang])
 
-  const { highlightsByPage, knotsByPage } = useMemo(() => {
+  const highlightsByPage = useMemo(() => {
     const highlights = new Map<number, PageHighlight[]>()
-    const knots = new Map<number, PageKnot[]>()
     const add = <T,>(map: Map<number, T[]>, page: number, item: T) => {
       const list = map.get(page) ?? []
       list.push(item)
       map.set(page, list)
     }
+    const byId = new Map(cards.map((c) => [c.id, c]))
+    const hasFoldedChain = (c: YarnCard): boolean => {
+      const seen = new Set<string>()
+      let curr: YarnCard | undefined = c
+      while (curr && !seen.has(curr.id)) {
+        if (curr.collapsed || (hideThreads && !revealed.has(curr.id))) return true
+        seen.add(curr.id)
+        curr = curr.parentCardId ? byId.get(curr.parentCardId) : undefined
+      }
+      return false
+    }
     for (const card of cards) {
       if (card.translatedPage !== undefined) continue
+      const isFoldedOrHidden = hasFoldedChain(card)
       for (const a of card.anchors) {
         if (a.sourceType === 'card' || !a.lineRects.length) continue
-        add(highlights, a.pageNumber, { key: `${card.id}-${a.id}`, cardId: card.id, color: card.color, area: a.sourceType === 'pdf_area', rects: a.lineRects })
-      }
-      if (card.collapsed) {
-        const first = card.anchors.find((a) => a.sourceType !== 'card')
-        const label = card.kind === 'question' || card.kind === 'bridge' || card.kind === 'translate' ? '⁂' : kindLabel(lang, card.kind)
-        if (first) add(knots, first.pageNumber, { cardId: card.id, color: card.color, label, rect: first.boundingRect })
+        add(highlights, a.pageNumber, {
+          key: `${card.id}-${a.id}`,
+          cardId: card.id,
+          color: card.color,
+          area: a.sourceType === 'pdf_area',
+          rects: a.lineRects,
+          folded: isFoldedOrHidden,
+        })
       }
     }
     // The reader's own highlights first, under the threads' marks.
@@ -335,8 +423,22 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       if (a.sourceType === 'card' || !a.lineRects.length) continue
       add(highlights, a.pageNumber, { key: `pending-${a.id}`, cardId: '', color: 'mint', area: a.sourceType === 'pdf_area', rects: a.lineRects })
     }
-    return { highlightsByPage: highlights, knotsByPage: knots }
-  }, [cards, pending, bridgeHeld, lang, actions.highlightMarks])
+    return highlights
+  }, [cards, hideThreads, revealed, pending, bridgeHeld, actions.highlightMarks])
+
+  // A folded thread keeps a small knot by its passage, so it can always be found again (open threads
+  // have their card instead, so the page stays uncluttered).
+  const knotsByPage = useMemo(() => {
+    const knots = new Map<number, PageKnot[]>()
+    for (const card of cards) {
+      if (!card.collapsed || card.translatedPage !== undefined) continue
+      const first = card.anchors.find((a) => a.sourceType !== 'card')
+      if (!first) continue
+      const label = card.kind === 'question' || card.kind === 'bridge' || card.kind === 'translate' ? '⁂' : kindLabel(lang, card.kind)
+      knots.set(first.pageNumber, [...(knots.get(first.pageNumber) ?? []), { cardId: card.id, color: card.color, label, rect: first.boundingRect }])
+    }
+    return knots
+  }, [cards, lang])
 
   // In page-by-page reading the view keeps to the current page and its threads.
   const bandFor = useCallback(
@@ -353,26 +455,45 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   // ---- Viewport, saved position ----
   const overviewCamera = useCallback(
     (width: number, height: number): Camera => {
-      const s = Math.min(1, Math.max(0.15, (width - 48) / centredContentWidth(content)))
-      return { x: width / 2 - (pageWidth / 2) * s, y: 24, s }
+      if (shownIds.size === 0 || width < 760) {
+        return cameraForFocus({ x: 24, y: 24, s: 1 }, { width, height }, pageWidth, { top: 0, bottom: Math.max(height, docBounds.bottom) })
+      }
+      const spanW = Math.max(pageWidth + 48, visibleBounds.maxX - visibleBounds.minX + 48)
+      const s = Math.min(1, Math.max(0.15, (width - 48) / spanW))
+      return { x: width / 2 - ((visibleBounds.minX + visibleBounds.maxX) / 2) * s, y: 24, s }
     },
-    [content, pageWidth],
+    [shownIds.size, pageWidth, docBounds.bottom, visibleBounds],
   )
   const overviewRef = useRef(overviewCamera)
   overviewRef.current = overviewCamera
+  const mobileChecked = useRef(false)
 
   useLayoutEffect(() => {
     const el = viewportRef.current
     if (!el) return
     const measure = () => {
       const r = el.getBoundingClientRect()
-      setViewport({ width: r.width, height: r.height })
-      if (!cameraReady.current && r.width > 0) setCamera(overviewRef.current(r.width, r.height))
+      if (r.width <= 0 || r.height <= 0) return
+      setViewport((prev) => (prev.width === r.width && prev.height === r.height ? prev : { width: r.width, height: r.height }))
+      if (!cameraReady.current) {
+        setCamera(overviewRef.current(r.width, r.height))
+        mobileChecked.current = true
+      } else if (!mobileChecked.current) {
+        mobileChecked.current = true
+        if (r.width < 760 && pageWidth * cameraRef.current.s > r.width - 16) {
+          setCamera(cameraForFocus(cameraRef.current, { width: r.width, height: r.height }, pageWidth, docBounds))
+        }
+      }
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
-    return () => observer.disconnect()
+    window.addEventListener('resize', measure)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setCamera])
 
   useEffect(() => {
@@ -708,14 +829,11 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   }
 
   // ---- Camera presets (only on click) ----
-  const fit = (width: number, maxScale: number) => {
-    const c = cameraRef.current
-    const s = Math.min(maxScale, Math.max(0.15, (viewport.width - 48) / width))
-    const cy = (viewport.height / 2 - c.y) / c.s
-    animateCamera({ x: viewport.width / 2 - (pageWidth / 2) * s, y: viewport.height / 2 - cy * s, s })
+  const presetFocus = () => animateCamera(cameraForFocus(cameraRef.current, viewport, pageWidth, docBounds))
+  const presetMap = () => {
+    const mapBand = pageBand({ ...shownInput, currentPage }, placements, currentPage)
+    animateCamera(cameraForMap(viewport, visibleBounds, mapBand))
   }
-  const presetFocus = () => fit(pageWidth + 48, 2.5)
-  const presetMap = () => fit(centredContentWidth(content), 0.45)
   const zoomCenter = (s: number) => zoomAround([viewport.width / 2, viewport.height / 2], s)
 
   /** A page's new translation comes into view beside it, at the reader's own zoom and height. */
@@ -723,7 +841,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     (page: number) => {
       const box = pages[page - 1]
       if (!box) return
-      const card = store.pageTranslation(page, translationTarget)
+      const card = store.pageTranslation(page, translationTarget) ?? store.cards.find((c) => c.translatedPage === page)
       const p = card ? placements.get(card.id) : undefined
       // A translation is drawn at its page's size.
       const left = p ? p.x : box.x + box.width + 60
@@ -827,7 +945,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   // Once the translation is placed, show it beside its page.
   useEffect(() => {
     if (showTranslationFor === null) return
-    const card = store.pageTranslation(showTranslationFor, translationTarget)
+    const card = store.pageTranslation(showTranslationFor, translationTarget) ?? store.cards.find((c) => c.translatedPage === showTranslationFor)
     if (card && placements.has(card.id)) {
       showTranslation(showTranslationFor)
       setShowTranslationFor(null)
@@ -838,22 +956,33 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   useEffect(() => {
     const el = viewportRef.current
     if (!el) return
+    const wheelLock = createWheelAxisLock()
     const onWheel = (e: WheelEvent) => {
       const target = e.target instanceof Element ? e.target : el
       if (target.closest('.journal-panel, .selection-menu, .popover')) return
-      const scroller = target.closest<HTMLElement>('.yarn-card-middle, .translated-page-text')
-      if (scroller && scroller.scrollHeight > scroller.clientHeight && !(e.ctrlKey || e.metaKey)) return
-      e.preventDefault()
       const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewport.height : 1
       const r = el.getBoundingClientRect()
       if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
         const factor = Math.exp(-e.deltaY * unit * 0.0025)
         zoomAround([e.clientX - r.left, e.clientY - r.top], cameraRef.current.s * factor)
-      } else {
-        const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX
-        const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY
-        panBy(-dx * unit, -dy * unit)
+        return
       }
+      const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX
+      const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY
+      const scroller = target.closest<HTMLElement>('.yarn-card-middle, .translated-page-text')
+      if (scroller && scroller.scrollHeight > scroller.clientHeight + 1) {
+        // Always preventDefault inside the reading viewport so macOS/Windows trackpad horizontal swipes
+        // never trigger browser Back/Forward ("geri git"), and lock each gesture to either vertical card
+        // scrolling or horizontal canvas panning so reading down a card never wobbles the canvas sideways.
+        e.preventDefault()
+        const { scrollY, panX } = stepCardWheelLock(wheelLock, dx * unit, dy * unit, e.shiftKey, e.timeStamp || performance.now(), scroller)
+        if (scrollY !== 0) scroller.scrollTop += scrollY
+        if (panX !== 0) panBy(panX, 0)
+        return
+      }
+      e.preventDefault()
+      panBy(-dx * unit, -dy * unit)
     }
     let gestureStart = 1
     const onGestureStart = (e: Event) => {
@@ -930,12 +1059,20 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
 
   // ---- Pointer: panning ----
   const panDrag = useRef<{ x: number; y: number } | null>(null)
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
   const onViewportPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button === 0) pointerStartRef.current = { x: e.clientX, y: e.clientY }
     const target = e.target as HTMLElement
-    if (!target.closest('.selection-menu')) setPending((p) => (p ? null : p))
+    if (!target.closest('.selection-menu')) {
+      setPending((p) => {
+        if (p) window.getSelection()?.removeAllRanges()
+        return p ? null : p
+      })
+    }
     const onEmpty = target === viewportRef.current || target === worldRef.current || target.classList.contains('yarn-layer')
     if (e.button === 1 || (e.button === 0 && onEmpty)) {
       e.preventDefault()
+      window.getSelection()?.removeAllRanges()
       try {
         e.currentTarget.setPointerCapture(e.pointerId)
       } catch {
@@ -950,12 +1087,42 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     panBy(e.clientX - d.x, e.clientY - d.y)
     panDrag.current = { x: e.clientX, y: e.clientY }
   }
-  const onViewportPointerUp = () => {
+  const onViewportPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (panDrag.current) {
       panDrag.current = null
       return
     }
-    window.setTimeout(readSelection, 0)
+    const cx = e.clientX
+    const cy = e.clientY
+    const start = pointerStartRef.current
+    const movedLittle = !start || Math.hypot(cx - start.x, cy - start.y) <= 8
+    const targetEl = e.target instanceof HTMLElement ? e.target : null
+    window.setTimeout(() => {
+      // Plain click inside a card or translated page: if it lands on a marked phrase of a folded/hidden
+      // child thread, reopen that child thread first (even if rapid clicking auto-selected a word).
+      if (movedLittle && targetEl) {
+        const source = targetEl.closest<HTMLElement>('[data-thread-source]')
+        const sourceCardId = source?.dataset.threadSource
+        if (source && sourceCardId) {
+          const hitId = findCardThreadAtPoint(source, source.closest<HTMLElement>('[data-card-id]'), cx, cy, sourceCardId, store.cards)
+          if (hitId) {
+            const hitCard = store.cards.find((c) => c.id === hitId)
+            const isFolded = Boolean(hitCard && (hitCard.collapsed || (hideThreads && !revealed.has(hitId))))
+            const sel = window.getSelection()
+            const hasSelection = Boolean(sel && !sel.isCollapsed && sel.toString().trim().length > 0)
+            if (isFolded || !hasSelection) {
+              if (isFolded) sel?.removeAllRanges()
+              onHighlightClick(hitId)
+              return
+            }
+          }
+        }
+      }
+      const sel = window.getSelection()
+      if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+        readSelection()
+      }
+    }, 0)
   }
 
   const registerPage = useCallback((pageNumber: number, element: HTMLElement | null, textLayer: HTMLElement | null) => {
@@ -975,7 +1142,8 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     const screenRect = { left: rect.left - host.left, top: rect.top - host.top, right: rect.right - host.left, bottom: rect.bottom - host.top }
 
     // A selection inside a card (answer, question, note) or a translated page opens a thread from that card.
-    const start = selection.getRangeAt(0).startContainer
+    const range = selection.getRangeAt(0)
+    const start = range.startContainer
     const startEl = start.nodeType === Node.ELEMENT_NODE ? (start as HTMLElement) : start.parentElement
     const source = startEl?.closest<HTMLElement>('[data-thread-source]')
     if (source) {
@@ -986,25 +1154,40 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
       const c = cardEl.getBoundingClientRect()
       const s = cameraRef.current.s
       const box: NormalizedRect = { x: (rect.left - c.left) / s, y: (rect.top - c.top) / s, width: (rect.right - rect.left) / s, height: (rect.bottom - rect.top) / s }
+      const sourceCard = store.cards.find((item) => item.id === cardId)
+      const translatedPage = sourceCard?.translatedPage
+      const matchingHighlightIds =
+        translatedPage !== undefined
+          ? matchingTranslationHighlights(source, cardEl, range, text, cardId, actions.highlightEntries)
+          : undefined
       const anchor: PdfYarnAnchor = {
         id: newId(),
         sourceType: 'card',
         bookId: book.id,
-        pageNumber: 0,
+        pageNumber: translatedPage ?? 0,
         selectedText: text,
         lineRects: [],
         boundingRect: box,
         sourceCardId: cardId,
         context: cardContext(cardId),
       }
-      setPending({ anchors: [anchor], rect: screenRect, parentCardId: cardId })
+      setPending({
+        anchors: [anchor],
+        rect: screenRect,
+        parentCardId: cardId,
+        ...(translatedPage !== undefined ? { translatedPage } : {}),
+        ...(matchingHighlightIds?.length ? { matchingHighlightIds } : {}),
+      })
       return
     }
 
     const anchors = anchorsFromSelection(selection, pageList(), book.id)
     for (const a of anchors) void pageTexts.text(a.pageNumber)
-    if (anchors.length) setPending({ anchors, rect: screenRect })
-  }, [book.id, cameraRef, cardContext, pageTexts])
+    if (anchors.length) {
+      const matchingHighlightIds = matchingPdfHighlights(anchors, actions.highlightMarks)
+      setPending({ anchors, rect: screenRect, ...(matchingHighlightIds.length ? { matchingHighlightIds } : {}) })
+    }
+  }, [book.id, cameraRef, cardContext, pageTexts, store, actions.highlightEntries, actions.highlightMarks])
 
   // Keyboard selections (shift + arrows) also open the menu.
   useEffect(() => {
@@ -1078,6 +1261,20 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
     if (!pending) return
     // Choosing a colour makes it the one "Vurgula" uses from now on.
     if (color !== highlightColor) setHighlightColor(color)
+    if (pending.translatedPage !== undefined && pending.parentCardId) {
+      let anchors = pending.anchors
+      const source = worldRef.current?.querySelector<HTMLElement>(`[data-thread-source="${CSS.escape(pending.parentCardId)}"]`)
+      const selection = window.getSelection()
+      if (source && selection && selection.rangeCount > 0 && !selection.isCollapsed && source.contains(selection.getRangeAt(0).startContainer)) {
+        const widened = expandToWords(selection.getRangeAt(0), source)
+        const widenedText = normalizeText(widened.toString())
+        if (widenedText) anchors = anchors.map((a, i) => (i === 0 ? { ...a, selectedText: widenedText } : a))
+      }
+      const target = { pageNumber: pending.translatedPage, cardId: pending.parentCardId }
+      finish()
+      await actions.highlight(anchors, color, target)
+      return
+    }
     // A highlight covers whole words: the live selection is widened to word boundaries first.
     let anchors = pending.anchors
     const selection = window.getSelection()
@@ -1101,10 +1298,35 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
   const onHighlightClick = useCallback(
     (cardId: string) => {
       if (!cardId) return
-      const card = store.cards.find((c) => c.id === cardId)
-      if (card?.collapsed) update(cardId, { collapsed: false })
-      // With threads hidden, a highlight brings back just its own card.
-      setRevealed((r) => (r.has(cardId) ? r : new Set(r).add(cardId)))
+      const byId = new Map(store.cards.map((c) => [c.id, c]))
+      const chainIds: string[] = []
+      let unfoldedAny = false
+      const seen = new Set<string>()
+      let curr = byId.get(cardId)
+      while (curr && !seen.has(curr.id)) {
+        seen.add(curr.id)
+        chainIds.push(curr.id)
+        if (curr.collapsed) {
+          update(curr.id, { collapsed: false })
+          unfoldedAny = true
+        }
+        curr = curr.parentCardId ? byId.get(curr.parentCardId) : undefined
+      }
+      if (unfoldedAny) {
+        setPending(null)
+        window.getSelection()?.removeAllRanges()
+        setOffscreenCard(cardId)
+      }
+      // With threads hidden, a highlight brings back its own card (and any parent card it hangs from).
+      setRevealed((r) => {
+        if (chainIds.every((id) => r.has(id))) return r
+        setPending(null)
+        window.getSelection()?.removeAllRanges()
+        setOffscreenCard(cardId)
+        const next = new Set(r)
+        for (const id of chainIds) next.add(id)
+        return next
+      })
       setFocusedCard(cardId)
     },
     [store, update],
@@ -1241,7 +1463,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
           <button type="button" className="text-button" onClick={() => setBridgeHeld(null)}>{t.cancel}</button>
         </div>
       )}
-      <div className="reader-main">
+      <div className={`reader-main${showJournal ? ' has-journal' : ''}`}>
         {thumbnailsOpen && <ThumbnailSidebar doc={doc} sizes={sizes} current={currentPage} onGoTo={goToPage} />}
         <div
           ref={viewportRef}
@@ -1292,9 +1514,18 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
             )}
             <YarnLayer segments={segments} bends={ropeBends} x={world.x} width={world.width} height={world.height} />
             {surfaceCards.map((card) => {
-              const p = placements.get(card.id)
-              if (!p || !shownIds.has(card.id)) return null
               if (card.translatedPage !== undefined) {
+                const p = placements.get(card.id)
+                if (!p || !shownIds.has(card.id)) return null
+                const pageBox = pages[card.translatedPage - 1]
+                const hasThreadsOnPage =
+                  Boolean(pageBox) &&
+                  surfaceCards.some(
+                    (other) =>
+                      other.translatedPage === undefined &&
+                      !other.collapsed &&
+                      other.anchors.some((a) => a.pageNumber === card.translatedPage),
+                  )
                 return (
                   <div key={card.id} className="yarn-card-slot" style={{ zIndex: 1 }}>
                     <TranslatedPageView
@@ -1309,10 +1540,30 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                       onOpenSettings={onOpenSettings}
                       textScale={actions.translationTextScale}
                       onTextScale={actions.stepTranslationText}
+                      onSideBySide={
+                        hasThreadsOnPage || hideThreads
+                          ? () => {
+                              const nextHide = !hideThreads
+                              setHideThreads(nextHide)
+                              setRevealed(new Set())
+                              if (card.translatedPage !== undefined) setShowTranslationFor(card.translatedPage)
+                            }
+                          : undefined
+                      }
+                      sideBySideActive={hideThreads}
                     />
                   </div>
                 )
               }
+              if (!threadPresence.renderedIds.has(card.id)) return null
+              const p = displayPlacements.get(card.id)
+              if (!p) return null
+              const presenceState = threadPresence.stateOf.get(card.id) ?? 'open'
+              const delayMs = threadPresence.delayOf.get(card.id)
+              const parentPlacement = card.parentCardId ? displayPlacements.get(card.parentCardId) : undefined
+              const parentCard = card.parentCardId ? surfaceCards.find((c) => c.id === card.parentCardId) : undefined
+              const refMid = parentPlacement && parentCard ? parentPlacement.x + parentCard.width / 2 : pageWidth / 2
+              const onLeftSide = p.x + card.width / 2 < refMid
               return (
                 <div key={card.id} className="yarn-card-slot" style={{ zIndex: focusedCard === card.id ? 3 : 2 }}>
                   <YarnCardView
@@ -1337,6 +1588,9 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                     journal={actions.journalStates.get(card.id)}
                     textScale={actions.cardTextScale}
                     onTextSize={actions.stepCardText}
+                    presence={presenceState}
+                    onLeftSide={onLeftSide}
+                    delayMs={delayMs}
                   />
                 </div>
               )
@@ -1349,6 +1603,7 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                 title={clip.title}
                 x={clip.point[0]}
                 y={clip.point[1]}
+                tying={threadPresence.stateOf.get(clip.cardId) === 'closing'}
                 onOpen={() => onHighlightClick(clip.cardId)}
               />
             ))}
@@ -1389,10 +1644,21 @@ function ReaderSurface({ book, opened, settings, lang, onOpened, onBack, onOpenS
                 finish()
               }}
               onClip={() => void onClip()}
-              // A highlight is for text on the PDF page only (not a page area, nor text in a card or translation).
-              canHighlight={!pending.parentCardId && pending.anchors.every((a) => a.sourceType === 'pdf_text')}
+              canHighlight={
+                (!pending.parentCardId && pending.anchors.every((a) => a.sourceType === 'pdf_text')) ||
+                (pending.translatedPage !== undefined && pending.anchors.every((a) => a.sourceType === 'card'))
+              }
               highlightColor={highlightColor}
               onHighlight={(color) => void onHighlight(color)}
+              onRemoveHighlight={
+                pending.matchingHighlightIds?.length
+                  ? () => {
+                      const ids = pending.matchingHighlightIds!
+                      finish()
+                      void actions.removeHighlights(ids)
+                    }
+                  : undefined
+              }
               onTranslate={() => createFromPending('sky', 'translate')}
               onClose={finish}
             />

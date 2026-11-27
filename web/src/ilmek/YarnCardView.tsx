@@ -8,6 +8,11 @@ import { CARD_HEIGHT_RANGE, CARD_WIDTH_RANGE } from './cardsStore'
 import { GEOMETRY } from './geometry'
 import type { YarnCard } from './types'
 import { CARD_TEXT_SCALES, type JournalState } from './useThreadActions'
+import type { PresenceState } from './useThreadPresence'
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+}
 
 interface Props {
   /** 'world' cards float on the reading surface; 'column' cards sit in a list beside an EPUB. */
@@ -41,6 +46,12 @@ interface Props {
   onTextSize?: (delta: number) => void
   /** When given (cards in a column beside an EPUB), the card's title is a link back to its passage. */
   onQuoteClick?: (id: string) => void
+  /** Presence state for smooth enter / unravel exit transitions. */
+  presence?: PresenceState
+  /** True when the card sits left of the page (yarn attaches on its right edge). */
+  onLeftSide?: boolean
+  /** Optional stagger delay (ms) when revealing/hiding threads together. */
+  delayMs?: number
 }
 
 function errorText(t: Strings, code: string): string {
@@ -71,10 +82,42 @@ function capture(e: PointerEvent<HTMLElement>) {
   }
 }
 
+/** How long a card keeps its delayed entrance transition after it turns 'open' (delay + slide). */
+export const CARD_SETTLE_MS = 600
+
+/**
+ * True for a moment after a card goes from 'entering' to 'open'. Only then does the card wait for its
+ * yarn to draw out before sliding in (`.is-settling`); any later move (a reflow, a streaming answer
+ * pushing it down) follows its yarn at once.
+ */
+function useSettling(presence: PresenceState, delayMs = 0): boolean {
+  const prev = useRef(presence)
+  const [settling, setSettling] = useState(false)
+  useEffect(() => {
+    const was = prev.current
+    prev.current = presence
+    if (presence !== 'open') {
+      setSettling(presence === 'entering')
+      return
+    }
+    if (was !== 'entering') return
+    setSettling(true)
+    const timer = window.setTimeout(() => setSettling(false), CARD_SETTLE_MS + delayMs)
+    return () => window.clearTimeout(timer)
+  }, [presence, delayMs])
+  return settling
+}
+
 function YarnCardViewImpl(props: Props) {
   const { card } = props
   const { t, lang } = useI18n()
   const ref = useRef<HTMLElement>(null)
+  const middleRef = useRef<HTMLDivElement>(null)
+  const stickToBottomRef = useRef(true)
+  const lastScrollTopRef = useRef(0)
+  const smoothScrollUntilRef = useRef(0)
+  const userSentRef = useRef(false)
+  const prevMsgCountRef = useRef(card.messages.length)
   const [draft, setDraft] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [drag, setDragState] = useState<{ x: number; y: number } | null>(null)
@@ -211,6 +254,8 @@ function YarnCardViewImpl(props: Props) {
   const submit = () => {
     const body = draft.trim()
     if (!body || streaming) return
+    userSentRef.current = true
+    stickToBottomRef.current = true
     props.onAsk(card.id, body)
     setDraft('')
   }
@@ -219,6 +264,67 @@ function YarnCardViewImpl(props: Props) {
       e.preventDefault()
       submit()
     }
+  }
+
+  const lastMessage = card.messages[card.messages.length - 1]
+  useEffect(() => {
+    const prevCount = prevMsgCountRef.current
+    const countGrew = card.messages.length > prevCount
+    prevMsgCountRef.current = card.messages.length
+
+    const el = middleRef.current
+    if (!el) return
+
+    const isFollowUp = userSentRef.current || (prevCount >= 2 && countGrew)
+    if (column) {
+      if (isFollowUp) {
+        userSentRef.current = false
+        requestAnimationFrame(() => {
+          el.lastElementChild?.scrollIntoView?.({ block: 'end', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+        })
+      }
+      return
+    }
+
+    if (isFollowUp) {
+      userSentRef.current = false
+      stickToBottomRef.current = true
+      smoothScrollUntilRef.current = performance.now() + 450
+      requestAnimationFrame(() => {
+        const target = el.scrollHeight
+        if (typeof el.scrollTo === 'function') {
+          el.scrollTo({ top: target, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+        } else {
+          el.scrollTop = target
+        }
+        lastScrollTopRef.current = el.scrollTop
+      })
+      return
+    }
+
+    // Follow streaming tokens on follow-up turns unless the reader scrolled up to read earlier parts.
+    if (card.messages.length > 2 && streaming && stickToBottomRef.current) {
+      el.scrollTop = el.scrollHeight
+      lastScrollTopRef.current = el.scrollTop
+    }
+  }, [card.messages.length, lastMessage?.content, lastMessage?.state, column, streaming])
+
+  const onMiddleScroll = () => {
+    const el = middleRef.current
+    if (!el) return
+    const top = el.scrollTop
+    const prevTop = lastScrollTopRef.current
+    lastScrollTopRef.current = top
+    if (top < prevTop - 2) {
+      smoothScrollUntilRef.current = 0
+      stickToBottomRef.current = false
+      return
+    }
+    if (performance.now() < smoothScrollUntilRef.current) {
+      stickToBottomRef.current = true
+      return
+    }
+    stickToBottomRef.current = el.scrollHeight - top - el.clientHeight <= 56
   }
 
   // A page area shows its picture only (owner test 15 Nov). A passage of text is not quoted in the card:
@@ -230,14 +336,31 @@ function YarnCardViewImpl(props: Props) {
   const width = size?.w ?? card.width
   const height = size?.h ?? card.height
   const fixedHeight = !column && height !== undefined
+  const presence = props.presence ?? 'open'
+  const settling = useSettling(presence, props.delayMs)
+  const shiftedX = !column && presence !== 'open' ? x + (props.onLeftSide ? 10 : -10) : x
+  const scaleSuffix = !column && presence !== 'open' ? ' scale(0.96)' : ''
 
   return (
     <article
       ref={ref}
-      className={`yarn-card${column ? ' is-column' : ''}${card.isPinned ? ' is-pinned' : ''}${drag || size ? ' is-dragging' : ''}${fixedHeight ? ' has-height' : ''}`}
+      className={`yarn-card${column ? ' is-column' : ''}${card.isPinned ? ' is-pinned' : ''}${drag || size ? ' is-dragging' : ''}${fixedHeight ? ' has-height' : ''}${settling ? ' is-settling' : ''}`}
       data-yarn={card.color}
       data-card-id={card.id}
-      style={column ? undefined : { transform: `translate(${x}px, ${y}px)`, width, height: fixedHeight ? height : undefined }}
+      data-state={presence}
+      style={
+        column
+          ? props.delayMs
+            ? { ['--card-delay' as string]: `${props.delayMs}ms` }
+            : undefined
+          : {
+              transform: `translate(${shiftedX}px, ${y}px)${scaleSuffix}`,
+              transformOrigin: props.onLeftSide ? `100% ${GEOMETRY.cardAttachY}px` : `0px ${GEOMETRY.cardAttachY}px`,
+              width,
+              height: fixedHeight ? height : undefined,
+              ...(props.delayMs ? { ['--card-delay' as string]: `${props.delayMs}ms` } : {}),
+            }
+      }
       onPointerDown={() => props.onFocusCard(card.id)}
     >
       <header
@@ -324,7 +447,7 @@ function YarnCardViewImpl(props: Props) {
         </div>
       )}
 
-      <div className="yarn-card-middle">
+      <div ref={middleRef} className="yarn-card-middle" onScroll={onMiddleScroll}>
         {image && <img className="yarn-card-image" src={image} alt={t.areaSelection} draggable={false} />}
 
         <div className="yarn-card-body">

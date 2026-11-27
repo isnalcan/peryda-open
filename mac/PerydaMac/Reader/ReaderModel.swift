@@ -1040,7 +1040,8 @@ final class ReaderModel {
         // redraw (audit 16 Nov, M16-3).
         if let marksByPage { return marksByPage[page] ?? [] }
         var byPage: [Int: [Mark]] = [:]
-        for entry in journal where entry.source == .highlight {
+        // A highlight with a card id belongs to a translated page (web), not to the PDF page: never draw it here.
+        for entry in journal where entry.source == .highlight && entry.cardId == nil {
             let color = HighlightColor.id(entry.highlightColor)
             for mark in entry.marks ?? [] { byPage[mark.pageNumber, default: []].append(Mark(color: color, rects: mark.lineRects)) }
         }

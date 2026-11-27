@@ -149,7 +149,15 @@ export function App() {
   return (
     <I18nProvider lang={lang}>
       <ErrorBoundary key={book?.id ?? 'library'} title={STRINGS[lang].errorUnknown} action={STRINGS[lang].back} onReset={() => void openBook(null)}>
-      <Suspense fallback={<div className="reader-shell" />}>
+      <Suspense
+        fallback={
+          <div className="reader-shell">
+            <p className="reader-message" role="status">
+              <span className="spinner" aria-hidden="true" /> {STRINGS[lang].openingBook}
+            </p>
+          </div>
+        }
+      >
       {book && book.format === 'pdf' ? (
         <PdfReader key={book.id} book={book} settings={settings} onOpened={onOpened} onBack={() => void openBook(null)} onOpenSettings={() => setShowSettings(true)} />
       ) : book && book.format === 'epub' ? (
