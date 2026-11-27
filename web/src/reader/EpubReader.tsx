@@ -136,12 +136,6 @@ export function EpubReader({ book, settings, onOpened, onBack, onOpenSettings }:
         setChapter((prev) => prev || saved?.page || 1)
         void db.books.update(book.id, { openedAt: Date.now() })
         onOpened?.(book.id)
-        // Ensure continuous scroll manager checks/fills remaining viewport space right after initial display.
-        requestAnimationFrame(() => {
-          if (cancelled || !hostRef.current || !rend) return
-          const r = hostRef.current.getBoundingClientRect()
-          if (r.width > 0 && r.height > 0) rend.resize(r.width, r.height)
-        })
         rend.on('relocated', (loc: { start: { cfi: string; index: number } }) => {
           setChapter(loc.start.index + 1)
           void db.positions.put({ bookId: book.id, cfi: loc.start.cfi, panX: 0, panY: 0, scale: 1, page: loc.start.index + 1, updatedAt: Date.now() })
