@@ -14,7 +14,7 @@ let package = Package(
     dependencies: [
         // Backups and EPUB archives (ZIP), EPUB markup cleaning (SwiftSoup). SwiftSoup 2.14 or later: 2.13.9
         // crashed on malformed XML processing instructions (`<??>`) in a book (audit MA-1, 15 Nov).
-        .package(url: "https://github.com/weichsel/ZIPFoundation.git", exact: "0.9.20"),
+        .package(url: "https://github.com/weichsel/ZIPFoundation.git", exact: "0.9.21"),
         .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.14.4"),
         // Pinned to the commit of Sparkle 2.10.1, whose Package.swift carries the checksum of the
         // framework it downloads, so a moved tag cannot change what is shipped.
