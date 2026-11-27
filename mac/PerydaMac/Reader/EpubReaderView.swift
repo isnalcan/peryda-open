@@ -126,15 +126,15 @@ struct EpubReaderSurface: View {
                             Button { reader.goToChapter(c.index + 1) } label: {
                                 let title = c.title.trimmingCharacters(in: .whitespacesAndNewlines)
                                 if c.index + 1 == chapter {
-                                    Label(title.isEmpty ? Compose.chapterLabel(app.lang, c.index + 1) : title, systemImage: "checkmark")
+                                    Label(title.isEmpty ? Compose.chapterTitle(app.lang, c.index + 1) : title, systemImage: "checkmark")
                                 } else {
-                                    Text(title.isEmpty ? Compose.chapterLabel(app.lang, c.index + 1) : title)
+                                    Text(title.isEmpty ? Compose.chapterTitle(app.lang, c.index + 1) : title)
                                 }
                             }
                         }
                     }
                 } label: {
-                    Text(Compose.chapterLabel(app.lang, chapter))
+                    Text(Compose.chapterTitle(app.lang, chapter))
                 }
                 .help(t["toc"])
                 Button { reader.goToChapter(chapter + 1) } label: { Image(systemName: "chevron.right") }
@@ -143,7 +143,7 @@ struct EpubReaderSurface: View {
                     .disabled(chapter >= chapters.count)
             }
         } else {
-            Text(Compose.chapterLabel(app.lang, chapter)).foregroundStyle(.secondary)
+            Text(Compose.chapterTitle(app.lang, chapter)).foregroundStyle(.secondary)
         }
     }
 
@@ -334,6 +334,10 @@ struct EpubWebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             loaded = true
             parent.reader.epubReady = true
+            // The chapter controls show at once: the saved chapter, or the first.
+            if parent.reader.epubChapter == nil {
+                parent.reader.epubChapter = EPUBBook.parseLocator(parent.reader.savedPosition?.cfi).map { $0.chapter + 1 } ?? 1
+            }
             lastHighlights = ""
             lastStyle = ""
             applyStyle()

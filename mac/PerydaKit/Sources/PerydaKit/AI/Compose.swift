@@ -45,6 +45,14 @@ public enum Compose {
         fill(SharedContract.prompts.pageLabel.text(lang), ["page": String(page)])
     }
 
+    /// "Bölüm 3" for a heading or a button (chapterLabel is the lower-case form used inside sentences),
+    /// as web/src/ai/compose.ts chapterTitle.
+    public static func chapterTitle(_ lang: Lang, _ chapter: Int) -> String {
+        let label = chapterLabel(lang, chapter)
+        guard let first = label.first, first.isLowercase else { return label }
+        return String(first).uppercased(with: Locale(identifier: lang.rawValue)) + label.dropFirst()
+    }
+
     public static func chapterLabel(_ lang: Lang, _ chapter: Int) -> String {
         fill(SharedContract.prompts.chapterLabel.text(lang), ["chapter": String(chapter)])
     }

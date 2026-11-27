@@ -100,7 +100,9 @@ struct ReaderSurface: View {
                     .background(Color.paperRaised, in: RoundedRectangle(cornerRadius: 10))
                     .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(16)
+                    // Above the camera bar in the same corner (it used to sit on top of Focus and Map).
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 60)
                     .task(id: id) {
                         try? await Task.sleep(for: .seconds(8))
                         if reader.offscreenCard == id { reader.offscreenCard = nil }

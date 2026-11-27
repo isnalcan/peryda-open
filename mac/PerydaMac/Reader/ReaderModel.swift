@@ -973,6 +973,8 @@ final class ReaderModel {
         guard !ids.isEmpty else { return }
         for id in ids { try? store.deleteJournal(id, bookId: book.id) }
         pending = nil
+        // The words selected in a translated page go with the menu.
+        AnswerTextView.clearActive()
         reloadJournal()
         flash(UIText(lang)["highlightRemoved"])
     }
@@ -1115,6 +1117,7 @@ final class ReaderModel {
             guard !quote.isEmpty else { return }
             try? store.addJournal(JournalRecord(bookId: book.id, source: .highlight, quote: quote, text: "", pageNumber: translation.translatedPage ?? 0, cardId: translation.id, highlightColor: HighlightColor.stored(highlightColor)))
             self.pending = nil
+            AnswerTextView.clearActive()
             reloadJournal()
             flash(UIText(lang)["highlighted"])
             return

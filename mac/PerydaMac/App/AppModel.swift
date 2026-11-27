@@ -99,7 +99,14 @@ final class AppModel {
         lang = Lang(rawValue: defaults.string(forKey: "lang") ?? "") ?? Lang.preferred()
         theme = ThemePreference(rawValue: defaults.string(forKey: "theme") ?? "") ?? .system
         showWelcome = !defaults.bool(forKey: "welcomed")
-        keychain = KeychainVault()
+        var vault: KeyVault = KeychainVault()
+        #if DEBUG
+        // A development copy under another bundle id (a test install beside the real app) never reads
+        // or writes the real app's Keychain item: its keys live only for the run (27 Nov 2026: a copy
+        // asked the system for the reader's saved key).
+        if Bundle.main.bundleIdentifier != "com.isnalcan.peryda.mac" { vault = MemoryVault() }
+        #endif
+        keychain = vault
         settings = (defaults.object(forKey: "rememberKeys") as? Bool ?? true) ? keychain.load() : ByokSettings()
         books = store.books()
         showUnreadableFiles()
