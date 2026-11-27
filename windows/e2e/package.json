@@ -3,6 +3,6 @@
   "private": true,
   "description": "Smoke test for the Windows app (drives a test build over WebView2's DevTools port).",
   "dependencies": {
-    "playwright-core": "1.65.0"
+    "playwright-core": "1.65.1"
   }
 }
