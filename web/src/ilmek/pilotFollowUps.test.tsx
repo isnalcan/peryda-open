@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { escapeClosesJournal } from '../journal/JournalPanel'
 import type { JournalRecord } from '../data/db'
-import { LEFT_LANE_SINCE, layoutCards, type CardForLayout } from './lane'
+import { LEFT_LANE_SINCE, MAX_BALANCED_ROOTS, layoutCards, type CardForLayout } from './lane'
 import { matchingTranslationHighlights } from './threadMarks'
 import { useThreadPresence, type ThreadPresence } from './useThreadPresence'
 
@@ -95,6 +95,15 @@ describe('Right and left margin lanes', () => {
   it('never moves threads from before the update: an older book opens as the reader left it', () => {
     const old = LEFT_LANE_SINCE - 10_000
     expect(sides([card('a', 250, old), card('b', 280, old + 1), card('c', 300, old + 2)])).toEqual({ a: 'right', b: 'right', c: 'right' })
+  })
+
+  it('stays fast with a huge (say crafted) number of threads: beyond the cap all open on the right', () => {
+    const many = Array.from({ length: 5000 }, (_, i) => card(`m${i}`, 100 + (i % 50), NEW + i))
+    const started = performance.now()
+    const placed = layoutCards(many, LANE, { pageWidth: PAGE })
+    expect(performance.now() - started).toBeLessThan(2000)
+    expect([...placed.values()].every((p) => p.x === LANE)).toBe(true)
+    expect(MAX_BALANCED_ROOTS).toBeLessThan(5000)
   })
 
   it('keeps every card on its side when an earlier thread is folded or its answer grows', () => {

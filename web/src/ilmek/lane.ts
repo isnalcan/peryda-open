@@ -59,6 +59,8 @@ export interface LayoutOptions {
 }
 
 const PROBE_CARD_HEIGHT = 260
+/** Above this many free first-generation threads in one layout, all of them stay in the right lane. */
+export const MAX_BALANCED_ROOTS = 400
 
 function laneDisplacement(items: readonly LaneItem[]): number {
   if (!items.length) return 0
@@ -135,11 +137,15 @@ export function layoutCards(
     const rightProbes: (LaneItem & { page?: number })[] = []
     const leftProbes: (LaneItem & { page?: number })[] = []
 
+    // Weighing the two sides re-solves the lanes for every thread (quadratic), so a book with more than
+    // MAX_BALANCED_ROOTS free first-generation threads (only a huge, say crafted, backup) keeps them all
+    // on the right instead of freezing.
+    const balance = cards.filter((c) => !c.isPinned && depthOf(c) === 0).length <= MAX_BALANCED_ROOTS
     for (const c of cards) {
       if (c.isPinned || depthOf(c) !== 0) continue
       const desiredY = c.anchorY - GEOMETRY.anchorLift
       const probe: LaneItem & { page?: number } = { id: c.id, desiredY, height: PROBE_CARD_HEIGHT, page: c.page }
-      if (c.createdAt !== undefined && c.createdAt < LEFT_LANE_SINCE) {
+      if (!balance || (c.createdAt !== undefined && c.createdAt < LEFT_LANE_SINCE)) {
         rootSide.set(c.id, 'right')
         rightProbes.push(probe)
         continue
