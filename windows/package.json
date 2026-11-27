@@ -1,7 +1,7 @@
 {
   "name": "peryda-windows",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Peryda for Windows: the web reading engine in a native window (Tauri v2, WebView2).",
   "scripts": {
     "tauri": "tauri",

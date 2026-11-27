@@ -1,6 +1,6 @@
 [package]
 name = "peryda-windows"
-version = "0.1.2"
+version = "0.1.3"
 description = "Peryda for Windows"
 license = "MIT"
 edition = "2021"
